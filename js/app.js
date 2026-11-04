@@ -72,8 +72,7 @@ function pantallaIngreso(modo = "entrar", aviso = "") {
     <p class="eyebrow">Gestión SYM</p><h2>${crear ? "Crear cuenta" : "Entrar"}</h2>
     <p class="lead">${crear ? "Después de crearla, el administrador te da acceso." : "Obra en vivo, recesos y herramientas de tu empresa."}</p>
     <form id="f">
-      ${crear ? `<div class="field"><label for="nombre">Tu nombre</label><input id="nombre" autocomplete="name" required></div>
-      <div class="field"><label for="usuario">Nombre de usuario</label><input id="usuario" autocomplete="username" autocapitalize="none" spellcheck="false" pattern="[a-zA-Z0-9._]{3,30}" placeholder="Ej. leonardo" required>
+      ${crear ? `<div class="field"><label for="usuario">Usuario</label><input id="usuario" autocomplete="username" autocapitalize="none" spellcheck="false" pattern="[a-zA-Z0-9._]{3,30}" placeholder="Ej. leonardo" required>
         <small class="note" style="margin:0">Letras, números, punto o guion bajo. Con esto también puedes entrar.</small></div>
       <div class="field"><label for="email">Correo</label><input id="email" type="email" autocomplete="email" required></div>`
       : `<div class="field"><label for="email">Usuario o correo</label><input id="email" autocomplete="username" autocapitalize="none" spellcheck="false" required></div>`}
@@ -95,7 +94,7 @@ function pantallaIngreso(modo = "entrar", aviso = "") {
         if (e1) throw e1;
         if (!libre) throw new Error("usuario_ocupado");
         const { data, error } = await sb.auth.signUp({ email, password,
-          options: { data: { nombre: V.querySelector("#nombre").value.trim(), usuario }, emailRedirectTo: location.origin + location.pathname } });
+          options: { data: { nombre: usuario.charAt(0).toUpperCase() + usuario.slice(1), usuario }, emailRedirectTo: location.origin + location.pathname } });
         if (error) throw error;
         if (!data.session) return pantallaMensaje("Revisa tu correo", `Te enviamos un enlace a <b>${esc(email)}</b> para confirmar tu cuenta. Ábrelo y luego entra con tu usuario <b>${esc(usuario)}</b> o tu correo.`, true);
       } else {
