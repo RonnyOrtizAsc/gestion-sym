@@ -15,10 +15,10 @@ const C = {
 };
 // Cómo se ve cada clase de trazo según el estado del área donde está
 const ESTILO = {
-  existe:     { muro: 'stroke="#1f2327" stroke-width="3.4"', fino: 'stroke="#6b7178" stroke-width="1"', borde: 'stroke="#454a50" stroke-width="2"', columna: 'stroke="#1d2125" stroke-width="2.2" fill="#1d2125"', jardin: 'stroke="#3f7d32" stroke-width="1.3"' },
-  en_proceso: { muro: 'stroke="#b26b00" stroke-width="2.6"', fino: 'stroke="#c48a2c" stroke-width="1.2"', borde: 'stroke="#b26b00" stroke-width="2.6"', columna: 'stroke="#b26b00" stroke-width="2.2" fill="#b26b00"', jardin: 'stroke="#8aa64a" stroke-width="1.3"' },
+  existe:     { grada: 'stroke="#1f2327" stroke-width="1.6"', muro: 'stroke="#1f2327" stroke-width="3.4"', fino: 'stroke="#6b7178" stroke-width="1"', borde: 'stroke="#454a50" stroke-width="2"', columna: 'stroke="#1d2125" stroke-width="2.2" fill="#1d2125"', jardin: 'stroke="#3f7d32" stroke-width="1.3"' },
+  en_proceso: { grada: 'stroke="#b26b00" stroke-width="1.6"', muro: 'stroke="#b26b00" stroke-width="2.6"', fino: 'stroke="#c48a2c" stroke-width="1.2"', borde: 'stroke="#b26b00" stroke-width="2.6"', columna: 'stroke="#b26b00" stroke-width="2.2" fill="#b26b00"', jardin: 'stroke="#8aa64a" stroke-width="1.3"' },
   // lo que falta se ve transparente: es el proyecto final "en espera"
-  falta:      { muro: 'stroke="#8ea3b8" stroke-opacity=".5" stroke-width="2.4"', fino: 'stroke="#9fb0c2" stroke-opacity=".45" stroke-width="1"', borde: 'stroke="#8ea3b8" stroke-opacity=".5" stroke-width="1.8"', columna: 'stroke="#8ea3b8" stroke-opacity=".5" stroke-width="1.6" fill="#8ea3b8" fill-opacity=".2"', jardin: 'stroke="#7fae6c" stroke-opacity=".35" stroke-width="1"' },
+  falta:      { grada: 'stroke="#8ea3b8" stroke-opacity=".6" stroke-width="1.4"', muro: 'stroke="#8ea3b8" stroke-opacity=".5" stroke-width="2.4"', fino: 'stroke="#9fb0c2" stroke-opacity=".45" stroke-width="1"', borde: 'stroke="#8ea3b8" stroke-opacity=".5" stroke-width="1.8"', columna: 'stroke="#8ea3b8" stroke-opacity=".5" stroke-width="1.6" fill="#8ea3b8" fill-opacity=".2"', jardin: 'stroke="#7fae6c" stroke-opacity=".35" stroke-width="1"' },
 };
 const ELEM = { grada: "#8a8f96", jardinera: "#5f9a45", bano: "#4f9fd0", muro: "#1d2125", puerta: "#6c5a3d", columna: "#1d2125", bodega: "#ee8420", otro: "#7d6bb3" };
 
@@ -100,6 +100,7 @@ export function grupoDe(i) {
 // Qué es (para el título de la hoja)
 export function queEs(grupo) {
   const clases = grupo.map((i) => TRAZO[i][0]);
+  if (TRAZO[grupo[0]][0] === "grada" || clases.includes("grada")) return "Gradas";
   if (TRAZO[grupo[0]][0] === "muro") return "Pared";
   const cortasParalelas = grupo.filter((i) => TRAZO[i][0] === "borde" && CAJAS[i].largo < 40).length;
   if (cortasParalelas >= 3) return "Gradas";
@@ -120,7 +121,7 @@ export function dibujarObra(areas, elementos = [], piezas = {}) {
   const zonas = areas.map((a) => ({ a, ...px(a) }));
   const grupos = {};
   TRAZO.forEach(([clase, , , d], i) => { (grupos[estadoPieza(i, piezas) + "|" + clase] ||= []).push(d); });
-  const trazo = ["falta", "en_proceso", "existe"].flatMap((e) => ["jardin", "fino", "borde", "muro", "columna"].map((c) => {
+  const trazo = ["falta", "en_proceso", "existe"].flatMap((e) => ["jardin", "fino", "grada", "borde", "muro", "columna"].map((c) => {
     const ds = grupos[e + "|" + c]; return ds ? `<path ${ESTILO[e][c]} ${c === "columna" ? "" : 'fill="none"'} stroke-linecap="round" d="${ds.join("")}"/>` : "";
   })).join("");
   const arboles = Array.from({ length: 12 }, (_, i) => `<circle cx="${42 + (i % 2) * 10}" cy="${120 + i * 112}" r="${17 + (i % 3) * 3}" fill="#6f9a4c"/><circle cx="${38 + (i % 2) * 10}" cy="${115 + i * 112}" r="8" fill="#89b263"/>`).join("");
