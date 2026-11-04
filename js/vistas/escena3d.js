@@ -94,13 +94,27 @@ function muros(X, Y, W, H, alto, color, opacidad) {
   return g;
 }
 
-function ponerEdificios(areas) {
+function ponerEdificios(areas, elementos = []) {
   E.edificios.clear();
   for (const a of areas) {
     const tipo = a.es_receso ? "receso" : a.tipo;
     const X = (a.x / 100) * ANCHO + 3, Y = (a.y / 100) * ALTO + 3, W = (a.w / 100) * ANCHO - 6, H = (a.h / 100) * ALTO - 6;
-    if (tipo === "receso") E.edificios.add(muros(X, Y, W, H, 4, NARANJA, 0.9));
-    else if (ALTURA[tipo]) E.edificios.add(muros(X, Y, W, H, ALTURA[tipo], COLOR_MURO[tipo], tipo === "sala" ? 0.35 : 0.92));
+    if (tipo === "receso") { E.edificios.add(muros(X, Y, W, H, 4, NARANJA, 0.9)); continue; }
+    if (!ALTURA[tipo]) continue;
+    // Según su estado: existe = completo · en construcción = a media altura en ocre · falta = fantasma
+    if (a.estado === "falta") E.edificios.add(muros(X, Y, W, H, ALTURA[tipo], 0x7f9bb8, 0.14));
+    else if (a.estado === "en_proceso") E.edificios.add(muros(X, Y, W, H, ALTURA[tipo] * 0.5, 0xc98a2c, 0.85));
+    else E.edificios.add(muros(X, Y, W, H, ALTURA[tipo], COLOR_MURO[tipo], tipo === "sala" ? 0.35 : 0.92));
+  }
+  // Elementos agregados (gradas, jardineras, baños…)
+  const ALTO_EL = { grada: 2.2, jardinera: 1.2, bano: 3, muro: 3.5, puerta: 3, columna: 6, bodega: 4, otro: 2 };
+  const COL_EL = { grada: 0x8a8f96, jardinera: 0x5f9a45, bano: 0x4f9fd0, muro: 0x3b4046, puerta: 0x6c5a3d, columna: 0x3b4046, bodega: 0xee8420, otro: 0x7d6bb3 };
+  for (const e of elementos) {
+    const X = (e.x / 100) * ANCHO, Y = (e.y / 100) * ALTO, W = Math.max(2, (e.w / 100) * ANCHO), H = Math.max(2, (e.h / 100) * ALTO);
+    const alto = (ALTO_EL[e.tipo] || 2) * (e.estado === "en_proceso" ? 0.5 : 1), c = aEscena(X + W / 2, Y + H / 2);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(W * ESC, alto, H * ESC), new THREE.MeshStandardMaterial({
+      color: e.estado === "en_proceso" ? 0xc98a2c : COL_EL[e.tipo] || 0x7d6bb3, transparent: e.estado === "falta", opacity: e.estado === "falta" ? 0.18 : 1 }));
+    m.position.set(c.x, alto / 2, c.z); m.castShadow = e.estado !== "falta"; m.receiveShadow = true; E.edificios.add(m);
   }
   // Árboles del boulevard
   const tronco = new THREE.MeshLambertMaterial({ color: 0x7a5a3a }), copa = new THREE.MeshLambertMaterial({ color: 0x5f8f3e });
@@ -167,12 +181,12 @@ function animar() {
 }
 
 // Pone la escena dentro del contenedor y la actualiza con los datos actuales
-export function montar(contenedor, { svg, clave, areas, personas, handlers }) {
+export function montar(contenedor, { svg, clave, areas, elementos, personas, handlers }) {
   if (!E) crear();
   E.handlers = handlers;
   contenedor.appendChild(E.renderer.domElement);
   ajustar();
-  if (E.clave !== clave) { E.clave = clave; ponerPiso(svg); ponerEdificios(areas); }
+  if (E.clave !== clave) { E.clave = clave; ponerPiso(svg); ponerEdificios(areas, elementos); }
   ponerPersonas(personas);
   if (!E.corriendo) { E.corriendo = true; E.reloj.getDelta(); animar(); }
 }

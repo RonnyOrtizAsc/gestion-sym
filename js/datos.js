@@ -17,6 +17,7 @@ export const S = {
   perfiles: [],       // solo para el admin
   obra: null,         // obra activa (con sus planos)
   areas: [],          // áreas de la obra sobre el plano
+  elementos: [],      // gradas, jardineras, baños… con su estado
 };
 
 const ok = ({ data, error }) => { if (error) throw new Error(traducir(error)); return data; };
@@ -36,7 +37,7 @@ export async function cargarPerfil() {
 
 export async function cargarTodo() {
   const hoy = inicioDelDia().toISOString();
-  const [t, s, r, h, p, o, a] = await Promise.all([
+  const [t, s, r, h, p, o, a, el] = await Promise.all([
     sb.from("trabajadores").select("*").eq("activo", true).order("nombre"),
     sb.from("sesiones_receso").select("*").is("fin", null).maybeSingle(),
     sb.from("recesos").select("*").or(`inicio.gte.${hoy},fin.is.null`).order("inicio"),
@@ -44,9 +45,11 @@ export async function cargarTodo() {
     sb.from("prestamos").select("*").in("estado", ["activo", "perdido"]).order("prestado_en", { ascending: false }),
     sb.from("obras").select("*").eq("activa", true).order("creado_en").limit(1).maybeSingle(),
     sb.from("areas").select("*").order("orden"),
+    sb.from("elementos").select("*").order("creado_en"),
   ]);
   S.trabajadores = ok(t); S.sesion = ok(s); S.recesos = ok(r); S.herramientas = ok(h); S.prestamos = ok(p);
   S.obra = ok(o); S.areas = ok(a).filter((x) => !S.obra || x.obra_id === S.obra.id);
+  S.elementos = ok(el).filter((x) => !S.obra || x.obra_id === S.obra.id);
   if (S.perfil?.rol === "admin") S.perfiles = ok(await sb.from("perfiles").select("*").order("creado_en"));
 }
 
@@ -111,6 +114,22 @@ export const area = (id) => S.areas.find((a) => a.id === id) || null;
 export const enArea = (aid) => S.trabajadores.filter((w) => w.area_id === aid);
 export async function moverTrabajador(wid, areaId) {
   ok(await sb.from("trabajadores").update({ area_id: areaId }).eq("id", wid));
+}
+
+// ---------- Plano: estados y elementos ----------
+export const ESTADOS = { existe: "Existe", en_proceso: "En construcción", falta: "Falta" };
+export const TIPOS_ELEMENTO = { grada: "Gradas", jardinera: "Jardinera", bano: "Baño", muro: "Muro", puerta: "Puerta", columna: "Columna", bodega: "Bodega", otro: "Otro" };
+export async function estadoArea(id, estado) {
+  ok(await sb.from("areas").update({ estado }).eq("id", id));
+}
+export async function agregarElemento(e) {
+  return ok(await sb.from("elementos").insert({ ...e, obra_id: S.obra.id, actualizado_por: yo() }).select().single());
+}
+export async function editarElemento(id, cambios) {
+  ok(await sb.from("elementos").update({ ...cambios, actualizado_en: ahora(), actualizado_por: yo() }).eq("id", id));
+}
+export async function borrarElemento(id) {
+  ok(await sb.from("elementos").delete().eq("id", id));
 }
 
 export async function editarPerfil(id, cambios) {

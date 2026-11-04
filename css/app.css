@@ -214,3 +214,20 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
 .escena{position:relative;width:100%;height:min(72vh,720px);border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#cfe3ef;touch-action:none}
 .escena canvas{display:block;width:100%;height:100%}
 .escena .cargando{position:absolute;inset:0;display:grid;place-items:center;margin:0;color:#3b4046}
+
+/* ---------- Editar plano ---------- */
+.hud-btn.secundario{background:var(--surface);color:var(--ink);border-color:var(--line)}
+.hud-btn.activo-edit{background:var(--lime);color:var(--lime-ink);border-color:var(--lime)}
+.estados{display:flex;gap:6px;flex-wrap:wrap}
+.est{flex:1 1 100px;border:1.5px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 8px;font-weight:800;font-size:13px}
+.est.existe[aria-pressed="true"]{background:#1d2125;color:#fff;border-color:#1d2125}
+.est.en_proceso[aria-pressed="true"]{background:#f2c230;color:#3a2a00;border-color:#c98a2c}
+.est.falta[aria-pressed="true"]{background:#dce6f0;color:#35506b;border-color:#7f9bb8;border-style:dashed}
+.chip[aria-pressed="true"] .n{opacity:.8}
+.mapa.editando .tok{pointer-events:none;opacity:.35}
+.mapa.editando .area{box-shadow:inset 0 0 0 1.5px #7f9bb899}
+.mapa.editando .area.sel{box-shadow:inset 0 0 0 4px var(--lime)}
+.el-btn{position:absolute;z-index:3;border:2px dashed transparent;background:transparent;border-radius:3px;padding:0;min-width:14px;min-height:14px}
+.el-btn:hover,.el-btn.sel{border-color:var(--lime-ink);background:color-mix(in srgb,var(--lime) 35%,transparent)}
+.captura{position:absolute;inset:0;z-index:6;cursor:crosshair;background:color-mix(in srgb,var(--lime) 8%,transparent)}
+.punto{position:absolute;z-index:7;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:var(--lime);border:2px solid var(--lime-ink);pointer-events:none}
