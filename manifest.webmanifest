@@ -1,0 +1,17 @@
+{
+  "name": "Gestión SYM",
+  "short_name": "Gestión SYM",
+  "description": "Obra en vivo, recesos y herramientas de la empresa.",
+  "lang": "es",
+  "start_url": "./#obra",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#16181a",
+  "theme_color": "#16181a",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
