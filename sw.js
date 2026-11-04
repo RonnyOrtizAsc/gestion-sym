@@ -1,7 +1,7 @@
 // Permite instalar Gestión SYM como app y abrirla aunque la señal esté mala.
 // Siempre intenta traer la versión nueva primero; si no hay internet, usa la guardada.
 // Los datos (Supabase) nunca se guardan aquí: siempre vienen en vivo.
-const CACHE = "gestion-sym-v8";
+const CACHE = "gestion-sym-v9";
 const ARCHIVOS = ["./", "index.html", "css/app.css", "js/app.js", "js/datos.js", "js/util.js", "js/config.js",
   "js/vistas/obra.js", "js/vistas/recesos.js", "js/vistas/herramientas.js", "js/vistas/mas.js",
   "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png"];

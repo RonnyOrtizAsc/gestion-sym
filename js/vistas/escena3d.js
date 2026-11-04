@@ -22,16 +22,16 @@ function crear() {
   scene.background = new THREE.Color(0xcfe3ef);
   scene.fog = new THREE.Fog(0xcfe3ef, 260, 520);
   const camera = new THREE.PerspectiveCamera(42, 1, 1, 1200);
-  camera.position.set(-40, 150, 170);
+  camera.position.set(-35, 120, 135);
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true; controls.maxPolarAngle = 1.32; controls.minDistance = 30; controls.maxDistance = 360;
-  controls.target.set(0, 0, 10);
+  controls.target.set(0, 0, 5);
 
   scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f7a, 1.15));
   const sol = new THREE.DirectionalLight(0xffffff, 1.6);
   sol.position.set(-80, 160, 60); sol.castShadow = true;
   sol.shadow.mapSize.set(2048, 2048);
-  Object.assign(sol.shadow.camera, { left: -110, right: 110, top: 130, bottom: -130, near: 10, far: 400 });
+  Object.assign(sol.shadow.camera, { left: -100, right: 100, top: 100, bottom: -100, near: 10, far: 400 });
   scene.add(sol);
 
   // Terreno alrededor del lote
@@ -104,7 +104,7 @@ function ponerEdificios(areas) {
   }
   // Árboles del boulevard
   const tronco = new THREE.MeshLambertMaterial({ color: 0x7a5a3a }), copa = new THREE.MeshLambertMaterial({ color: 0x5f8f3e });
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < 12; i++) {
     const p = aEscena(45, 120 + i * 112), t = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, 4), tronco);
     t.position.set(p.x, 2, p.z); const c = new THREE.Mesh(new THREE.SphereGeometry(3.2 + (i % 3) * 0.5, 10, 8), copa);
     c.position.set(p.x, 6, p.z); c.castShadow = true; t.castShadow = true; E.edificios.add(t, c);
@@ -177,4 +177,4 @@ export function montar(contenedor, { svg, clave, areas, personas, handlers }) {
   if (!E.corriendo) { E.corriendo = true; E.reloj.getDelta(); animar(); }
 }
 
-export function vistaInicial() { if (!E) return; E.camera.position.set(-40, 150, 170); E.controls.target.set(0, 0, 10); }
+export function vistaInicial() { if (!E) return; E.camera.position.set(-35, 120, 135); E.controls.target.set(0, 0, 5); }

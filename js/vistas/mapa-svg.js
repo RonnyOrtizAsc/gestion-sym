@@ -1,9 +1,9 @@
 // Dibuja la obra como un mapa propio (estilo juego) a partir de las áreas guardadas.
-// Unidades: el plano mide 1388 × 2000; cada área viene en % (x, y, w, h).
+// Unidades: el mapa mide 1388 × 1520 (desde la línea M1 hasta la calle); cada área viene en % (x, y, w, h).
 import { esc } from "../util.js";
 
-export const ANCHO = 1388, ALTO = 2000;
-const LOTE = { x: 85, y: 37, w: 1250, h: 1888 };
+export const ANCHO = 1388, ALTO = 1520;
+const LOTE = { x: 85, y: 5, w: 1250, h: 1440 };
 
 // Colores del "mundo" (el mapa es un tablero y se ve igual en modo claro y oscuro)
 const C = {
@@ -117,7 +117,8 @@ function relleno(a, X, Y, W, H) {
 }
 
 function etiqueta(a, X, Y, W, H, nombre) {
-  const fs = Math.max(20, Math.min(46, Math.min(W, H) * 0.2));
+  const larga = Math.max(...nombre.split(" ").map((p) => p.length));
+  const fs = Math.max(12, Math.min(46, Math.min(W, H) * 0.2, (W * 0.92) / (larga * 0.6)));
   const porLinea = Math.max(6, Math.floor(W / (fs * 0.56)));
   const lineas = []; let actual = "";
   for (const p of nombre.split(" ")) { if ((actual + " " + p).trim().length > porLinea && actual) { lineas.push(actual); actual = p; } else actual = (actual + " " + p).trim(); }
@@ -135,7 +136,7 @@ export function dibujarObra(areas) {
       <rect x="${X + g}" y="${Y + g}" width="${W - 2 * g}" height="${H - 2 * g}" fill="${fondo}" ${interior ? `stroke="${C.muro}" stroke-width="5"` : ""} rx="${interior ? 2 : 6}"/>
       ${a.es_receso ? "" : relleno(a, X + g, Y + g, W - 2 * g, H - 2 * g)}</g>` };
   });
-  const arboles = Array.from({ length: 16 }, (_, i) => `<circle cx="${42 + (i % 2) * 10}" cy="${120 + i * 112}" r="${17 + (i % 3) * 3}" fill="#6f9a4c"/><circle cx="${38 + (i % 2) * 10}" cy="${115 + i * 112}" r="${8}" fill="#89b263"/>`).join("");
+  const arboles = Array.from({ length: 12 }, (_, i) => `<circle cx="${42 + (i % 2) * 10}" cy="${120 + i * 112}" r="${17 + (i % 3) * 3}" fill="#6f9a4c"/><circle cx="${38 + (i % 2) * 10}" cy="${115 + i * 112}" r="${8}" fill="#89b263"/>`).join("");
   return `<svg class="mundo" viewBox="0 0 ${ANCHO} ${ALTO}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <defs>
     <style>.mundo .et{font-family:Manrope,Arial,sans-serif;font-weight:800;fill:#1d2125;paint-order:stroke;stroke:#ffffffe6;stroke-width:6px;stroke-linejoin:round}.mundo .et.calle{fill:#ffffffcc;stroke:none;font-weight:500;letter-spacing:.2em}</style>
@@ -146,9 +147,9 @@ export function dibujarObra(areas) {
   </defs>
   <rect width="${ANCHO}" height="${ALTO}" fill="${C.acera}"/>
   <rect x="0" y="0" width="80" height="${ALTO}" fill="${C.zacate}"/>${arboles}
-  <rect x="0" y="1935" width="${ANCHO}" height="65" fill="${C.calle}"/>
-  <line x1="0" y1="1967" x2="${ANCHO}" y2="1967" stroke="${C.amarillo}" stroke-width="3" stroke-dasharray="26 18"/>
-  <text class="et calle" x="${ANCHO / 2}" y="1968" font-size="20" text-anchor="middle" dominant-baseline="middle">CALLE DE ACCESO</text>
+  <rect x="0" y="1455" width="${ANCHO}" height="65" fill="${C.calle}"/>
+  <line x1="0" y1="1487" x2="${ANCHO}" y2="1487" stroke="${C.amarillo}" stroke-width="3" stroke-dasharray="26 18"/>
+  <text class="et calle" x="${ANCHO / 2}" y="1488" font-size="20" text-anchor="middle" dominant-baseline="middle">CALLE DE ACCESO</text>
   <text class="et calle" x="22" y="${ALTO / 2}" font-size="20" text-anchor="middle" dominant-baseline="middle" transform="rotate(-90 22 ${ALTO / 2})">BOULEVARD SANTA ELENA</text>
   <rect x="${LOTE.x}" y="${LOTE.y}" width="${LOTE.w}" height="${LOTE.h}" fill="${C.lote}" stroke="#b9b4a8" stroke-width="3" rx="4"/>
   ${bloques.map((b) => b.svg).join("")}
