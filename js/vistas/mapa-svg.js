@@ -15,7 +15,7 @@ const C = {
 };
 // Cómo se ve cada clase de trazo según el estado del área donde está
 const ESTILO = {
-  existe:     { muro: 'stroke="#1d2125" stroke-width="2.6"', fino: 'stroke="#4b5158" stroke-width="1.2"', borde: 'stroke="#33383d" stroke-width="2.6"', columna: 'stroke="#1d2125" stroke-width="2.2" fill="#1d2125"', jardin: 'stroke="#3f7d32" stroke-width="1.3"' },
+  existe:     { muro: 'stroke="#1f2327" stroke-width="3.4"', fino: 'stroke="#6b7178" stroke-width="1"', borde: 'stroke="#454a50" stroke-width="2"', columna: 'stroke="#1d2125" stroke-width="2.2" fill="#1d2125"', jardin: 'stroke="#3f7d32" stroke-width="1.3"' },
   en_proceso: { muro: 'stroke="#b26b00" stroke-width="2.6"', fino: 'stroke="#c48a2c" stroke-width="1.2"', borde: 'stroke="#b26b00" stroke-width="2.6"', columna: 'stroke="#b26b00" stroke-width="2.2" fill="#b26b00"', jardin: 'stroke="#8aa64a" stroke-width="1.3"' },
   falta:      { muro: 'stroke="#7f9bb8" stroke-width="1.8" stroke-dasharray="7 5"', fino: 'stroke="#a3b7cb" stroke-width="1" stroke-dasharray="4 4"', borde: 'stroke="#7f9bb8" stroke-width="1.8" stroke-dasharray="7 5"', columna: 'stroke="#7f9bb8" stroke-width="1.6" fill="none"', jardin: 'stroke="#a9c49c" stroke-width="1" stroke-dasharray="3 3"' },
 };
@@ -25,14 +25,15 @@ const px = (a) => ({ X: (a.x / 100) * ANCHO, Y: (a.y / 100) * ALTO, W: (a.w / 10
 const dentro = (x, y, r) => x >= r.X && x <= r.X + r.W && y >= r.Y && y <= r.Y + r.H;
 
 function etiqueta(nombre, X, Y, W, H, apagada) {
-  const larga = Math.max(...nombre.split(" ").map((p) => p.length));
-  const fs = Math.max(12, Math.min(40, Math.min(W, H) * 0.17, (W * 0.92) / (larga * 0.6)));
-  const porLinea = Math.max(6, Math.floor(W / (fs * 0.56)));
+  const texto = nombre.toUpperCase(), larga = Math.max(...texto.split(" ").map((p) => p.length));
+  const fs = Math.max(10, Math.min(24, Math.min(W, H) * 0.12, (W * 0.9) / (larga * 0.68)));
+  const porLinea = Math.max(6, Math.floor((W * 0.9) / (fs * 0.66)));
   const lineas = []; let actual = "";
-  for (const p of nombre.split(" ")) { if ((actual + " " + p).trim().length > porLinea && actual) { lineas.push(actual); actual = p; } else actual = (actual + " " + p).trim(); }
+  for (const p of texto.split(" ")) { if ((actual + " " + p).trim().length > porLinea && actual) { lineas.push(actual); actual = p; } else actual = (actual + " " + p).trim(); }
   if (actual) lineas.push(actual);
-  const y0 = Y + H / 2 - ((lineas.length - 1) * fs * 1.1) / 2;
-  return `<text class="et${apagada ? " apagada" : ""}" x="${X + W / 2}" y="${y0}" font-size="${fs.toFixed(1)}" text-anchor="middle" dominant-baseline="middle">${lineas.map((l, i) => `<tspan x="${X + W / 2}" dy="${i ? fs * 1.1 : 0}">${esc(l)}</tspan>`).join("")}</text>`;
+  const m2 = Math.round(W * M * H * M), lh = fs * 1.18;
+  const y0 = Y + H / 2 - (lineas.length * lh) / 2 + lh / 2 - fs * 0.35;
+  return `<text class="et${apagada ? " apagada" : ""}" x="${X + W / 2}" y="${y0}" font-size="${fs.toFixed(1)}" text-anchor="middle" dominant-baseline="middle">${lineas.map((l, i) => `<tspan x="${X + W / 2}" dy="${i ? lh : 0}">${esc(l)}</tspan>`).join("")}<tspan class="m2" x="${X + W / 2}" dy="${lh * 0.95}" font-size="${(fs * 0.72).toFixed(1)}">${m2} m²</tspan></text>`;
 }
 
 function elemento(e) {
@@ -51,6 +52,19 @@ function elemento(e) {
   return `<g class="elem"><rect x="${X}" y="${Y}" width="${W}" height="${H}" rx="2" ${trazo}/>${detalle}</g>`;
 }
 
+const M = 0.056;   // metros por unidad del mapa
+// Rampa dibujada como rampa: piso de concreto ranurado, sentido de subida y rótulo
+function rampa(X, Y, W, H) {
+  const vertical = H >= W, paso = 11; let s = `<rect x="${X}" y="${Y}" width="${W}" height="${H}" fill="#e3ded2"/>`;
+  if (vertical) for (let y = Y + paso; y < Y + H; y += paso) s += `<line x1="${X + 4}" y1="${y}" x2="${X + W - 4}" y2="${y}" stroke="#c9c2b2" stroke-width="1.4"/>`;
+  else for (let x = X + paso; x < X + W; x += paso) s += `<line x1="${x}" y1="${Y + 4}" x2="${x}" y2="${Y + H - 4}" stroke="#c9c2b2" stroke-width="1.4"/>`;
+  const cx = X + W / 2, cy = Y + H / 2, L = (vertical ? H : W) * 0.55, rot = vertical ? 0 : 90;
+  s += `<g transform="translate(${cx} ${cy}) rotate(${rot})" fill="none" stroke="#6b7178" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="0" y1="${L / 2}" x2="0" y2="${-L / 2}"/><path d="M -14 ${-L / 2 + 16} L 0 ${-L / 2} L 14 ${-L / 2 + 16}"/></g>`;
+  s += `<rect x="${X + 1}" y="${Y + 1}" width="${W - 2}" height="${H - 2}" fill="none" stroke="#8a8f96" stroke-width="2"/>`;
+  return s;
+}
+
 export function dibujarObra(areas, elementos = []) {
   const zonas = areas.map((a) => ({ a, ...px(a) }));
   // Cada pieza del trazo toma el estado del área donde cae (la más chica que la contenga)
@@ -67,7 +81,7 @@ export function dibujarObra(areas, elementos = []) {
 
   return `<svg class="mundo" viewBox="0 0 ${ANCHO} ${ALTO}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <defs>
-    <style>.mundo .et{font-family:Manrope,Arial,sans-serif;font-weight:800;fill:#1d2125;paint-order:stroke;stroke:#ffffffeb;stroke-width:6px;stroke-linejoin:round}.mundo .et.apagada{fill:#6d859c}.mundo .et.chico{stroke-width:4px}.mundo .et.calle{fill:#ffffffcc;stroke:none;font-weight:500;letter-spacing:.2em}</style>
+    <style>.mundo .et{font-family:Manrope,Arial,sans-serif;font-weight:700;letter-spacing:.06em;fill:#1d2125;paint-order:stroke;stroke:#f7f6f2f0;stroke-width:5px;stroke-linejoin:round}.mundo .et .m2{font-family:'DM Mono',monospace;font-weight:500;letter-spacing:0;fill:#6b7178}.mundo .et.apagada{fill:#6d859c}.mundo .et.chico{stroke-width:4px}.mundo .et.calle{fill:#ffffffcc;stroke:none;font-weight:500;letter-spacing:.2em}</style>
     <pattern id="rayado" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="14" height="14" fill="#f2c23022"/><rect width="5" height="14" fill="#f2c23088"/></pattern>
   </defs>
   <rect width="${ANCHO}" height="${ALTO}" fill="${C.acera}"/>
@@ -77,7 +91,7 @@ export function dibujarObra(areas, elementos = []) {
   <text class="et calle" x="${ANCHO / 2}" y="1488" font-size="20" text-anchor="middle" dominant-baseline="middle">CALLE DE ACCESO</text>
   <text class="et calle" x="22" y="${ALTO / 2}" font-size="20" text-anchor="middle" dominant-baseline="middle" transform="rotate(-90 22 ${ALTO / 2})">BOULEVARD SANTA ELENA</text>
   <rect x="${LOTE.x}" y="${LOTE.y}" width="${LOTE.w}" height="${LOTE.h}" fill="${C.lote}"/>
-  ${zonas.map((z) => `<rect x="${z.X + 2}" y="${z.Y + 2}" width="${z.W - 4}" height="${z.H - 4}" fill="${z.a.es_receso ? "#fbe3c8" : C.tinte[z.a.tipo] || C.lote}"/>
+  ${zonas.map((z) => z.a.tipo === "rampa" && !z.a.es_receso ? rampa(z.X + 2, z.Y + 2, z.W - 4, z.H - 4) : `<rect x="${z.X + 2}" y="${z.Y + 2}" width="${z.W - 4}" height="${z.H - 4}" fill="${z.a.es_receso ? "#fbe3c8" : C.tinte[z.a.tipo] || C.lote}"/>
     ${z.a.estado === "en_proceso" ? `<rect x="${z.X + 2}" y="${z.Y + 2}" width="${z.W - 4}" height="${z.H - 4}" fill="url(#rayado)"/>` : ""}`).join("")}
   ${trazo}
   ${(elementos || []).map(elemento).join("")}

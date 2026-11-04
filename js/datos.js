@@ -98,7 +98,26 @@ export async function cerrarPrestamo(id, estado) {
   ok(await sb.from("prestamos").update({ estado, cerrado_en: ahora() }).eq("id", id));
 }
 export async function agregarHerramienta(nombre, cantidad) {
-  ok(await sb.from("herramientas").insert({ nombre, cantidad }));
+  return ok(await sb.from("herramientas").insert({ nombre, cantidad, obra_id: S.obra?.id || null }).select().single());
+}
+// Prestar desde la barra de mando: si la herramienta es nueva, se crea con la cantidad que se presta
+export async function prestarRapido({ herramientaId, nombreNuevo, trabajadorId, cantidad }) {
+  let hid = herramientaId;
+  if (!hid) {
+    const nombre = nombreNuevo.trim();
+    const existe = S.herramientas.find((h) => h.nombre.toLowerCase() === nombre.toLowerCase());
+    if (existe) hid = existe.id;
+    else { hid = (await agregarHerramienta(nombre, cantidad)).id; S.herramientas.push({ id: hid, nombre, cantidad }); }
+  }
+  await prestar(hid, trabajadorId, cantidad);
+  return herramienta(hid).nombre;
+}
+// Escala del plano: 1 unidad del mapa ≈ 0.056 m (el lote mide ~70 × 80.6 m, igual que los 5,667 m² del plano)
+export const METROS_POR_UNIDAD = 0.056;
+export async function usarComoBodega(areaId) {
+  const actual = S.areas.find((a) => a.es_receso);
+  if (actual && actual.id !== areaId) ok(await sb.from("areas").update({ es_receso: false, uso_actual: null }).eq("id", actual.id));
+  ok(await sb.from("areas").update({ es_receso: true, uso_actual: "Bodega (receso)", estado: "existe" }).eq("id", areaId));
 }
 export async function cambiarCantidad(hid, cantidad) {
   ok(await sb.from("herramientas").update({ cantidad }).eq("id", hid));
