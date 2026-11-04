@@ -117,7 +117,7 @@ function etiqueta(texto) {
   ctx.fillStyle = "rgba(255,255,255,.92)"; ctx.beginPath(); ctx.roundRect((256 - w) / 2, 8, w, 48, 12); ctx.fill();
   ctx.fillStyle = "#1d2125"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(texto, 128, 33);
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false }));
-  s.scale.set(8, 2, 1); s.position.y = 7.2; s.renderOrder = 10; return s;
+  s.scale.set(7, 1.75, 1); s.position.y = 6.6; s.renderOrder = 10; return s;
 }
 
 function figura(p) {
@@ -133,6 +133,7 @@ function figura(p) {
   const toque = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 6), new THREE.MeshBasicMaterial({ visible: false })); toque.position.y = 3;
   g.add(cuerpo, cabeza, casco, aro, toque, etiqueta(p.nombre));
   Object.assign(g.userData, { ropa, aro, cuerpo });
+  g.scale.setScalar(1.7);   // más grandes para verlos y tocarlos en el celular
   const pos = aEscena(p.x, p.y); g.position.copy(pos); g.userData.destino = pos.clone();
   return g;
 }
