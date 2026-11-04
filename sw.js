@@ -1,7 +1,7 @@
 // Permite instalar Gestión SYM como app y abrirla aunque la señal esté mala.
 // Siempre intenta traer la versión nueva primero; si no hay internet, usa la guardada.
 // Los datos (Supabase) nunca se guardan aquí: siempre vienen en vivo.
-const CACHE = "gestion-sym-v3";
+const CACHE = "gestion-sym-v4";
 const ARCHIVOS = ["./", "index.html", "css/app.css", "js/app.js", "js/datos.js", "js/util.js", "js/config.js",
   "js/vistas/obra.js", "js/vistas/recesos.js", "js/vistas/herramientas.js", "js/vistas/mas.js",
   "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png"];
@@ -16,7 +16,8 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET" || url.origin !== location.origin) return;
   e.respondWith(
-    fetch(e.request).then((r) => { const copia = r.clone(); caches.open(CACHE).then((c) => c.put(e.request, copia)); return r; })
+    // "no-cache": siempre pregunta al servidor si hay versión nueva antes de usar la guardada
+    fetch(e.request, { cache: "no-cache" }).then((r) => { const copia = r.clone(); caches.open(CACHE).then((c) => c.put(e.request, copia)); return r; })
       .catch(() => caches.match(e.request).then((r) => r || caches.match("index.html")))
   );
 });
