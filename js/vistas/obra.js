@@ -1,13 +1,21 @@
-// Vista "Obra": el plano real con cada trabajador en el área donde está asignado.
+// Vista "Obra": centro de mando. Mapa dibujado del proyecto (2D) o maqueta 3D,
+// con cada trabajador en el área donde está asignado.
 // - Normal: tocas a alguien para ver qué hace y moverlo de área; tocas un área para ver o traer gente.
 // - Receso: con "Iniciar receso", cada toque manda a la persona a la bodega (naranja) o la regresa a su área.
 import { S, recesoAbierto, enReceso, prestamosActivos, cambiarReceso, iniciarReceso, terminarReceso,
   trabajador, herramienta, area, enArea, moverTrabajador } from "../datos.js";
 import { esc, iniciales, primerNombre, ms, hhmm } from "../util.js";
+import { dibujarObra, ANCHO, ALTO } from "./mapa-svg.js";
 
 const ZOOMS = [1, 1.6, 2.4, 3.4];
-const ui = { plano: "actual", zoom: 1, sel: null, areaSel: null, moviendo: false };
-let ultimas = {};   // última posición de cada persona, para que "caminen" al cambiar
+let vistaGuardada = "2d"; try { vistaGuardada = localStorage.getItem("sym-vista") || "2d"; } catch (e) {}
+const ui = { vista: vistaGuardada, zoom: 1, sel: null, areaSel: null, moviendo: false };
+let ultimas = {};
+let dibujo = { clave: "", svg: "" };
+const ICONO = {
+  reloj: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>`,
+  centrar: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>`,
+};   // el mapa se dibuja una vez y se reutiliza   // última posición de cada persona, para que "caminen" al cambiar
 
 export function resumen() {
   const nb = enReceso().length, nl = prestamosActivos().reduce((a, p) => a + p.cantidad, 0);
@@ -64,7 +72,9 @@ function hojaArea(a) {
 export function render(V, { hacer, redibujar }) {
   const o = S.obra;
   if (!o) { V.innerHTML = `<h2>Obra</h2><p class="lead">Todavía no hay una obra activa.</p>`; return; }
-  const prop = +o.plano_proporcion || 0.694, receso = !!S.sesion;
+  const prop = ANCHO / ALTO, receso = !!S.sesion;
+  const clave = JSON.stringify(S.areas.map((a) => [a.id, a.x, a.y, a.w, a.h, a.tipo, a.nombre, a.es_receso, a.uso_actual]));
+  if (dibujo.clave !== clave) dibujo = { clave, svg: dibujarObra(S.areas) };
   const zr = S.areas.find((a) => a.es_receso);
   if (receso) { ui.sel = null; ui.areaSel = null; ui.moviendo = false; }
   const w = ui.sel ? S.trabajadores.find((x) => x.id === ui.sel) : null;
@@ -79,67 +89,92 @@ export function render(V, { hacer, redibujar }) {
     ...(zr ? posiciones(zr, descansando, prop) : []),
   ];
   const prev = V.querySelector("#mapaScroll"), scroll = prev ? [prev.scrollLeft, prev.scrollTop] : null;
+  const es3d = ui.vista === "3d";
 
-  V.innerHTML = `<p class="eyebrow">${esc(o.nombre)}${o.propietario ? " · " + esc(o.propietario) : ""}</p>
-  <h2>${receso ? "Receso en curso" : "¿Quién está en qué?"}</h2>
-  ${receso ? `<div class="aviso receso"><div><b>Receso abierto desde ${hhmm(S.sesion.inicio)}</b> · <span class="num" data-desde="${ms(S.sesion.inicio)}"></span><br>
-      Toca a quien sale: se pone naranja y va a la bodega. Tócalo otra vez cuando regrese.</div></div>` : ""}
-  ${ui.moviendo && w ? `<div class="aviso">Toca el área a donde va <b>${esc(primerNombre(w.nombre))}</b> <button class="btn small" data-cancelar-mover>Cancelar</button></div>` : ""}
-  <div class="mapa-bar">
-    <div class="seg mini" role="group" aria-label="Plano">
-      <button data-plano="actual" aria-pressed="${ui.plano === "actual"}">Ahora · G-06</button>
-      <button data-plano="final" aria-pressed="${ui.plano === "final"}">Final · AR-01</button></div>
-    <div class="zoom"><button data-z="-1" aria-label="Alejar" ${ui.zoom === ZOOMS[0] ? "disabled" : ""}>−</button><button data-z="1" aria-label="Acercar" ${ui.zoom === ZOOMS.at(-1) ? "disabled" : ""}>+</button></div>
+  // Barra de mando: aquí van las acciones de la obra (receso y las que se agreguen después)
+  const HERRAMIENTAS = [
+    receso
+      ? `<button class="hud-btn activo" id="hudReceso" title="Terminar receso">${ICONO.reloj}<span>Terminar receso <b class="num" data-desde="${ms(S.sesion.inicio)}"></b></span></button>`
+      : `<button class="hud-btn" id="hudReceso" title="Iniciar receso">${ICONO.reloj}<span>Iniciar receso</span></button>`,
+  ];
+
+  V.innerHTML = `<div class="titulo-obra"><div><p class="eyebrow">${esc(o.nombre)}${o.propietario ? " · " + esc(o.propietario) : ""}</p>
+    <h2>${receso ? "Receso en curso" : "Centro de mando"}</h2></div></div>
+  <div class="hud" role="toolbar" aria-label="Acciones de la obra">
+    ${HERRAMIENTAS.join("")}
+    <span class="hud-sep"></span>
+    <div class="seg mini hud-vista" role="group" aria-label="Vista">
+      <button data-vista="2d" aria-pressed="${!es3d}">2D</button><button data-vista="3d" aria-pressed="${es3d}">3D</button></div>
+    ${es3d ? `<button class="hud-icono" id="centrar" aria-label="Volver a la vista inicial">${ICONO.centrar}</button>`
+      : `<div class="zoom"><button data-z="-1" aria-label="Alejar" ${ui.zoom === ZOOMS[0] ? "disabled" : ""}>−</button><button data-z="1" aria-label="Acercar" ${ui.zoom === ZOOMS.at(-1) ? "disabled" : ""}>+</button></div>`}
   </div>
-  <div class="mapa-scroll ${ui.zoom > 1 ? "acercado" : ""}" id="mapaScroll">
+  ${receso ? `<p class="pista receso">Receso abierto desde ${hhmm(S.sesion.inicio)}. Toca a quien sale: se pone naranja y camina a la bodega. Tócalo otra vez cuando regrese.</p>`
+    : ui.moviendo && w ? `<p class="pista mover">Toca el área a donde va <b>${esc(primerNombre(w.nombre))}</b> <button class="btn small" data-cancelar-mover>Cancelar</button></p>`
+    : `<p class="pista">Toca un área para ver quién está ahí, o toca a una persona para moverla.${es3d ? " Arrastra para girar, pellizca para acercar." : ""}</p>`}
+  ${es3d ? `<div class="escena" id="escena"><p class="cargando">Levantando la obra en 3D…</p></div>`
+  : `<div class="mapa-scroll ${ui.zoom > 1 ? "acercado" : ""}" id="mapaScroll">
     <div class="mapa z${ZOOMS.indexOf(ui.zoom)} ${ui.moviendo ? "moviendo" : ""} ${receso ? "en-receso" : ""}" style="width:${ui.zoom * 100}%;aspect-ratio:${prop}">
-      ${ui.plano === "actual" ? `<img class="plano tenue" src="${esc(o.plano_final)}" alt="" aria-hidden="true">` : ""}
-      <img class="plano" src="${esc(ui.plano === "actual" ? o.plano_actual : o.plano_final)}" alt="Plano ${ui.plano === "actual" ? "actual" : "final"} de ${esc(o.nombre)}">
+      ${dibujo.svg}
       ${S.areas.map((a) => { const n = conArea.filter((x) => x.area_id === a.id).length;
-        const nombre = a.es_receso && (ui.plano === "actual" || receso) ? a.uso_actual || "Zona de receso" : a.nombre;
+        const nombre = a.es_receso ? a.uso_actual || "Zona de receso" : a.nombre;
         return `<button class="area ${n ? "ocupada" : ""} ${a.es_receso ? "zr" : ""} ${ui.areaSel === a.id ? "sel" : ""}" data-area="${a.id}"
-          style="left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%" aria-label="${esc(nombre)}, ${n} asignados"><span class="an">${esc(nombre)}</span></button>`; }).join("")}
+          style="left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%" aria-label="${esc(nombre)}, ${n} asignados"></button>`; }).join("")}
       ${tokens.map(([p, x, y]) => token(p, x, y)).join("")}
     </div>
-  </div>
+  </div>`}
   <div class="section" style="margin-top:12px">${resumen()}</div>
   ${sinArea.length ? `<div class="bandeja"><p class="eyebrow">Sin área asignada (${sinArea.length})</p><div class="chips">${sinArea.map(chipPersona).join("")}</div>
-    ${receso ? "" : `<p class="note">Toca a alguien y luego “Mover de área”, o toca un área del plano para asignar gente.</p>`}</div>` : ""}
+    ${receso ? "" : `<p class="note">Toca a alguien y luego “Mover de área”, o toca un área del mapa para asignar gente.</p>`}</div>` : ""}
   ${!zr && descansando.length ? `<div class="bandeja rest"><p class="eyebrow">En receso</p><div class="chips">${descansando.map(chipPersona).join("")}</div></div>` : ""}
-  <div class="section">${receso
-    ? `<button class="btn primary big" id="fin">Terminar receso (todos a trabajar)</button>`
-    : `<button class="btn break big" id="ini">Iniciar receso</button>`}</div>
   ${(w && !ui.moviendo) || (aSel && !ui.moviendo) ? `<div class="hoja" role="dialog" aria-label="Detalle">${w ? hojaTrabajador(w) : hojaArea(aSel)}</div>` : ""}`;
 
-  const mapa = V.querySelector("#mapaScroll");
-  if (scroll) { mapa.scrollLeft = scroll[0]; mapa.scrollTop = scroll[1]; }
-  // Animación: cada persona camina desde donde estaba hasta su nuevo lugar
-  requestAnimationFrame(() => V.querySelectorAll(".tok").forEach((t) => {
-    const [x, y] = t.dataset.to.split(",").map(Number); t.style.left = x + "%"; t.style.top = y + "%"; ultimas[t.dataset.w] = [x, y];
-  }));
+  // ---- Qué pasa al tocar ----
+  const tocarPersona = (id) => {
+    if (receso) return hacer(async () => { const sale = await cambiarReceso(id); return `${primerNombre(trabajador(id).nombre)} ${sale ? "se fue a receso" : "regresó a trabajar"}`; });
+    ui.sel = id; ui.areaSel = null; ui.moviendo = false; redibujar();
+  };
+  const tocarArea = (aid) => {
+    if (receso || !aid) return;
+    if (ui.moviendo && ui.sel) {
+      const id = ui.sel, a = area(aid); ui.moviendo = false; ui.sel = null;
+      return hacer(async () => { await moverTrabajador(id, a.id); return `${primerNombre(trabajador(id).nombre)} → ${a.nombre}`; });
+    }
+    ui.areaSel = aid; ui.sel = null; redibujar();
+  };
+
+  if (es3d) {
+    const personas = tokens.map(([p, x, y]) => ({ id: p.id, nombre: primerNombre(p.nombre), x: (x / 100) * ANCHO, y: (y / 100) * ALTO, receso: !!recesoAbierto(p.id), sel: ui.sel === p.id }));
+    import("./escena3d.js").then((m) => {
+      const cont = V.querySelector("#escena"); if (!cont) return;
+      cont.querySelector(".cargando")?.remove();
+      m.montar(cont, { svg: dibujo.svg, clave: dibujo.clave, areas: S.areas, personas, handlers: {
+        persona: tocarPersona,
+        punto: (px, py) => { // el área más pequeña que contiene el punto tocado
+          const a = S.areas.filter((a) => px >= a.x && px <= +a.x + +a.w && py >= a.y && py <= +a.y + +a.h).sort((p, q) => p.w * p.h - q.w * q.h)[0];
+          tocarArea(a?.id);
+        } } });
+      const c = V.querySelector("#centrar"); if (c) c.onclick = () => m.vistaInicial();
+    }).catch(() => { const c = V.querySelector("#escena"); if (c) c.innerHTML = `<p class="cargando">No se pudo abrir el 3D en este celular. Usa la vista 2D.</p>`; });
+  } else {
+    const mapa = V.querySelector("#mapaScroll");
+    if (scroll) { mapa.scrollLeft = scroll[0]; mapa.scrollTop = scroll[1]; }
+    // Animación: cada persona camina desde donde estaba hasta su nuevo lugar
+    requestAnimationFrame(() => V.querySelectorAll(".tok").forEach((t) => {
+      const [x, y] = t.dataset.to.split(",").map(Number); t.style.left = x + "%"; t.style.top = y + "%"; ultimas[t.dataset.w] = [x, y];
+    }));
+    V.querySelectorAll("[data-z]").forEach((b) => (b.onclick = () => {
+      const cx = (mapa.scrollLeft + mapa.clientWidth / 2) / mapa.scrollWidth, cy = (mapa.scrollTop + mapa.clientHeight / 2) / mapa.scrollHeight;
+      ui.zoom = ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, ZOOMS.indexOf(ui.zoom) + +b.dataset.z))]; redibujar();
+      const n = V.querySelector("#mapaScroll"); n.scrollLeft = cx * n.scrollWidth - n.clientWidth / 2; n.scrollTop = cy * n.scrollHeight - n.clientHeight / 2;
+    }));
+    V.querySelectorAll("[data-area]").forEach((b) => (b.onclick = () => tocarArea(b.dataset.area)));
+  }
 
   // ---- Interacción ----
   const $$ = (s) => V.querySelectorAll(s);
   const cerrar = () => { ui.sel = null; ui.areaSel = null; ui.moviendo = false; redibujar(); };
-  $$("[data-plano]").forEach((b) => (b.onclick = () => { ui.plano = b.dataset.plano; redibujar(); }));
-  $$("[data-z]").forEach((b) => (b.onclick = () => {
-    const cx = (mapa.scrollLeft + mapa.clientWidth / 2) / mapa.scrollWidth, cy = (mapa.scrollTop + mapa.clientHeight / 2) / mapa.scrollHeight;
-    ui.zoom = ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, ZOOMS.indexOf(ui.zoom) + +b.dataset.z))]; redibujar();
-    const n = V.querySelector("#mapaScroll"); n.scrollLeft = cx * n.scrollWidth - n.clientWidth / 2; n.scrollTop = cy * n.scrollHeight - n.clientHeight / 2;
-  }));
-  $$("[data-w]").forEach((b) => (b.onclick = (e) => {
-    e.stopPropagation(); const id = b.dataset.w;
-    if (receso) return hacer(async () => { const sale = await cambiarReceso(id); return `${primerNombre(trabajador(id).nombre)} ${sale ? "se fue a receso" : "regresó a trabajar"}`; });
-    ui.sel = id; ui.areaSel = null; ui.moviendo = false; redibujar();
-  }));
-  $$("[data-area]").forEach((b) => (b.onclick = () => {
-    if (receso) return;
-    if (ui.moviendo && ui.sel) {
-      const id = ui.sel, a = area(b.dataset.area); ui.moviendo = false; ui.sel = null;
-      return hacer(async () => { await moverTrabajador(id, a.id); return `${primerNombre(trabajador(id).nombre)} → ${a.nombre}`; });
-    }
-    ui.areaSel = b.dataset.area; ui.sel = null; redibujar();
-  }));
+  $$("[data-vista]").forEach((b) => (b.onclick = () => { ui.vista = b.dataset.vista; try { localStorage.setItem("sym-vista", ui.vista); } catch (e) {} redibujar(); }));
+  $$("[data-w]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); tocarPersona(b.dataset.w); }));
   $$("[data-cerrar]").forEach((b) => (b.onclick = cerrar));
   $$("[data-cancelar-mover]").forEach((b) => (b.onclick = () => { ui.moviendo = false; redibujar(); }));
   const mv = V.querySelector("[data-mover]"); if (mv) mv.onclick = () => { ui.moviendo = true; redibujar(); };
@@ -147,6 +182,7 @@ export function render(V, { hacer, redibujar }) {
   if (sc) sc.onclick = () => { const id = ui.sel; hacer(async () => { await moverTrabajador(id, null); return `${primerNombre(trabajador(id).nombre)} quedó sin área`; }); };
   $$("[data-traer]").forEach((b) => (b.onclick = () => { const id = b.dataset.traer, a = area(ui.areaSel);
     hacer(async () => { await moverTrabajador(id, a.id); return `${primerNombre(trabajador(id).nombre)} → ${a.nombre}`; }); }));
-  const ini = V.querySelector("#ini"); if (ini) ini.onclick = () => hacer(async () => { await iniciarReceso(); return "Receso iniciado: toca a quien sale a descansar"; });
-  const fin = V.querySelector("#fin"); if (fin) fin.onclick = () => hacer(async () => { await terminarReceso(); return "Receso cerrado, todos a trabajar"; });
+  V.querySelector("#hudReceso").onclick = () => hacer(receso
+    ? async () => { await terminarReceso(); return "Receso cerrado, todos a trabajar"; }
+    : async () => { await iniciarReceso(); return "Receso iniciado: toca a quien sale a descansar"; });
 }

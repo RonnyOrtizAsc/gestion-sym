@@ -180,3 +180,37 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
 .av.big.on-break{background:var(--break);color:var(--on-break)}
 .estado{margin:0 0 10px;font-size:14px;line-height:1.8}
 .pill{background:var(--sunk);color:var(--muted)}
+
+/* ---------- Mapa dibujado ---------- */
+.mapa-scroll{background:#d9dccf}
+.mundo{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
+.mundo .et{font-family:var(--f-ui);font-weight:800;fill:#1d2125;paint-order:stroke;stroke:#ffffffe6;stroke-width:6px;stroke-linejoin:round;letter-spacing:.01em}
+.mundo .et.calle{fill:#ffffffcc;stroke:none;font-family:var(--f-mono);font-weight:500;letter-spacing:.2em}
+.area,.mapa.z1 .area,.mapa.z2 .area,.mapa.z3 .area{border:0;background:transparent;border-radius:6px}
+.area .an{display:none!important}
+.area.ocupada{box-shadow:inset 0 0 0 3px var(--work);background:color-mix(in srgb,var(--work) 10%,transparent)}
+.area.zr{box-shadow:inset 0 0 0 3px var(--break);background:color-mix(in srgb,var(--break) 10%,transparent)}
+.area.sel{box-shadow:inset 0 0 0 4px var(--lime);background:color-mix(in srgb,var(--lime) 22%,transparent);outline:0}
+.area:focus-visible{outline:3px solid var(--lime);outline-offset:-3px}
+.mapa.moviendo .area{box-shadow:inset 0 0 0 3px var(--lime-ink);background:color-mix(in srgb,var(--lime) 25%,transparent)}
+.mapa.en-receso .area:not(.zr){opacity:1;background:#0000001a}
+
+/* ---------- Centro de mando ---------- */
+.titulo-obra{display:flex;align-items:flex-end;gap:10px;margin-bottom:10px}
+.titulo-obra h2{margin:0}
+.hud{position:sticky;top:env(safe-area-inset-top,0px);z-index:12;display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding-block:8px;margin-bottom:4px}
+.hud-btn{display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--break);background:var(--break);color:var(--on-break);border-radius:12px;padding:9px 14px;font-weight:800;font-size:14px}
+.hud-btn svg,.hud-icono svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.hud-btn.activo{background:var(--surface);color:var(--break)}
+.hud-btn.activo b{font-weight:500;margin-left:4px}
+.hud-sep{flex:1}
+.hud-vista{flex:0 0 auto;min-width:110px}
+.hud-vista button{min-width:48px;font-weight:800}
+.hud-icono{width:40px;height:36px;display:grid;place-items:center;border-radius:10px;border:1px solid var(--line);background:var(--surface)}
+.pista{font-size:13px;color:var(--muted);margin:0 0 8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pista.receso{color:var(--ink);background:var(--break-soft);border:1px solid var(--break);border-radius:10px;padding:8px 12px}
+.pista.mover{color:var(--lime-ink);background:var(--lime);border-radius:10px;padding:8px 12px}
+.escena{position:relative;width:100%;height:min(72vh,720px);border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#cfe3ef;touch-action:none}
+.escena canvas{display:block;width:100%;height:100%}
+.escena .cargando{position:absolute;inset:0;display:grid;place-items:center;margin:0;color:#3b4046}
