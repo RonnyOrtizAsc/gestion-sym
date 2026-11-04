@@ -5,9 +5,9 @@
 import { S, recesoAbierto, enReceso, prestamosActivos, cambiarReceso, iniciarReceso, terminarReceso,
   trabajador, herramienta, area, enArea, moverTrabajador,
   ESTADOS, TIPOS_ELEMENTO, estadoArea, agregarElemento, editarElemento, borrarElemento,
-  prestarRapido, cerrarPrestamo, disponibles, METROS_POR_UNIDAD, usarComoBodega } from "../datos.js";
+  prestarRapido, cerrarPrestamo, disponibles, METROS_POR_UNIDAD, usarComoBodega, estadoPiezas } from "../datos.js";
 import { esc, iniciales, primerNombre, ms, hhmm } from "../util.js";
-import { dibujarObra, ANCHO, ALTO } from "./mapa-svg.js";
+import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, ANCHO, ALTO } from "./mapa-svg.js";
 
 const ZOOMS = [1, 1.6, 2.4, 3.4];
 let vistaGuardada = "2d"; try { vistaGuardada = localStorage.getItem("sym-vista") || "2d"; } catch (e) {}
@@ -149,8 +149,8 @@ export function render(V, { hacer, redibujar }) {
   if (!o) { V.innerHTML = `<h2>Obra</h2><p class="lead">Todavía no hay una obra activa.</p>`; return; }
   const prop = ANCHO / ALTO, receso = !!S.sesion;
   const clave = JSON.stringify([S.areas.map((a) => [a.id, a.x, a.y, a.w, a.h, a.tipo, a.nombre, a.es_receso, a.uso_actual, a.estado]),
-    S.elementos.map((e) => [e.id, e.x, e.y, e.w, e.h, e.tipo, e.estado])]);
-  if (dibujo.clave !== clave) dibujo = { clave, svg: dibujarObra(S.areas, S.elementos) };
+    S.elementos.map((e) => [e.id, e.x, e.y, e.w, e.h, e.tipo, e.estado]), S.piezas]);
+  if (dibujo.clave !== clave) dibujo = { clave, svg: dibujarObra(S.areas, S.elementos, S.piezas) };
   if (receso) { ui.editar = false; ui.nuevo = null; ui.elSel = null; }
   const elSel = ui.elSel ? S.elementos.find((e) => e.id === ui.elSel) : null;
   const zr = S.areas.find((a) => a.es_receso);
@@ -193,7 +193,7 @@ export function render(V, { hacer, redibujar }) {
   ${receso ? `<p class="pista receso">Receso abierto desde ${hhmm(S.sesion.inicio)}. Toca a quien sale: se pone naranja y camina a la bodega. Tócalo otra vez cuando regrese.</p>`
     : ui.moviendo && w ? `<p class="pista mover">Toca el área a donde va <b>${esc(primerNombre(w.nombre))}</b> <button class="btn small" data-cancelar-mover>Cancelar</button></p>`
     : ui.nuevo?.tipo ? `<p class="pista mover">${ui.nuevo.p1 ? "Toca la esquina opuesta" : "Toca una esquina"} de: <b>${TIPOS_ELEMENTO[ui.nuevo.tipo]}</b></p>`
-    : ui.editar ? `<p class="pista mover">Editando el plano: toca un área para marcar si existe, está en construcción o falta. Toca un elemento para cambiarlo.</p>`
+    : ui.editar ? `<p class="pista mover">Editando el plano: toca un muro, puerta o división para pasarlo de <b>falta</b> (transparente) → <b>en construcción</b> → <b>existe</b> (negro). Toca un área vacía para marcarla completa.</p>`
     : `<p class="pista">Toca un área para ver quién está ahí, o toca a una persona para moverla.${es3d ? " Arrastra para girar, pellizca para acercar." : ""}</p>`}
   ${es3d ? `<div class="escena" id="escena"><p class="cargando">Levantando la obra en 3D…</p></div>`
   : `<div class="mapa-scroll ${ui.zoom > 1 ? "acercado" : ""}" id="mapaScroll">
@@ -204,6 +204,7 @@ export function render(V, { hacer, redibujar }) {
         return `<button class="area ${n ? "ocupada" : ""} ${a.es_receso ? "zr" : ""} ${ui.areaSel === a.id ? "sel" : ""}" data-area="${a.id}"
           style="left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%" aria-label="${esc(nombre)}, ${n} asignados"></button>`; }).join("")}
       ${tokens.map(([p, x, y]) => token(p, x, y)).join("")}
+      ${ui.editar && !ui.nuevo ? capaPiezas(S.piezas) : ""}
       ${ui.editar ? S.elementos.map((e) => `<button class="el-btn ${ui.elSel === e.id ? "sel" : ""}" data-el="${e.id}" style="left:${e.x}%;top:${e.y}%;width:${e.w}%;height:${e.h}%" aria-label="${esc(e.nombre || TIPOS_ELEMENTO[e.tipo])}"></button>`).join("") : ""}
       ${ui.nuevo?.p1 ? `<span class="punto" style="left:${ui.nuevo.p1[0]}%;top:${ui.nuevo.p1[1]}%"></span>` : ""}
       ${ui.nuevo?.tipo ? `<div class="captura" id="captura"></div>` : ""}
@@ -289,6 +290,15 @@ export function render(V, { hacer, redibujar }) {
       });
       el.addEventListener("pointerleave", () => (tip.hidden = true));
     });
+    // Editar plano: cada pieza avanza falta → en construcción → existe → falta
+    const SIG = { falta: "en_proceso", en_proceso: "existe", existe: "falta" };
+    V.querySelectorAll("[data-pz]").forEach((el) => {
+      el.addEventListener("click", (e) => {
+        e.stopPropagation(); const i = +el.dataset.pz, nuevo = SIG[estadoPieza(i, S.piezas)];
+        S.piezas[i] = nuevo; redibujar();   // se ve al instante; se guarda atrás
+        hacer(async () => { await estadoPiezas([i], nuevo); return nuevo === "existe" ? "Agregado al plano actual" : nuevo === "en_proceso" ? "En construcción" : "Marcado como pendiente"; });
+      });
+    });
     const cap = V.querySelector("#captura");
     if (cap) cap.onclick = (e) => { const r = cap.getBoundingClientRect(); tocarPunto(((e.clientX - r.left) / r.width) * 100, ((e.clientY - r.top) / r.height) * 100); };
   }
@@ -312,7 +322,10 @@ export function render(V, { hacer, redibujar }) {
   $$("[data-tipo]").forEach((b) => (b.onclick = () => { ui.nuevo = { tipo: b.dataset.tipo, p1: null }; redibujar(); }));
   $$("[data-el]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); ui.elSel = b.dataset.el; ui.areaSel = null; ui.borrar = false; redibujar(); }));
   $$("[data-estado-area]").forEach((b) => (b.onclick = () => { const a = area(ui.areaSel), est = b.dataset.estadoArea;
-    hacer(async () => { await estadoArea(a.id, est); return `${a.nombre}: ${ESTADOS[est]}`; }); }));
+    const X0 = (a.x / 100) * ANCHO, Y0 = (a.y / 100) * ALTO, X1 = X0 + (a.w / 100) * ANCHO, Y1 = Y0 + (a.h / 100) * ALTO;
+    const dentro = PIEZAS.map((p, i) => [p, i]).filter(([p]) => p[0] !== "jardin" && p[1] >= X0 && p[1] <= X1 && p[2] >= Y0 && p[2] <= Y1).map(([, i]) => i);
+    dentro.forEach((i) => (S.piezas[i] = est));
+    hacer(async () => { await estadoArea(a.id, est); await estadoPiezas(dentro, est); return `${a.nombre}: ${ESTADOS[est]} (${dentro.length} piezas)`; }); }));
   $$("[data-estado-el]").forEach((b) => (b.onclick = () => { const id = ui.elSel, est = b.dataset.estadoEl;
     hacer(async () => { await editarElemento(id, { estado: est }); return `Marcado: ${ESTADOS[est]}`; }); }));
   const ne = V.querySelector("#nomEl"); if (ne) ne.onsubmit = (e) => { e.preventDefault(); const id = ui.elSel, nombre = V.querySelector("#elNombre").value.trim() || null;

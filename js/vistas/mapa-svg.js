@@ -17,7 +17,8 @@ const C = {
 const ESTILO = {
   existe:     { muro: 'stroke="#1f2327" stroke-width="3.4"', fino: 'stroke="#6b7178" stroke-width="1"', borde: 'stroke="#454a50" stroke-width="2"', columna: 'stroke="#1d2125" stroke-width="2.2" fill="#1d2125"', jardin: 'stroke="#3f7d32" stroke-width="1.3"' },
   en_proceso: { muro: 'stroke="#b26b00" stroke-width="2.6"', fino: 'stroke="#c48a2c" stroke-width="1.2"', borde: 'stroke="#b26b00" stroke-width="2.6"', columna: 'stroke="#b26b00" stroke-width="2.2" fill="#b26b00"', jardin: 'stroke="#8aa64a" stroke-width="1.3"' },
-  falta:      { muro: 'stroke="#7f9bb8" stroke-width="1.8" stroke-dasharray="7 5"', fino: 'stroke="#a3b7cb" stroke-width="1" stroke-dasharray="4 4"', borde: 'stroke="#7f9bb8" stroke-width="1.8" stroke-dasharray="7 5"', columna: 'stroke="#7f9bb8" stroke-width="1.6" fill="none"', jardin: 'stroke="#a9c49c" stroke-width="1" stroke-dasharray="3 3"' },
+  // lo que falta se ve transparente: es el proyecto final "en espera"
+  falta:      { muro: 'stroke="#8ea3b8" stroke-opacity=".5" stroke-width="2.4"', fino: 'stroke="#9fb0c2" stroke-opacity=".45" stroke-width="1"', borde: 'stroke="#8ea3b8" stroke-opacity=".5" stroke-width="1.8"', columna: 'stroke="#8ea3b8" stroke-opacity=".5" stroke-width="1.6" fill="#8ea3b8" fill-opacity=".2"', jardin: 'stroke="#7fae6c" stroke-opacity=".35" stroke-width="1"' },
 };
 const ELEM = { grada: "#8a8f96", jardinera: "#5f9a45", bano: "#4f9fd0", muro: "#1d2125", puerta: "#6c5a3d", columna: "#1d2125", bodega: "#ee8420", otro: "#7d6bb3" };
 
@@ -65,15 +66,20 @@ function rampa(X, Y, W, H) {
   return s;
 }
 
-export function dibujarObra(areas, elementos = []) {
+// Estado de una pieza: lo marcado a mano manda; si no, lo que dice el plano (existe hoy o falta)
+export const estadoPieza = (i, piezas = {}) => piezas[i] || (TRAZO[i][4] ? "existe" : "falta");
+export const PIEZAS = TRAZO;
+
+// Capa tocable para Editar plano: cada pieza con un trazo ancho invisible para poder tocarla
+export function capaPiezas(piezas = {}) {
+  return `<svg class="capa-piezas" viewBox="0 0 ${ANCHO} ${ALTO}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${TRAZO.map(([c, , , d], i) =>
+    c === "jardin" ? "" : `<path class="pz ${estadoPieza(i, piezas)}" data-pz="${i}" d="${d}"/>`).join("")}</svg>`;
+}
+
+export function dibujarObra(areas, elementos = [], piezas = {}) {
   const zonas = areas.map((a) => ({ a, ...px(a) }));
-  // Cada pieza del trazo toma el estado del área donde cae (la más chica que la contenga)
   const grupos = {};
-  for (const [clase, x, y, d] of TRAZO) {
-    const z = zonas.filter((z) => dentro(x, y, z)).sort((p, q) => p.W * p.H - q.W * q.H)[0];
-    const estado = z ? (z.a.es_receso ? "existe" : z.a.estado || "existe") : "existe";
-    (grupos[estado + "|" + clase] ||= []).push(d);
-  }
+  TRAZO.forEach(([clase, , , d], i) => { (grupos[estadoPieza(i, piezas) + "|" + clase] ||= []).push(d); });
   const trazo = ["falta", "en_proceso", "existe"].flatMap((e) => ["jardin", "fino", "borde", "muro", "columna"].map((c) => {
     const ds = grupos[e + "|" + c]; return ds ? `<path ${ESTILO[e][c]} ${c === "columna" ? "" : 'fill="none"'} stroke-linecap="round" d="${ds.join("")}"/>` : "";
   })).join("");
@@ -92,9 +98,9 @@ export function dibujarObra(areas, elementos = []) {
   <text class="et calle" x="22" y="${ALTO / 2}" font-size="20" text-anchor="middle" dominant-baseline="middle" transform="rotate(-90 22 ${ALTO / 2})">BOULEVARD SANTA ELENA</text>
   <rect x="${LOTE.x}" y="${LOTE.y}" width="${LOTE.w}" height="${LOTE.h}" fill="${C.lote}"/>
   ${zonas.map((z) => z.a.tipo === "rampa" && !z.a.es_receso ? rampa(z.X + 2, z.Y + 2, z.W - 4, z.H - 4) : `<rect x="${z.X + 2}" y="${z.Y + 2}" width="${z.W - 4}" height="${z.H - 4}" fill="${z.a.es_receso ? "#fbe3c8" : C.tinte[z.a.tipo] || C.lote}"/>
-    ${z.a.estado === "en_proceso" ? `<rect x="${z.X + 2}" y="${z.Y + 2}" width="${z.W - 4}" height="${z.H - 4}" fill="url(#rayado)"/>` : ""}`).join("")}
+`).join("")}
   ${trazo}
   ${(elementos || []).map(elemento).join("")}
-  ${zonas.map((z) => etiqueta(z.a.es_receso ? z.a.uso_actual || "Bodega (receso)" : z.a.nombre, z.X, z.Y, z.W, z.H, z.a.estado === "falta" && !z.a.es_receso)).join("")}
+  ${zonas.map((z) => etiqueta(z.a.es_receso ? z.a.uso_actual || "Bodega (receso)" : z.a.nombre, z.X, z.Y, z.W, z.H, false)).join("")}
 </svg>`;
 }

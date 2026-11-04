@@ -18,6 +18,7 @@ export const S = {
   obra: null,         // obra activa (con sus planos)
   areas: [],          // áreas de la obra sobre el plano
   elementos: [],      // gradas, jardineras, baños… con su estado
+  piezas: {},         // estado marcado a mano de cada pieza del plano: { idx: estado }
 };
 
 const ok = ({ data, error }) => { if (error) throw new Error(traducir(error)); return data; };
@@ -37,7 +38,7 @@ export async function cargarPerfil() {
 
 export async function cargarTodo() {
   const hoy = inicioDelDia().toISOString();
-  const [t, s, r, h, p, o, a, el] = await Promise.all([
+  const [t, s, r, h, p, o, a, el, pz] = await Promise.all([
     sb.from("trabajadores").select("*").eq("activo", true).order("nombre"),
     sb.from("sesiones_receso").select("*").is("fin", null).maybeSingle(),
     sb.from("recesos").select("*").or(`inicio.gte.${hoy},fin.is.null`).order("inicio"),
@@ -46,10 +47,12 @@ export async function cargarTodo() {
     sb.from("obras").select("*").eq("activa", true).order("creado_en").limit(1).maybeSingle(),
     sb.from("areas").select("*").order("orden"),
     sb.from("elementos").select("*").order("creado_en"),
+    sb.from("piezas").select("idx, estado, obra_id"),
   ]);
   S.trabajadores = ok(t); S.sesion = ok(s); S.recesos = ok(r); S.herramientas = ok(h); S.prestamos = ok(p);
   S.obra = ok(o); S.areas = ok(a).filter((x) => !S.obra || x.obra_id === S.obra.id);
   S.elementos = ok(el).filter((x) => !S.obra || x.obra_id === S.obra.id);
+  S.piezas = Object.fromEntries(ok(pz).filter((x) => !S.obra || x.obra_id === S.obra.id).map((x) => [x.idx, x.estado]));
   if (S.perfil?.rol === "admin") S.perfiles = ok(await sb.from("perfiles").select("*").order("creado_en"));
 }
 
@@ -140,6 +143,12 @@ export const ESTADOS = { existe: "Existe", en_proceso: "En construcción", falta
 export const TIPOS_ELEMENTO = { grada: "Gradas", jardinera: "Jardinera", bano: "Baño", muro: "Muro", puerta: "Puerta", columna: "Columna", bodega: "Bodega", otro: "Otro" };
 export async function estadoArea(id, estado) {
   ok(await sb.from("areas").update({ estado }).eq("id", id));
+}
+// Marcar piezas del plano (una o muchas a la vez)
+export async function estadoPiezas(indices, estado) {
+  if (!indices.length) return;
+  const filas = indices.map((idx) => ({ obra_id: S.obra.id, idx, estado, actualizado_en: ahora(), actualizado_por: yo() }));
+  for (let i = 0; i < filas.length; i += 500) ok(await sb.from("piezas").upsert(filas.slice(i, i + 500), { onConflict: "obra_id,idx" }));
 }
 export async function agregarElemento(e) {
   return ok(await sb.from("elementos").insert({ ...e, obra_id: S.obra.id, actualizado_por: yo() }).select().single());
