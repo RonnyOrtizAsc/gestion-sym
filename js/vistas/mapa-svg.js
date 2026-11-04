@@ -70,10 +70,50 @@ function rampa(X, Y, W, H) {
 export const estadoPieza = (i, piezas = {}) => piezas[i] || (TRAZO[i][4] ? "existe" : "falta");
 export const PIEZAS = TRAZO;
 
+// Caja (límites) y largo de cada pieza, para saber qué piezas forman un mismo objeto
+const NUM = /-?\d+\.?\d*/g;
+export const CAJAS = TRAZO.map(([, , , d]) => {
+  const v = (d.match(NUM) || []).map(Number); let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (let i = 0; i + 1 < v.length; i += 2) { x0 = Math.min(x0, v[i]); x1 = Math.max(x1, v[i]); y0 = Math.min(y0, v[i + 1]); y1 = Math.max(y1, v[i + 1]); }
+  return { x0, y0, x1, y1, largo: Math.max(x1 - x0, y1 - y0) };
+});
+// Objeto completo a partir de una pieza tocada: piezas pegadas (a menos de 8 unidades ≈ 45 cm)
+// que no sean mucho más largas que la tocada. Así una grada toma todos sus escalones,
+// pero tocar un escalón no arrastra la pared de al lado.
+export function grupoDe(i) {
+  const base = CAJAS[i], esMuro = TRAZO[i][0] === "muro", tope = Math.max(base.largo * 4, 30), M = 5;
+  const R = Math.max(25, base.largo * 1.2);   // el objeto no se sale de alrededor de lo tocado
+  const lim = { x0: base.x0 - R, y0: base.y0 - R, x1: base.x1 + R, y1: base.y1 + R };
+  const grupo = new Set([i]), cola = [i];
+  while (cola.length && grupo.size < 30) {
+    const c = CAJAS[cola.shift()];
+    CAJAS.forEach((o, j) => {
+      const clase = TRAZO[j][0];
+      if (grupo.has(j) || clase === "jardin" || o.largo > tope) return;
+      if ((clase === "muro") !== esMuro) return;   // paredes con paredes; puertas y gradas aparte
+      if (o.x0 < lim.x0 || o.x1 > lim.x1 || o.y0 < lim.y0 || o.y1 > lim.y1) return;
+      if (o.x0 <= c.x1 + M && o.x1 >= c.x0 - M && o.y0 <= c.y1 + M && o.y1 >= c.y0 - M) { grupo.add(j); cola.push(j); }
+    });
+  }
+  return [...grupo];
+}
+// Qué es (para el título de la hoja)
+export function queEs(grupo) {
+  const clases = grupo.map((i) => TRAZO[i][0]);
+  if (TRAZO[grupo[0]][0] === "muro") return "Pared";
+  const cortasParalelas = grupo.filter((i) => TRAZO[i][0] === "borde" && CAJAS[i].largo < 40).length;
+  if (cortasParalelas >= 3) return "Gradas";
+  if (grupo.some((i) => TRAZO[i][0] === "fino" && /C/.test(TRAZO[i][3]))) return "Puerta";
+  if (clases.includes("columna")) return "Columna";
+  if (clases.includes("muro")) return "Pared";
+  return "Detalle del plano";
+}
+
 // Capa tocable para Editar plano: cada pieza con un trazo ancho invisible para poder tocarla
-export function capaPiezas(piezas = {}) {
+export function capaPiezas(piezas = {}, seleccion = []) {
+  const sel = new Set(seleccion);
   return `<svg class="capa-piezas" viewBox="0 0 ${ANCHO} ${ALTO}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${TRAZO.map(([c, , , d], i) =>
-    c === "jardin" ? "" : `<path class="pz ${estadoPieza(i, piezas)}" data-pz="${i}" d="${d}"/>`).join("")}</svg>`;
+    c === "jardin" ? "" : `<path class="pz ${estadoPieza(i, piezas)}${sel.has(i) ? " sel" : ""}" data-pz="${i}" d="${d}"/>`).join("")}</svg>`;
 }
 
 export function dibujarObra(areas, elementos = [], piezas = {}) {

@@ -139,7 +139,7 @@ export async function moverTrabajador(wid, areaId) {
 }
 
 // ---------- Plano: estados y elementos ----------
-export const ESTADOS = { existe: "Existe", en_proceso: "En construcción", falta: "Falta" };
+export const ESTADOS = { existe: "Hecho", en_proceso: "En construcción", falta: "Falta" };
 export const TIPOS_ELEMENTO = { grada: "Gradas", jardinera: "Jardinera", bano: "Baño", muro: "Muro", puerta: "Puerta", columna: "Columna", bodega: "Bodega", otro: "Otro" };
 export async function estadoArea(id, estado) {
   ok(await sb.from("areas").update({ estado }).eq("id", id));

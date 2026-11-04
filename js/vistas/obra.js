@@ -7,13 +7,14 @@ import { S, recesoAbierto, enReceso, prestamosActivos, cambiarReceso, iniciarRec
   ESTADOS, TIPOS_ELEMENTO, estadoArea, agregarElemento, editarElemento, borrarElemento,
   prestarRapido, cerrarPrestamo, disponibles, METROS_POR_UNIDAD, usarComoBodega, estadoPiezas } from "../datos.js";
 import { esc, iniciales, primerNombre, ms, hhmm } from "../util.js";
-import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, ANCHO, ALTO } from "./mapa-svg.js";
+import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, grupoDe, queEs, ANCHO, ALTO } from "./mapa-svg.js";
 
 const ZOOMS = [1, 1.6, 2.4, 3.4];
 let vistaGuardada = "2d"; try { vistaGuardada = localStorage.getItem("sym-vista") || "2d"; } catch (e) {}
 const ui = { vista: vistaGuardada, zoom: 1, sel: null, areaSel: null, moviendo: false,
   editar: false, elSel: null, nuevo: null, borrar: false,
-  prestar: null, verPrestamos: false, perdida: null };   // prestar = { h, nuevo, w, q }   // nuevo = { tipo, p1 } mientras se dibuja un elemento
+  prestar: null, verPrestamos: false, perdida: null,
+  pz: null };   // pz = { grupo: [índices], nombre } pieza del plano seleccionada en Editar plano   // prestar = { h, nuevo, w, q }   // nuevo = { tipo, p1 } mientras se dibuja un elemento
 let ultimas = {};
 let dibujo = { clave: "", svg: "" };
 const ICONO = {
@@ -137,6 +138,16 @@ function hojaElemento(e) {
       : `<button class="btn danger" data-borrar>Borrar elemento</button>`}</div>`;
 }
 
+function hojaPieza() {
+  const g = ui.pz.grupo, estados = g.map((i) => estadoPieza(i, S.piezas));
+  const actual = estados.every((e) => e === estados[0]) ? estados[0] : null;
+  return `<div class="hoja-h"><div class="grow"><p class="eyebrow" style="margin:0">Editar plano</p><b>${esc(ui.pz.nombre)}</b>
+      <small>${actual ? "Ahora: " + ESTADOS[actual] : "Tiene partes en distinto estado"} · resaltado en verde en el plano</small></div>
+      <button class="x" data-cerrar aria-label="Cerrar">×</button></div>
+    ${botonesEstado(actual, "data-estado-pz")}
+    ${g.length > 1 ? `<button class="linkbtn" data-solo-pieza style="margin-top:10px">Marcar solo la línea que toqué</button>` : ""}`;
+}
+
 function hojaNuevo() {
   return `<div class="hoja-h"><div class="grow"><p class="eyebrow" style="margin:0">Agregar al plano</p><b>${ui.nuevo.tipo ? TIPOS_ELEMENTO[ui.nuevo.tipo] : "¿Qué vas a agregar?"}</b>
       <small>${ui.nuevo.tipo ? (ui.nuevo.p1 ? "Ahora toca la esquina opuesta. Después puedes ajustar la medida exacta en metros." : "Toca una esquina en el plano.") : "Elige el tipo y luego marca dos esquinas en el plano."}</small></div>
@@ -183,7 +194,6 @@ export function render(V, { hacer, redibujar }) {
     ${receso || ui.editar ? "" : `<button class="hud-btn secundario" id="hudPrestar">${ICONO.llave}<span>Prestar</span></button>
       <button class="hud-btn secundario" id="hudVerPrestamos">${ICONO.lista}<span>Ver préstamos${prestamosActivos().length ? ` <b class="cuenta">${prestamosActivos().reduce((a, p) => a + p.cantidad, 0)}</b>` : ""}</span></button>`}
     ${receso ? "" : `<button class="hud-btn secundario ${ui.editar ? "activo-edit" : ""}" id="hudEditar">${ICONO.lapiz}<span>${ui.editar ? "Listo" : "Editar plano"}</span></button>`}
-    ${ui.editar ? `<button class="hud-btn secundario" id="hudAgregar">${ICONO.mas}<span>Agregar</span></button>` : ""}
     <span class="hud-sep"></span>
     <div class="seg mini hud-vista" role="group" aria-label="Vista">
       <button data-vista="2d" aria-pressed="${!es3d}">2D</button><button data-vista="3d" aria-pressed="${es3d}">3D</button></div>
@@ -193,7 +203,7 @@ export function render(V, { hacer, redibujar }) {
   ${receso ? `<p class="pista receso">Receso abierto desde ${hhmm(S.sesion.inicio)}. Toca a quien sale: se pone naranja y camina a la bodega. Tócalo otra vez cuando regrese.</p>`
     : ui.moviendo && w ? `<p class="pista mover">Toca el área a donde va <b>${esc(primerNombre(w.nombre))}</b> <button class="btn small" data-cancelar-mover>Cancelar</button></p>`
     : ui.nuevo?.tipo ? `<p class="pista mover">${ui.nuevo.p1 ? "Toca la esquina opuesta" : "Toca una esquina"} de: <b>${TIPOS_ELEMENTO[ui.nuevo.tipo]}</b></p>`
-    : ui.editar ? `<p class="pista mover">Editando el plano: toca un muro, puerta o división para pasarlo de <b>falta</b> (transparente) → <b>en construcción</b> → <b>existe</b> (negro). Toca un área vacía para marcarla completa.</p>`
+    : ui.editar ? `<p class="pista mover">Editando el plano: toca una pared, puerta o grada y márcala como <b>Hecho</b> para que se ponga en negro. Lo transparente es lo que falta.</p>`
     : `<p class="pista">Toca un área para ver quién está ahí, o toca a una persona para moverla.${es3d ? " Arrastra para girar, pellizca para acercar." : ""}</p>`}
   ${es3d ? `<div class="escena" id="escena"><p class="cargando">Levantando la obra en 3D…</p></div>`
   : `<div class="mapa-scroll ${ui.zoom > 1 ? "acercado" : ""}" id="mapaScroll">
@@ -204,7 +214,7 @@ export function render(V, { hacer, redibujar }) {
         return `<button class="area ${n ? "ocupada" : ""} ${a.es_receso ? "zr" : ""} ${ui.areaSel === a.id ? "sel" : ""}" data-area="${a.id}"
           style="left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%" aria-label="${esc(nombre)}, ${n} asignados"></button>`; }).join("")}
       ${tokens.map(([p, x, y]) => token(p, x, y)).join("")}
-      ${ui.editar && !ui.nuevo ? capaPiezas(S.piezas) : ""}
+      ${ui.editar && !ui.nuevo ? capaPiezas(S.piezas, ui.pz?.grupo) : ""}
       ${ui.editar ? S.elementos.map((e) => `<button class="el-btn ${ui.elSel === e.id ? "sel" : ""}" data-el="${e.id}" style="left:${e.x}%;top:${e.y}%;width:${e.w}%;height:${e.h}%" aria-label="${esc(e.nombre || TIPOS_ELEMENTO[e.tipo])}"></button>`).join("") : ""}
       ${ui.nuevo?.p1 ? `<span class="punto" style="left:${ui.nuevo.p1[0]}%;top:${ui.nuevo.p1[1]}%"></span>` : ""}
       ${ui.nuevo?.tipo ? `<div class="captura" id="captura"></div>` : ""}
@@ -214,7 +224,8 @@ export function render(V, { hacer, redibujar }) {
   ${sinArea.length ? `<div class="bandeja"><p class="eyebrow">Sin área asignada (${sinArea.length})</p><div class="chips">${sinArea.map(chipPersona).join("")}</div>
     ${receso ? "" : `<p class="note">Toca a alguien y luego “Mover de área”, o toca un área del mapa para asignar gente.</p>`}</div>` : ""}
   ${!zr && descansando.length ? `<div class="bandeja rest"><p class="eyebrow">En receso</p><div class="chips">${descansando.map(chipPersona).join("")}</div></div>` : ""}
-  ${ui.prestar ? `<div class="hoja" role="dialog" aria-label="Prestar">${hojaPrestar()}</div>`
+  ${ui.editar && ui.pz ? `<div class="hoja" role="dialog" aria-label="Pieza del plano">${hojaPieza()}</div>`
+    : ui.prestar ? `<div class="hoja" role="dialog" aria-label="Prestar">${hojaPrestar()}</div>`
     : ui.verPrestamos ? `<div class="hoja" role="dialog" aria-label="Préstamos">${hojaPrestamos()}</div>`
     : ui.nuevo ? `<div class="hoja" role="dialog" aria-label="Agregar">${hojaNuevo()}</div>`
     : ui.editar && elSel ? `<div class="hoja" role="dialog" aria-label="Elemento">${hojaElemento(elSel)}</div>`
@@ -238,7 +249,7 @@ export function render(V, { hacer, redibujar }) {
   };
   const tocarArea = (aid) => {
     if (receso || !aid) return;
-    if (ui.editar) { ui.areaSel = aid; ui.elSel = null; ui.sel = null; return redibujar(); }
+    if (ui.editar) { ui.areaSel = aid; ui.elSel = null; ui.sel = null; ui.pz = null; return redibujar(); }
     if (ui.moviendo && ui.sel) {
       const id = ui.sel, a = area(aid); ui.moviendo = false; ui.sel = null;
       return hacer(async () => { await moverTrabajador(id, a.id); return `${primerNombre(trabajador(id).nombre)} → ${a.nombre}`; });
@@ -291,12 +302,10 @@ export function render(V, { hacer, redibujar }) {
       el.addEventListener("pointerleave", () => (tip.hidden = true));
     });
     // Editar plano: cada pieza avanza falta → en construcción → existe → falta
-    const SIG = { falta: "en_proceso", en_proceso: "existe", existe: "falta" };
     V.querySelectorAll("[data-pz]").forEach((el) => {
       el.addEventListener("click", (e) => {
-        e.stopPropagation(); const i = +el.dataset.pz, nuevo = SIG[estadoPieza(i, S.piezas)];
-        S.piezas[i] = nuevo; redibujar();   // se ve al instante; se guarda atrás
-        hacer(async () => { await estadoPiezas([i], nuevo); return nuevo === "existe" ? "Agregado al plano actual" : nuevo === "en_proceso" ? "En construcción" : "Marcado como pendiente"; });
+        e.stopPropagation(); const i = +el.dataset.pz, grupo = grupoDe(i);
+        ui.pz = { tocada: i, grupo, nombre: queEs(grupo) }; ui.areaSel = null; ui.elSel = null; redibujar();
       });
     });
     const cap = V.querySelector("#captura");
@@ -305,8 +314,8 @@ export function render(V, { hacer, redibujar }) {
 
   // ---- Interacción ----
   const $$ = (s) => V.querySelectorAll(s);
-  function cerrarTodo() { ui.sel = null; ui.areaSel = null; ui.moviendo = false; ui.elSel = null; ui.nuevo = null; ui.borrar = false; ui.prestar = null; ui.verPrestamos = false; ui.perdida = null; }
-  const cerrar = () => { ui.sel = null; ui.areaSel = null; ui.moviendo = false; ui.elSel = null; ui.nuevo = null; ui.borrar = false; ui.prestar = null; ui.verPrestamos = false; ui.perdida = null; redibujar(); };
+  function cerrarTodo() { ui.pz = null; ui.sel = null; ui.areaSel = null; ui.moviendo = false; ui.elSel = null; ui.nuevo = null; ui.borrar = false; ui.prestar = null; ui.verPrestamos = false; ui.perdida = null; }
+  const cerrar = () => { ui.pz = null; ui.sel = null; ui.areaSel = null; ui.moviendo = false; ui.elSel = null; ui.nuevo = null; ui.borrar = false; ui.prestar = null; ui.verPrestamos = false; ui.perdida = null; redibujar(); };
   $$("[data-vista]").forEach((b) => (b.onclick = () => { ui.vista = b.dataset.vista; try { localStorage.setItem("sym-vista", ui.vista); } catch (e) {} redibujar(); }));
   $$("[data-w]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); tocarPersona(b.dataset.w); }));
   $$("[data-cerrar]").forEach((b) => (b.onclick = cerrar));
@@ -317,7 +326,7 @@ export function render(V, { hacer, redibujar }) {
   $$("[data-traer]").forEach((b) => (b.onclick = () => { const id = b.dataset.traer, a = area(ui.areaSel);
     hacer(async () => { await moverTrabajador(id, a.id); return `${primerNombre(trabajador(id).nombre)} → ${a.nombre}`; }); }));
   const he = V.querySelector("#hudEditar");
-  if (he) he.onclick = () => { ui.editar = !ui.editar; ui.nuevo = null; ui.elSel = null; ui.areaSel = null; ui.sel = null; ui.moviendo = false; redibujar(); };
+  if (he) he.onclick = () => { ui.pz = null; ui.editar = !ui.editar; ui.nuevo = null; ui.elSel = null; ui.areaSel = null; ui.sel = null; ui.moviendo = false; redibujar(); };
   const ha = V.querySelector("#hudAgregar"); if (ha) ha.onclick = () => { ui.nuevo = { tipo: null, p1: null }; ui.elSel = null; ui.areaSel = null; redibujar(); };
   $$("[data-tipo]").forEach((b) => (b.onclick = () => { ui.nuevo = { tipo: b.dataset.tipo, p1: null }; redibujar(); }));
   $$("[data-el]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); ui.elSel = b.dataset.el; ui.areaSel = null; ui.borrar = false; redibujar(); }));
@@ -334,6 +343,12 @@ export function render(V, { hacer, redibujar }) {
   $$("[data-borrar-no]").forEach((b) => (b.onclick = () => { ui.borrar = false; redibujar(); }));
   $$("[data-borrar-si]").forEach((b) => (b.onclick = () => { const id = ui.elSel; ui.elSel = null; ui.borrar = false;
     hacer(async () => { await borrarElemento(id); return "Elemento borrado del plano"; }); }));
+  // Marcar pieza(s) del plano
+  $$("[data-estado-pz]").forEach((b) => (b.onclick = () => { const g = ui.pz.grupo, est = b.dataset.estadoPz, nombre = ui.pz.nombre;
+    g.forEach((i) => (S.piezas[i] = est)); ui.pz = null; redibujar();   // se ve al instante; se guarda atrás
+    hacer(async () => { await estadoPiezas(g, est); return `${nombre}: ${ESTADOS[est]}`; }); }));
+  const sp = V.querySelector("[data-solo-pieza]"); if (sp) sp.onclick = () => { ui.pz.grupo = [ui.pz.tocada]; ui.pz.nombre = queEs(ui.pz.grupo); redibujar(); };
+
   // Prestar / Ver préstamos
   const hp = V.querySelector("#hudPrestar"); if (hp) hp.onclick = () => { cerrarTodo(); ui.prestar = { h: null, nuevo: "", w: null, q: 1 }; redibujar(); };
   const hv = V.querySelector("#hudVerPrestamos"); if (hv) hv.onclick = () => { cerrarTodo(); ui.verPrestamos = true; redibujar(); };

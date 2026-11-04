@@ -245,3 +245,4 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
 .capa-piezas .pz{fill:none;stroke:transparent;stroke-width:16;pointer-events:stroke;cursor:pointer}
 .capa-piezas .pz:hover{stroke:color-mix(in srgb,var(--lime) 70%,transparent)}
 .capa-piezas .pz.falta:hover{stroke:#c4ee4aaa}
+.capa-piezas .pz.sel{stroke:#9fd400;stroke-opacity:.85;stroke-width:10}
