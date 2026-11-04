@@ -21,7 +21,10 @@ const INTERIOR = new Set(["sala", "oficinas", "taller", "servicio"]);
 function rng(semilla) { let h = 2166136261; for (const c of String(semilla)) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
   return () => ((h = Math.imul(h ^ (h >>> 15), 2246822507) ^ Math.imul(h ^ (h >>> 13), 3266489909)) >>> 0) / 4294967296; }
 
+// La obra está libre de carros: no se dibujan (se deja la función por si se usan después)
+const MOSTRAR_COCHES = false;
 function coche(x, y, ang, color) {
+  if (!MOSTRAR_COCHES) return "";
   return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${ang})"><rect x="-15" y="-29" width="30" height="58" rx="9" fill="${color}" stroke="#00000033" stroke-width="1.5"/>
     <rect x="-11" y="-17" width="22" height="13" rx="3" fill="#2a3a48" opacity=".8"/><rect x="-11" y="12" width="22" height="9" rx="3" fill="#2a3a48" opacity=".65"/></g>`;
 }
