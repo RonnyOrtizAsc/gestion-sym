@@ -131,13 +131,14 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
 .zoom button{width:40px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-size:20px;font-weight:700}
 .zoom button[disabled]{opacity:.35}
 .aviso{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:space-between;background:var(--lime);color:var(--lime-ink);border-radius:12px;padding:10px 14px;margin-bottom:10px;font-size:14px}
-.aviso.receso{background:var(--break-soft);color:var(--ink);border:1px solid var(--break)}
+.aviso.receso{background:var(--break-soft);color:var(--ink);border:1px solid var(--break);font-size:13px;line-height:1.35}
 .aviso.receso b{color:var(--break)}
-.mapa-scroll{position:relative;width:100%;max-height:72vh;overflow:auto;border-radius:16px;border:1px solid var(--line);background:#fff;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.mapa-scroll{position:relative;width:100%;overflow:auto;border-radius:16px;border:1px solid var(--line);background:#fff;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .mapa{position:relative;max-width:none}
 .plano{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;user-select:none;-webkit-user-drag:none;pointer-events:none}
 .plano.tenue{opacity:.18}
-@media (prefers-color-scheme:dark){.mapa-scroll{background:#0d0f0c}.plano{filter:invert(.92) hue-rotate(180deg)}.plano.tenue{opacity:.12}}
+.mapa-scroll.acercado{max-height:70vh}
+/* El plano se queda en papel blanco también en modo oscuro: así se leen sus líneas */
 .area{position:absolute;padding:0;border:1.5px dashed color-mix(in srgb,var(--muted) 45%,transparent);background:transparent;border-radius:4px;display:block;text-align:left;overflow:hidden}
 .area .an{position:absolute;left:2px;top:2px;right:2px;font-size:9px;line-height:1.15;font-weight:800;color:var(--ink);background:color-mix(in srgb,var(--surface) 85%,transparent);padding:1px 3px;border-radius:3px;display:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mapa.z1 .area .an,.mapa.z2 .area .an,.mapa.z3 .area .an{display:block}

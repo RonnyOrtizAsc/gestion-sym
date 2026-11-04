@@ -82,9 +82,8 @@ export function render(V, { hacer, redibujar }) {
 
   V.innerHTML = `<p class="eyebrow">${esc(o.nombre)}${o.propietario ? " · " + esc(o.propietario) : ""}</p>
   <h2>${receso ? "Receso en curso" : "¿Quién está en qué?"}</h2>
-  ${resumen()}
   ${receso ? `<div class="aviso receso"><div><b>Receso abierto desde ${hhmm(S.sesion.inicio)}</b> · <span class="num" data-desde="${ms(S.sesion.inicio)}"></span><br>
-      Toca a quien sale a descansar: se pone naranja y se va a la bodega. Tócalo otra vez cuando regrese.</div></div>` : ""}
+      Toca a quien sale: se pone naranja y va a la bodega. Tócalo otra vez cuando regrese.</div></div>` : ""}
   ${ui.moviendo && w ? `<div class="aviso">Toca el área a donde va <b>${esc(primerNombre(w.nombre))}</b> <button class="btn small" data-cancelar-mover>Cancelar</button></div>` : ""}
   <div class="mapa-bar">
     <div class="seg mini" role="group" aria-label="Plano">
@@ -92,7 +91,7 @@ export function render(V, { hacer, redibujar }) {
       <button data-plano="final" aria-pressed="${ui.plano === "final"}">Final · AR-01</button></div>
     <div class="zoom"><button data-z="-1" aria-label="Alejar" ${ui.zoom === ZOOMS[0] ? "disabled" : ""}>−</button><button data-z="1" aria-label="Acercar" ${ui.zoom === ZOOMS.at(-1) ? "disabled" : ""}>+</button></div>
   </div>
-  <div class="mapa-scroll" id="mapaScroll">
+  <div class="mapa-scroll ${ui.zoom > 1 ? "acercado" : ""}" id="mapaScroll">
     <div class="mapa z${ZOOMS.indexOf(ui.zoom)} ${ui.moviendo ? "moviendo" : ""} ${receso ? "en-receso" : ""}" style="width:${ui.zoom * 100}%;aspect-ratio:${prop}">
       ${ui.plano === "actual" ? `<img class="plano tenue" src="${esc(o.plano_final)}" alt="" aria-hidden="true">` : ""}
       <img class="plano" src="${esc(ui.plano === "actual" ? o.plano_actual : o.plano_final)}" alt="Plano ${ui.plano === "actual" ? "actual" : "final"} de ${esc(o.nombre)}">
@@ -103,6 +102,7 @@ export function render(V, { hacer, redibujar }) {
       ${tokens.map(([p, x, y]) => token(p, x, y)).join("")}
     </div>
   </div>
+  <div class="section" style="margin-top:12px">${resumen()}</div>
   ${sinArea.length ? `<div class="bandeja"><p class="eyebrow">Sin área asignada (${sinArea.length})</p><div class="chips">${sinArea.map(chipPersona).join("")}</div>
     ${receso ? "" : `<p class="note">Toca a alguien y luego “Mover de área”, o toca un área del plano para asignar gente.</p>`}</div>` : ""}
   ${!zr && descansando.length ? `<div class="bandeja rest"><p class="eyebrow">En receso</p><div class="chips">${descansando.map(chipPersona).join("")}</div></div>` : ""}
