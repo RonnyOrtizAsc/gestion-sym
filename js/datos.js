@@ -15,6 +15,8 @@ export const S = {
   herramientas: [],
   prestamos: [],      // activos y perdidos
   perfiles: [],       // solo para el admin
+  obra: null,         // obra activa (con sus planos)
+  areas: [],          // áreas de la obra sobre el plano
 };
 
 const ok = ({ data, error }) => { if (error) throw new Error(traducir(error)); return data; };
@@ -34,14 +36,17 @@ export async function cargarPerfil() {
 
 export async function cargarTodo() {
   const hoy = inicioDelDia().toISOString();
-  const [t, s, r, h, p] = await Promise.all([
+  const [t, s, r, h, p, o, a] = await Promise.all([
     sb.from("trabajadores").select("*").eq("activo", true).order("nombre"),
     sb.from("sesiones_receso").select("*").is("fin", null).maybeSingle(),
     sb.from("recesos").select("*").or(`inicio.gte.${hoy},fin.is.null`).order("inicio"),
     sb.from("herramientas").select("*").order("nombre"),
     sb.from("prestamos").select("*").in("estado", ["activo", "perdido"]).order("prestado_en", { ascending: false }),
+    sb.from("obras").select("*").eq("activa", true).order("creado_en").limit(1).maybeSingle(),
+    sb.from("areas").select("*").order("orden"),
   ]);
   S.trabajadores = ok(t); S.sesion = ok(s); S.recesos = ok(r); S.herramientas = ok(h); S.prestamos = ok(p);
+  S.obra = ok(o); S.areas = ok(a).filter((x) => !S.obra || x.obra_id === S.obra.id);
   if (S.perfil?.rol === "admin") S.perfiles = ok(await sb.from("perfiles").select("*").order("creado_en"));
 }
 
@@ -69,7 +74,7 @@ export async function iniciarReceso() {
   S.sesion = ok(await sb.from("sesiones_receso").insert({ iniciado_por: yo() }).select().single());
 }
 export async function cambiarReceso(wid) {
-  if (!S.sesion) throw new Error("Primero toca “Iniciar receso”.");
+  if (!S.sesion) await iniciarReceso();   // si no hay receso abierto, se abre solo
   const abierto = recesoAbierto(wid);
   if (abierto) ok(await sb.from("recesos").update({ fin: ahora() }).eq("id", abierto.id));
   else ok(await sb.from("recesos").insert({ trabajador_id: wid, sesion_id: S.sesion.id, registrado_por: yo() }));
@@ -102,6 +107,12 @@ export async function agregarTrabajador(nombre, puesto, habilidades) {
 export async function editarTrabajador(id, cambios) {
   ok(await sb.from("trabajadores").update(cambios).eq("id", id));
 }
+export const area = (id) => S.areas.find((a) => a.id === id) || null;
+export const enArea = (aid) => S.trabajadores.filter((w) => w.area_id === aid);
+export async function moverTrabajador(wid, areaId) {
+  ok(await sb.from("trabajadores").update({ area_id: areaId }).eq("id", wid));
+}
+
 export async function editarPerfil(id, cambios) {
   ok(await sb.from("perfiles").update(cambios).eq("id", id));
 }
