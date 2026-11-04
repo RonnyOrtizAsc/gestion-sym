@@ -28,13 +28,13 @@ export function render(V, { hacer, redibujar }) {
     <button class="btn primary">Agregar</button></form></div></div>
 
   ${admin ? `<div class="section"><p class="eyebrow">Usuarios de la app</p><div class="list">
-    ${S.perfiles.map((p) => `<div class="li"><div class="grow"><b>${esc(p.nombre || p.email)}</b><small>${esc(p.email || "")} · ${p.rol === "admin" ? "Administrador" : "Encargado"}</small></div>
+    ${S.perfiles.map((p) => `<div class="li"><div class="grow"><b>${esc(p.nombre || p.email)}</b><small>@${esc(p.usuario || "")} · ${esc(p.email || "")} · ${p.rol === "admin" ? "Administrador" : "Encargado"}</small></div>
       ${p.id === S.perfil.id ? `<span class="pill ok">Tú</span>`
         : p.aprobado ? `<span class="pill ok">Con acceso</span><button class="btn small danger" data-revocar="${p.id}">Quitar acceso</button>`
         : `<span class="pill out">Esperando</span><button class="btn small primary" data-aprobar="${p.id}">Dar acceso</button>`}</div>`).join("")}
   </div><p class="note">${pendientes.length ? `Hay ${pendientes.length} persona(s) esperando acceso.` : "Para sumar un encargado: que abra la app, toque “Crear cuenta” y luego tú le das acceso aquí."}</p></div>` : ""}
 
-  <div class="section"><p class="eyebrow">Tu cuenta</p><div class="list"><div class="li"><div class="grow"><b>${esc(S.perfil?.nombre || "")}</b><small>${esc(S.usuario?.email || "")}</small></div><button class="btn small" id="salir">Cerrar sesión</button></div></div>
+  <div class="section"><p class="eyebrow">Tu cuenta</p><div class="list"><div class="li"><div class="grow"><b>${esc(S.perfil?.nombre || "")}</b><small>Usuario: ${esc(S.perfil?.usuario || "")} · ${esc(S.usuario?.email || "")}</small></div><button class="btn small" id="salir">Cerrar sesión</button></div></div>
   <p class="note">Para instalarla en el celular: en Chrome toca ⋮ → “Agregar a pantalla de inicio”; en iPhone, en Safari toca Compartir → “Agregar a inicio”.</p></div>`;
 
   const $$ = (s) => V.querySelectorAll(s);
