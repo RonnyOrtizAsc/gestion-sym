@@ -115,7 +115,9 @@ function prepararNiveles(areas) {
   const rampas = areas.filter(esRampa).map((a) => {
     const c = caja(a), mx = (c.x0 + c.x1) / 2, my = (c.y0 + c.y1) / 2, m = 12;
     const ex = [plano(c.x0 - m, my), plano(c.x1 + m, my)], ey = [plano(mx, c.y0 - m), plano(mx, c.y1 + m)];
-    const eje = Math.abs(ex[1] - ex[0]) >= Math.abs(ey[1] - ey[0]) ? "x" : "y";
+    const dx = Math.abs(ex[1] - ex[0]), dy = Math.abs(ey[1] - ey[0]);
+    // sube por el lado que cambia de nivel; si los dos cambian igual, por lo largo de la rampa
+    const eje = Math.abs(dx - dy) < 0.3 ? (c.x1 - c.x0 >= c.y1 - c.y0 ? "x" : "y") : dx > dy ? "x" : "y";
     return { a, c, eje, n: eje === "x" ? ex : ey };
   });
   rampas.unshift(RAMPA_ESTE);
