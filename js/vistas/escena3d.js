@@ -404,3 +404,9 @@ export function montar(contenedor, { svg, clave, areas, elementos, piezas, perso
 }
 
 export function vistaInicial() { if (!E) return; E.camera.position.set(-35, 120, 135); E.controls.target.set(0, 0, 5); }
+
+// Acerca la cámara a un punto del plano (unidades del mapa)
+export function enfocar(x, y, dist = 30) {
+  if (!E) return; const p = aEscena(x, y); p.y = E.altura(x, y) * M;
+  E.controls.target.copy(p); E.camera.position.set(p.x - dist * 0.6, p.y + dist * 0.7, p.z + dist);
+}
