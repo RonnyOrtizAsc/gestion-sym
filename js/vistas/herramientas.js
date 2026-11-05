@@ -1,10 +1,10 @@
 // Vista "Herramientas": prestar, ver quién tiene qué, inventario de bodega.
 import { S, prestamosActivos, disponibles, prestadas, perdidas, herramienta, trabajador,
-  prestar, cerrarPrestamo, agregarHerramienta, cambiarCantidad } from "../datos.js";
+  prestar, cerrarPrestamo, agregarHerramienta, cambiarCantidad, borrarHerramienta } from "../datos.js";
 import { esc, hhmm, fecha, esHoy, primerNombre } from "../util.js";
 import { miniatura, tarjeta, tomarFoto } from "./fotos.js";
 
-const ui = { vista: "prestar", w: null, h: null, q: 1, confirmar: null };
+const ui = { vista: "prestar", w: null, h: null, q: 1, confirmar: null, borrar: null };
 
 export function render(V, ctx) {
   const { hacer, redibujar } = ctx;
@@ -36,7 +36,9 @@ export function render(V, ctx) {
     cuerpo = `<div class="list">${S.herramientas.length ? S.herramientas.map((h) => { const o = prestadas(h.id), lo = perdidas(h.id), a = disponibles(h);
       return `<div class="li"><button class="foto-btn" data-foto="${h.id}" aria-label="${h.foto ? "Cambiar foto" : "Tomar foto"} de ${esc(h.nombre)}">${miniatura(h, "foto chica")}<span class="cam">${h.foto ? "Cambiar" : "+ Foto"}</span></button><div class="grow"><b>${esc(h.nombre)}</b><small>${h.cantidad} en total${lo ? ` · ${lo} perdida${lo > 1 ? "s" : ""}` : ""}</small></div>
         ${o ? `<span class="pill out">${o} prestada${o > 1 ? "s" : ""}</span>` : ""}<span class="pill ${a > 0 ? "ok" : "lost"}">${a} en bodega</span>
-        <span class="acts"><button class="btn small" data-menos="${h.id}" aria-label="Quitar una">−1</button><button class="btn small" data-mas="${h.id}" aria-label="Agregar una">+1</button></span></div>`; }).join("")
+        ${ui.borrar === h.id
+          ? `<span class="confirm"><button class="btn small danger" data-borrar-si="${h.id}">Sí, borrar</button><button class="btn small" data-borrar-no>No</button></span>`
+          : `<span class="acts"><button class="btn small" data-menos="${h.id}" aria-label="Quitar una">−1</button><button class="btn small" data-mas="${h.id}" aria-label="Agregar una">+1</button><button class="btn small danger" data-borrar="${h.id}" aria-label="Borrar ${esc(h.nombre)}">Borrar</button></span>`}</div>`; }).join("")
       : `<div class="empty">La bodega está vacía. Agrega abajo tus herramientas con la cantidad que tienes.</div>`}</div>
     <div class="step section"><h3>Agregar herramienta</h3><form class="addrow" id="addH">
       <input id="hn" placeholder="Ej. Pulidora" aria-label="Nombre de la herramienta" required>
@@ -67,6 +69,10 @@ export function render(V, ctx) {
   $$("[data-cancelar]").forEach((b) => (b.onclick = () => { ui.confirmar = null; redibujar(); }));
   $$("[data-perdida]").forEach((b) => (b.onclick = () => hacer(async () => { await cerrarPrestamo(b.dataset.perdida, "perdido"); ui.confirmar = null; return "Marcada como perdida"; })));
   $$("[data-mas]").forEach((b) => (b.onclick = () => hacer(async () => { const h = herramienta(b.dataset.mas); await cambiarCantidad(h.id, h.cantidad + 1); return `${h.nombre}: ${h.cantidad + 1} en total`; })));
+  $$("[data-borrar]").forEach((b) => (b.onclick = () => { ui.borrar = b.dataset.borrar; redibujar(); }));
+  $$("[data-borrar-no]").forEach((b) => (b.onclick = () => { ui.borrar = null; redibujar(); }));
+  $$("[data-borrar-si]").forEach((b) => (b.onclick = () => { const h = herramienta(b.dataset.borrarSi); ui.borrar = null;
+    hacer(async () => { await borrarHerramienta(h.id); return `${h.nombre} borrada del inventario`; }); }));
   $$("[data-foto]").forEach((b) => (b.onclick = () => tomarFoto(b.dataset.foto, hacer)));
   $$("[data-menos]").forEach((b) => (b.onclick = () => hacer(async () => {
     const h = herramienta(b.dataset.menos);

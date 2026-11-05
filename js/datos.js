@@ -139,6 +139,14 @@ export async function subirFotoHerramienta(hid, file) {
   ok(await sb.from("herramientas").update({ foto: url }).eq("id", hid));
 }
 
+// Borrar una herramienta del inventario (no se puede si alguien la tiene prestada)
+export async function borrarHerramienta(hid) {
+  const fuera = prestadas(hid);
+  if (fuera > 0) throw new Error(`No se puede borrar: hay ${fuera} prestada${fuera > 1 ? "s" : ""}. Primero márcala como devuelta o perdida.`);
+  ok(await sb.from("herramientas").delete().eq("id", hid));
+  await sb.storage.from("herramientas").remove([`${hid}.jpg`]).catch(() => {});
+}
+
 export async function cambiarCantidad(hid, cantidad) {
   ok(await sb.from("herramientas").update({ cantidad }).eq("id", hid));
 }
