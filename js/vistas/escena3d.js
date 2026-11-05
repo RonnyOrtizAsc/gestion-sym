@@ -87,11 +87,12 @@ const caja = (a) => ({ x0: (a.x / 100) * ANCHO, y0: (a.y / 100) * ALTO, x1: ((+a
 // Tres plataformas (confirmadas en obra):
 //  abajo  N 868.96: taller, rebalse técnico, todo GWM y Marca 4, comedor
 //  medio  N 870.00: Chery y Nissan (salas, oficinas, exhibición)
-//  arriba N 871.92: patio de maniobras, rebalse, empleados, entrega de vehículos, café; bodega 871.65
+//  arriba N 871.92: patio de maniobras, rebalse, empleados, entrega de vehículos, café
+//  la bodega está abajo y la casa de encima queda al nivel de arriba
 const ABAJO = 0, MEDIO = 1.04, ARRIBA = 2.96;
 function nivelFijo(a) {
   const n = a.nombre || "";
-  if (a.es_receso) return 2.69;
+  if (a.es_receso) return ABAJO;                   // bodega: abajo, al nivel del rebalse técnico
   if (/t[eé]cnico|taller|gwm|marca 4|comedor|lockers/i.test(n)) return ABAJO;
   if (/patio|rebalse|empleados|entrega de veh|caf[eé]|atenci/i.test(n)) return ARRIBA;
   return MEDIO;
@@ -149,7 +150,7 @@ function ponerTerreno() {
 }
 
 // ---------- Paredes y columnas del plano (cada pieza con su estado: hecho, en construcción o falta) ----------
-const ALTO_MURO = { sala: 6, taller: 7, oficinas: 3.2, servicio: 3.2, receso: 3 };   // metros
+const ALTO_MURO = { sala: 6, taller: 7, oficinas: 3.2, servicio: 3.2, receso: 4.74 };   // receso = ARRIBA × EXAGERA (la bodega llega al nivel de arriba)   // metros
 function tipoEn(areas, x, y) {
   const a = areas.filter((a) => { const c = caja(a); return x >= c.x0 && x <= c.x1 && y >= c.y0 && y <= c.y1; }).sort((p, q) => p.w * p.h - q.w * q.h)[0];
   return a ? (a.es_receso ? "receso" : a.tipo) : null;
@@ -272,7 +273,7 @@ function techo(a, base, alto) {
 // La bodega (edificación de block existente) con la otra construcción encima
 function bodega(a, base) {
   const c = caja(a), w = (c.x1 - c.x0) * ESC, h = (c.y1 - c.y0) * ESC, ctr = aEscena((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2);
-  const g = new THREE.Group(), piso1 = 3 * M, piso2 = 3.2 * M;
+  const g = new THREE.Group(), piso1 = Math.max(3 * M, ARRIBA * EXAGERA * M - base), piso2 = 3.2 * M;
   const losa = new THREE.Mesh(new THREE.BoxGeometry(w + 0.6, 0.5, h + 0.6), new THREE.MeshStandardMaterial({ color: 0xbfb8aa }));
   losa.position.set(ctr.x, base + piso1, ctr.z); losa.castShadow = true;
   const arriba = new THREE.Mesh(new THREE.BoxGeometry(w, piso2, h), new THREE.MeshStandardMaterial({ color: 0x9aa3ab, transparent: true, opacity: 0.55, metalness: 0.4, roughness: 0.5, depthWrite: false }));
