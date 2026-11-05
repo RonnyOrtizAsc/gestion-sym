@@ -2,7 +2,7 @@
 import { S, prestamosActivos, disponibles, prestadas, perdidas, herramienta, trabajador,
   prestar, cerrarPrestamo, agregarHerramienta, cambiarCantidad, borrarHerramienta } from "../datos.js";
 import { esc, hhmm, fecha, esHoy, primerNombre } from "../util.js";
-import { miniatura, tarjeta, tomarFoto } from "./fotos.js";
+import { miniatura, tarjeta, tomarFoto, avatares } from "./fotos.js";
 
 const ui = { vista: "prestar", w: null, h: null, q: 1, confirmar: null, borrar: null };
 
@@ -14,7 +14,7 @@ export function render(V, ctx) {
   if (ui.vista === "prestar") {
     const h = S.herramientas.find((x) => x.id === ui.h), max = h ? disponibles(h) : 1;
     if (ui.q > max) ui.q = Math.max(1, max);
-    cuerpo = `<div class="step"><h3>1 · ¿A quién?</h3><div class="chips">${S.trabajadores.map((w) => `<button class="chip" data-pw="${w.id}" aria-pressed="${ui.w === w.id}">${esc(w.nombre)}</button>`).join("")}</div></div>
+    cuerpo = `<div class="step"><h3>1 · ¿A quién?</h3>${avatares(S.trabajadores, { attr: "data-pw", seleccionado: ui.w })}</div>
     <div class="step"><h3>2 · ¿Qué herramienta?</h3>${S.herramientas.length
       ? `<div class="tarjetas">${S.herramientas.map((x) => tarjeta(x, { attr: "data-ph", seleccionada: ui.h === x.id, disponibles: disponibles(x) })).join("")}</div>`
       : `<p class="note">Todavía no hay herramientas. Agrégalas en <button class="linkbtn" data-seg="inventario">Inventario</button>.</p>`}</div>

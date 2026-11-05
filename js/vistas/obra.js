@@ -7,7 +7,7 @@ import { S, recesoAbierto, enReceso, prestamosActivos, cambiarReceso, iniciarRec
   ESTADOS, TIPOS_ELEMENTO, estadoArea, agregarElemento, editarElemento, borrarElemento,
   prestarRapido, cerrarPrestamo, disponibles, METROS_POR_UNIDAD, usarComoBodega, estadoPiezas } from "../datos.js";
 import { esc, iniciales, primerNombre, ms, hhmm } from "../util.js";
-import { miniatura, tarjeta } from "./fotos.js";
+import { miniatura, tarjeta, avatares, cara } from "./fotos.js";
 import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, grupoDe, queEs, ANCHO, ALTO } from "./mapa-svg.js";
 
 const ZOOMS = [1, 1.6, 2.4, 3.4];
@@ -50,12 +50,12 @@ function token(w, x, y) {
   return `<button class="tok ${r ? "on-break" : ""} ${ui.sel === w.id ? "sel" : ""}" data-w="${w.id}" data-to="${x},${y}" style="left:${px}%;top:${py}%"
     aria-label="${esc(w.nombre)}${r ? ", en receso" : ""}">
     ${r ? `<span class="bub" data-desde="${ms(r.inicio)}"></span>` : ""}
-    <span class="av">${esc(iniciales(w.nombre))}</span>${herr ? `<span class="tl">${herr}</span>` : ""}
+    <span class="av">${cara(w)}</span>${herr ? `<span class="tl">${herr}</span>` : ""}
     <span class="nm">${esc(primerNombre(w.nombre))}</span></button>`;
 }
 
 const chipPersona = (w) => { const r = recesoAbierto(w.id);
-  return `<button class="persona ${r ? "on-break" : ""}" data-w="${w.id}"><span class="av">${esc(iniciales(w.nombre))}</span><span>${esc(primerNombre(w.nombre))}${r ? ` <span class="num" data-desde="${ms(r.inicio)}"></span>` : ""}</span></button>`; };
+  return `<button class="persona ${r ? "on-break" : ""}" data-w="${w.id}"><span class="av">${cara(w)}</span><span>${esc(primerNombre(w.nombre))}${r ? ` <span class="num" data-desde="${ms(r.inicio)}"></span>` : ""}</span></button>`; };
 
 function hojaTrabajador(w) {
   const r = recesoAbierto(w.id), a = area(w.area_id);
@@ -93,7 +93,7 @@ function hojaPrestar() {
       : `<p class="note" style="margin:0">Todavía no hay herramientas registradas. Escribe el nombre abajo.</p>`}
     <div class="addrow"><input id="hNueva" value="${esc(P.nuevo)}" placeholder="…o escribe una nueva (ej. Rotomartillo)" aria-label="Herramienta nueva" autocomplete="off"></div>
     <p class="note" style="margin:12px 0 6px">¿A quién?</p>
-    <div class="chips">${S.trabajadores.map((w) => `<button class="chip" data-pw="${w.id}" aria-pressed="${P.w === w.id}">${esc(w.nombre)}</button>`).join("")}</div>
+    ${avatares(S.trabajadores, { attr: "data-pw", seleccionado: P.w })}
     <div class="row-prestar"><div class="qty"><button id="qm" aria-label="Menos">−</button><output>${P.q}</output><button id="qp" aria-label="Más">+</button></div>
       <button class="btn primary" id="okPrestar" ${listo ? "" : "disabled"}>Prestar</button></div>
     ${h && max < P.q ? `<p class="err">Solo quedan ${max} en bodega.</p>` : ""}`;

@@ -18,7 +18,8 @@ export const S = {
   obra: null,         // obra activa (con sus planos)
   areas: [],          // áreas de la obra sobre el plano
   elementos: [],      // gradas, jardineras, baños… con su estado
-  piezas: {},         // estado marcado a mano de cada pieza del plano: { idx: estado }
+  piezas: {},
+  resumen: [],        // minutos de receso por persona y día (últimos 62 días)         // estado marcado a mano de cada pieza del plano: { idx: estado }
 };
 
 const ok = ({ data, error }) => { if (error) throw new Error(traducir(error)); return data; };
@@ -38,7 +39,7 @@ export async function cargarPerfil() {
 
 export async function cargarTodo() {
   const hoy = inicioDelDia().toISOString();
-  const [t, s, r, h, p, o, a, el, pz] = await Promise.all([
+  const [t, s, r, h, p, o, a, el, pz, rs] = await Promise.all([
     sb.from("trabajadores").select("*").eq("activo", true).order("nombre"),
     sb.from("sesiones_receso").select("*").is("fin", null).maybeSingle(),
     sb.from("recesos").select("*").or(`inicio.gte.${hoy},fin.is.null`).order("inicio"),
@@ -48,10 +49,12 @@ export async function cargarTodo() {
     sb.from("areas").select("*").order("orden"),
     sb.from("elementos").select("*").order("creado_en"),
     sb.from("piezas").select("idx, estado, obra_id"),
+    sb.from("resumen_recesos").select("*").gte("fecha", new Date(Date.now() - 62 * 864e5).toISOString().slice(0, 10)),
   ]);
   S.trabajadores = ok(t); S.sesion = ok(s); S.recesos = ok(r); S.herramientas = ok(h); S.prestamos = ok(p);
   S.obra = ok(o); S.areas = ok(a).filter((x) => !S.obra || x.obra_id === S.obra.id);
   S.elementos = ok(el).filter((x) => !S.obra || x.obra_id === S.obra.id);
+  S.resumen = ok(rs);
   S.piezas = Object.fromEntries(ok(pz).filter((x) => !S.obra || x.obra_id === S.obra.id).map((x) => [x.idx, x.estado]));
   if (S.perfil?.rol === "admin") S.perfiles = ok(await sb.from("perfiles").select("*").order("creado_en"));
 }
@@ -131,12 +134,19 @@ async function achicar(file, max = 900) {
   cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
   return await new Promise((r) => cv.toBlob((b) => r(b || file), "image/jpeg", 0.82));
 }
-export async function subirFotoHerramienta(hid, file) {
-  const blob = await achicar(file), ruta = `${hid}.jpg`;
-  const { error } = await sb.storage.from("herramientas").upload(ruta, blob, { upsert: true, contentType: "image/jpeg" });
+// tabla = "herramientas" o "trabajadores" (cada una tiene su carpeta de fotos con el mismo nombre)
+export async function subirFoto(tabla, id, file) {
+  const blob = await achicar(file), ruta = `${id}.jpg`;
+  const { error } = await sb.storage.from(tabla).upload(ruta, blob, { upsert: true, contentType: "image/jpeg" });
   if (error) throw new Error(traducir(error));
-  const url = sb.storage.from("herramientas").getPublicUrl(ruta).data.publicUrl + "?v=" + Date.now();
-  ok(await sb.from("herramientas").update({ foto: url }).eq("id", hid));
+  const url = sb.storage.from(tabla).getPublicUrl(ruta).data.publicUrl + "?v=" + Date.now();
+  ok(await sb.from(tabla).update({ foto: url }).eq("id", id));
+}
+export const subirFotoHerramienta = (hid, file) => subirFoto("herramientas", hid, file);
+
+// Receso: borrar lo de hoy (pruebas). Los días anteriores pasan solos al resumen cada madrugada.
+export async function borrarRecesosHoy() {
+  ok(await sb.rpc("borrar_recesos_de_hoy"));
 }
 
 // Borrar una herramienta del inventario (no se puede si alguien la tiene prestada)

@@ -1,6 +1,7 @@
 // Vista "Más": planificador, trabajadores, usuarios (admin) y cuenta.
 import { S, agregarTrabajador, editarTrabajador, editarPerfil, sb } from "../datos.js";
 import { esc } from "../util.js";
+import { cara, tomarFoto } from "./fotos.js";
 import { PLANIFICADOR_URL } from "../config.js";
 
 const ui = { editando: null, quitar: null };
@@ -21,7 +22,7 @@ export function render(V, { hacer, redibujar }) {
           <div class="field"><label for="h-${w.id}">Habilidades (separadas por coma)</label><input id="h-${w.id}" value="${esc((w.habilidades || []).join(", "))}" placeholder="Ej. repello, armado de hierro, soldadura"></div>
           <div class="acts"><button class="btn small primary">Guardar</button><button type="button" class="btn small" data-cancelar>Cancelar</button>
           ${ui.quitar === w.id ? `<button type="button" class="btn small danger" data-quitar-si="${w.id}">Sí, quitar de la lista</button>` : `<button type="button" class="btn small danger" data-quitar="${w.id}">Quitar</button>`}</div></div></form>`
-      : `<div class="li"><div class="grow"><b>${esc(w.nombre)}</b><small>${esc(w.puesto || "Sin puesto")}${(w.habilidades || []).length ? " · " + esc(w.habilidades.join(", ")) : ""}</small></div><button class="btn small" data-editar="${w.id}">Editar</button></div>`).join("")}
+      : `<div class="li"><button class="foto-btn" data-foto-w="${w.id}" aria-label="${w.foto ? "Cambiar foto" : "Tomar foto"} de ${esc(w.nombre)}"><span class="avatar chico">${cara(w)}</span><span class="cam">${w.foto ? "Cambiar" : "+ Foto"}</span></button><div class="grow"><b>${esc(w.nombre)}</b><small>${esc(w.puesto || "Sin puesto")}${(w.habilidades || []).length ? " · " + esc(w.habilidades.join(", ")) : ""}</small></div><button class="btn small" data-editar="${w.id}">Editar</button></div>`).join("")}
   </div>
   <div class="step section"><h3>Agregar trabajador</h3><form class="addrow" id="addW">
     <input id="wn" placeholder="Nombre" aria-label="Nombre" required><input id="wp" placeholder="Puesto" aria-label="Puesto">
@@ -38,6 +39,7 @@ export function render(V, { hacer, redibujar }) {
   <p class="note">Para instalarla en el celular: en Chrome toca ⋮ → “Agregar a pantalla de inicio”; en iPhone, en Safari toca Compartir → “Agregar a inicio”.</p></div>`;
 
   const $$ = (s) => V.querySelectorAll(s);
+  $$("[data-foto-w]").forEach((b) => (b.onclick = () => tomarFoto(b.dataset.fotoW, hacer, "trabajadores")));
   $$("[data-editar]").forEach((b) => (b.onclick = () => { ui.editando = b.dataset.editar; ui.quitar = null; redibujar(); }));
   $$("[data-cancelar]").forEach((b) => (b.onclick = () => { ui.editando = null; ui.quitar = null; redibujar(); }));
   $$("[data-quitar]").forEach((b) => (b.onclick = () => { ui.quitar = b.dataset.quitar; redibujar(); }));

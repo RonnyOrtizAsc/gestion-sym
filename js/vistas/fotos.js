@@ -1,6 +1,6 @@
 // Fotos de herramientas: miniatura y botón para tomar la foto con la cámara del cel
 import { esc, iniciales } from "../util.js";
-import { subirFotoHerramienta } from "../datos.js";
+import { subirFoto } from "../datos.js";
 
 export const miniatura = (h, clase = "foto") => h?.foto
   ? `<img class="${clase}" src="${esc(h.foto)}" alt="" loading="lazy">`
@@ -14,9 +14,16 @@ export const tarjeta = (h, { attr, seleccionada, disponibles }) => `
   </button>`;
 
 // Abre la cámara (o la galería) y sube la foto
-export function tomarFoto(hid, hacer) {
+// Cara de un trabajador: foto si tiene, si no sus iniciales
+export const cara = (w) => w?.foto ? `<img class="cara-img" src="${esc(w.foto)}" alt="" loading="lazy">` : esc(iniciales(w?.nombre || "?"));
+
+// Selector de persona con avatar (círculo con foto y nombre)
+export const avatares = (lista, { attr, seleccionado }) => `<div class="avatares">${lista.map((w) =>
+  `<button class="avatar-btn" ${attr}="${w.id}" aria-pressed="${seleccionado === w.id}"><span class="avatar">${cara(w)}</span><span class="av-nombre">${esc(String(w.nombre).split(" ")[0])}</span></button>`).join("")}</div>`;
+
+export function tomarFoto(hid, hacer, tabla = "herramientas") {
   const input = document.createElement("input");
   input.type = "file"; input.accept = "image/*"; input.setAttribute("capture", "environment");
-  input.onchange = () => { const f = input.files?.[0]; if (f) hacer(async () => { await subirFotoHerramienta(hid, f); return "Foto guardada"; }); };
+  input.onchange = () => { const f = input.files?.[0]; if (f) hacer(async () => { await subirFoto(tabla, hid, f); return "Foto guardada"; }); };
   input.click();
 }

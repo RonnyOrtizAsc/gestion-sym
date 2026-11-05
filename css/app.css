@@ -261,3 +261,16 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
 .foto.chica.sin-foto{font-size:13px}
 .foto-btn{position:relative;border:0;background:none;padding:0;flex:none;display:flex;flex-direction:column;align-items:center;gap:2px}
 .foto-btn .cam{font-size:10px;font-weight:800;color:var(--work)}
+
+/* ---------- Avatares de trabajadores ---------- */
+.avatares{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:10px}
+.avatar-btn{display:flex;flex-direction:column;align-items:center;gap:4px;border:0;background:none;padding:4px 2px;border-radius:12px;min-width:0}
+.avatar{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;overflow:hidden;font-weight:800;font-size:17px;background:var(--work-soft);color:var(--work);border:3px solid transparent;flex:none}
+.avatar.chico{width:44px;height:44px;font-size:14px;border-width:2px}
+.avatar-btn .av-nombre{font-size:12px;font-weight:700;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.avatar-btn[aria-pressed="true"] .avatar{border-color:var(--lime-ink);box-shadow:0 0 0 3px var(--lime)}
+.avatar-btn[aria-pressed="true"] .av-nombre{color:var(--ink)}
+.cara-img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}
+.av,.tok .av,.persona .av{overflow:hidden}
+.titulo-fila{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.titulo-fila .seg.mini{flex:0 1 240px}
