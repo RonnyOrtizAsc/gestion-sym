@@ -274,3 +274,11 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
 .av,.tok .av,.persona .av{overflow:hidden}
 .titulo-fila{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px}
 .titulo-fila .seg.mini{flex:0 1 240px}
+
+/* Actividad en el mapa */
+.tok .act{display:none;max-width:110px;font-size:8.5px;font-weight:700;line-height:1.15;text-align:center;color:#1d2125;background:var(--lime);padding:1px 4px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mapa.z1 .tok .act,.mapa.z2 .tok .act,.mapa.z3 .tok .act{display:block}
+.mapa.z2 .tok .act,.mapa.z3 .tok .act{font-size:10px;max-width:140px}
+.persona .p-act{font-weight:600;color:var(--muted)}
+.actividad{margin:0 0 12px}
+.actividad label{font-size:13px;font-weight:800}

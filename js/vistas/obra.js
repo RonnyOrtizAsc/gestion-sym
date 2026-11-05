@@ -5,7 +5,7 @@
 import { S, recesoAbierto, enReceso, prestamosActivos, cambiarReceso, iniciarReceso, terminarReceso,
   trabajador, herramienta, area, enArea, moverTrabajador,
   ESTADOS, TIPOS_ELEMENTO, estadoArea, agregarElemento, editarElemento, borrarElemento,
-  prestarRapido, cerrarPrestamo, disponibles, METROS_POR_UNIDAD, usarComoBodega, estadoPiezas } from "../datos.js";
+  ponerActividad, prestarRapido, cerrarPrestamo, disponibles, METROS_POR_UNIDAD, usarComoBodega, estadoPiezas } from "../datos.js";
 import { esc, iniciales, primerNombre, ms, hhmm } from "../util.js";
 import { miniatura, tarjeta, avatares, cara } from "./fotos.js";
 import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, grupoDe, queEs, ANCHO, ALTO } from "./mapa-svg.js";
@@ -51,20 +51,27 @@ function token(w, x, y) {
     aria-label="${esc(w.nombre)}${r ? ", en receso" : ""}">
     ${r ? `<span class="bub" data-desde="${ms(r.inicio)}"></span>` : ""}
     <span class="av">${cara(w)}</span>${herr ? `<span class="tl">${herr}</span>` : ""}
-    <span class="nm">${esc(primerNombre(w.nombre))}</span></button>`;
+    <span class="nm">${esc(primerNombre(w.nombre))}</span>${w.actividad && !r ? `<span class="act">${esc(w.actividad)}</span>` : ""}</button>`;
 }
 
 const chipPersona = (w) => { const r = recesoAbierto(w.id);
-  return `<button class="persona ${r ? "on-break" : ""}" data-w="${w.id}"><span class="av">${cara(w)}</span><span>${esc(primerNombre(w.nombre))}${r ? ` <span class="num" data-desde="${ms(r.inicio)}"></span>` : ""}</span></button>`; };
+  return `<button class="persona ${r ? "on-break" : ""}" data-w="${w.id}"><span class="av">${cara(w)}</span><span>${esc(primerNombre(w.nombre))}${w.actividad && !r ? ` <small class="p-act">· ${esc(w.actividad)}</small>` : ""}${r ? ` <span class="num" data-desde="${ms(r.inicio)}"></span>` : ""}</span></button>`; };
 
 function hojaTrabajador(w) {
   const r = recesoAbierto(w.id), a = area(w.area_id);
   const herr = prestamosActivos().filter((p) => p.trabajador_id === w.id);
-  return `<div class="hoja-h"><span class="av big ${r ? "on-break" : ""}">${esc(iniciales(w.nombre))}</span>
+  // Sugerencias: actividades que ya tiene otra gente + algunas comunes de la obra
+  const usadas = [...new Set(S.trabajadores.map((x) => x.actividad).filter(Boolean))];
+  const sugeridas = [...new Set([...usadas, "Demolición", "Repello", "Pegado de block", "Armado de hierro", "Colado", "Pintura", "Instalación eléctrica", "Fontanería", "Limpieza", "Acarreo de material"])].filter((t) => t !== w.actividad).slice(0, 10);
+  return `<div class="hoja-h"><span class="av big ${r ? "on-break" : ""}">${cara(w)}</span>
       <div class="grow"><b>${esc(w.nombre)}</b><small>${esc(w.puesto || "")}${(w.habilidades || []).length ? " · " + esc(w.habilidades.join(", ")) : ""}</small></div>
       <button class="x" data-cerrar aria-label="Cerrar">×</button></div>
     <p class="estado">${a ? `<span class="pill ok">Asignado</span> <b>${esc(a.nombre)}</b>` : `<span class="pill">Sin área</span> Toca “Mover de área” para asignarlo.`}
       ${r ? `<br><span class="pill out">En receso</span> hace <span class="num" data-desde="${ms(r.inicio)}"></span>` : ""}</p>
+    <form class="actividad" id="formAct"><label for="actTxt">Haciendo ahora${w.actividad && w.actividad_desde ? ` <span class="note">desde ${hhmm(w.actividad_desde)}</span>` : ""}</label>
+      <div class="addrow" style="margin-top:4px"><input id="actTxt" value="${esc(w.actividad || "")}" placeholder="Ej. Repello de pared norte" autocomplete="off" maxlength="80">
+      <button class="btn primary">Guardar</button>${w.actividad ? `<button type="button" class="btn" data-sin-act>Quitar</button>` : ""}</div>
+      <div class="chips" style="margin-top:8px">${sugeridas.map((t) => `<button type="button" class="chip" data-act="${esc(t)}">${esc(t)}</button>`).join("")}</div></form>
     ${herr.length ? `<p class="note" style="margin:0 0 10px">Tiene: ${herr.map((p) => `${p.cantidad} × ${esc(herramienta(p.herramienta_id).nombre)}`).join(", ")}</p>` : ""}
     <div class="acts"><button class="btn primary" data-mover>Mover de área</button>${a ? `<button class="btn" data-sacar>Quitar del área</button>` : ""}</div>`;
 }
@@ -259,7 +266,7 @@ export function render(V, { hacer, redibujar }) {
   };
 
   if (es3d) {
-    const personas = tokens.map(([p, x, y]) => ({ id: p.id, nombre: primerNombre(p.nombre), x: (x / 100) * ANCHO, y: (y / 100) * ALTO, receso: !!recesoAbierto(p.id), sel: ui.sel === p.id }));
+    const personas = tokens.map(([p, x, y]) => ({ id: p.id, nombre: primerNombre(p.nombre) + (p.actividad && !recesoAbierto(p.id) ? " · " + p.actividad : ""), x: (x / 100) * ANCHO, y: (y / 100) * ALTO, receso: !!recesoAbierto(p.id), sel: ui.sel === p.id }));
     import("./escena3d.js").then((m) => {
       const cont = V.querySelector("#escena"); if (!cont) return;
       cont.querySelector(".cargando")?.remove();
@@ -296,7 +303,7 @@ export function render(V, { hacer, redibujar }) {
         let t = "";
         if (el.dataset.area) { const a = area(el.dataset.area); t = `<b>${esc(a.es_receso ? a.uso_actual || "Bodega (receso)" : a.nombre)}</b><span>${ESTADOS[a.estado] || ""} · ${enArea(a.id).length} asignados</span>`; }
         else if (el.dataset.el) { const x = S.elementos.find((q) => q.id === el.dataset.el); t = `<b>${esc(x.nombre || TIPOS_ELEMENTO[x.tipo])}</b><span>${ESTADOS[x.estado]}</span>`; }
-        else if (el.dataset.w) { const w = trabajador(el.dataset.w), a = area(w.area_id); t = `<b>${esc(w.nombre)}</b><span>${recesoAbierto(w.id) ? "En receso" : a ? esc(a.nombre) : "Sin área"}</span>`; }
+        else if (el.dataset.w) { const w = trabajador(el.dataset.w), a = area(w.area_id); t = `<b>${esc(w.nombre)}</b><span>${recesoAbierto(w.id) ? "En receso" : (w.actividad ? esc(w.actividad) + " · " : "") + (a ? esc(a.nombre) : "Sin área")}</span>`; }
         tip.innerHTML = t; tip.hidden = false;
         tip.style.left = e.clientX - r.left + 14 + "px"; tip.style.top = e.clientY - r.top + 14 + "px";
       });
@@ -321,6 +328,15 @@ export function render(V, { hacer, redibujar }) {
   $$("[data-w]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); tocarPersona(b.dataset.w); }));
   $$("[data-cerrar]").forEach((b) => (b.onclick = cerrar));
   $$("[data-cancelar-mover]").forEach((b) => (b.onclick = () => { ui.moviendo = false; redibujar(); }));
+  // Actividad del trabajador
+  const fa = V.querySelector("#formAct");
+  if (fa) {
+    const guardar = (texto) => { const id = ui.sel, n = primerNombre(trabajador(id).nombre);
+      hacer(async () => { await ponerActividad(id, texto); return texto ? `${n}: ${texto}` : `${n} sin actividad`; }); };
+    fa.onsubmit = (e) => { e.preventDefault(); guardar(V.querySelector("#actTxt").value); };
+    fa.querySelectorAll("[data-act]").forEach((b) => (b.onclick = () => guardar(b.dataset.act)));
+    const sa = fa.querySelector("[data-sin-act]"); if (sa) sa.onclick = () => guardar("");
+  }
   const mv = V.querySelector("[data-mover]"); if (mv) mv.onclick = () => { ui.moviendo = true; redibujar(); };
   const sc = V.querySelector("[data-sacar]");
   if (sc) sc.onclick = () => { const id = ui.sel; hacer(async () => { await moverTrabajador(id, null); return `${primerNombre(trabajador(id).nombre)} quedó sin área`; }); };

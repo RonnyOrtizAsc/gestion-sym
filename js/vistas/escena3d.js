@@ -126,12 +126,15 @@ function ponerEdificios(areas, elementos = []) {
 }
 
 function etiqueta(texto) {
-  const cv = document.createElement("canvas"), ctx = cv.getContext("2d"); cv.width = 256; cv.height = 64;
-  ctx.font = "800 34px Manrope, Arial, sans-serif"; const w = Math.min(248, ctx.measureText(texto).width + 24);
-  ctx.fillStyle = "rgba(255,255,255,.92)"; ctx.beginPath(); ctx.roundRect((256 - w) / 2, 8, w, 48, 12); ctx.fill();
-  ctx.fillStyle = "#1d2125"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(texto, 128, 33);
+  const W = 512, cv = document.createElement("canvas"), ctx = cv.getContext("2d"); cv.width = W; cv.height = 64;
+  ctx.font = "800 32px Manrope, Arial, sans-serif";
+  let t = texto; while (ctx.measureText(t).width > W - 40 && t.length > 4) t = t.slice(0, -2);
+  if (t !== texto) t = t.trimEnd() + "…";
+  const w = ctx.measureText(t).width + 28;
+  ctx.fillStyle = "rgba(255,255,255,.92)"; ctx.beginPath(); ctx.roundRect((W - w) / 2, 8, w, 48, 12); ctx.fill();
+  ctx.fillStyle = "#1d2125"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(t, W / 2, 33);
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false }));
-  s.scale.set(7, 1.75, 1); s.position.y = 6.6; s.renderOrder = 10; return s;
+  s.scale.set(14, 1.75, 1); s.position.y = 6.6; s.renderOrder = 10; s.userData.texto = texto; return s;
 }
 
 function figura(p) {
@@ -145,8 +148,9 @@ function figura(p) {
   aro.rotation.x = -Math.PI / 2; aro.position.y = 0.08; aro.visible = false;
   // Área tocable más grande que el muñequito
   const toque = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 6), new THREE.MeshBasicMaterial({ visible: false })); toque.position.y = 3;
-  g.add(cuerpo, cabeza, casco, aro, toque, etiqueta(p.nombre));
-  Object.assign(g.userData, { ropa, aro, cuerpo });
+  const et = etiqueta(p.nombre);
+  g.add(cuerpo, cabeza, casco, aro, toque, et);
+  Object.assign(g.userData, { ropa, aro, cuerpo, et });
   g.scale.setScalar(1.7);   // más grandes para verlos y tocarlos en el celular
   const pos = aEscena(p.x, p.y); g.position.copy(pos); g.userData.destino = pos.clone();
   return g;
@@ -159,6 +163,10 @@ function ponerPersonas(personas) {
     let f = E.figuras.get(p.id);
     if (!f) { f = figura(p); E.figuras.set(p.id, f); E.gente.add(f); }
     f.userData.destino = aEscena(p.x, p.y);
+    if (f.userData.et.userData.texto !== p.nombre) {   // cambió la actividad: nueva etiqueta
+      f.remove(f.userData.et); f.userData.et.material.map.dispose(); f.userData.et.material.dispose();
+      f.userData.et = etiqueta(p.nombre); f.add(f.userData.et);
+    }
     f.userData.ropa.color.setHex(p.receso ? NARANJA : VERDE);
     f.userData.aro.visible = !!p.sel;
   }

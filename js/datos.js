@@ -167,6 +167,12 @@ export async function agregarTrabajador(nombre, puesto, habilidades) {
 export async function editarTrabajador(id, cambios) {
   ok(await sb.from("trabajadores").update(cambios).eq("id", id));
 }
+// Actividad que está haciendo un trabajador ahora (texto libre; vacío = sin actividad)
+export async function ponerActividad(wid, texto) {
+  const actividad = (texto || "").trim() || null;
+  ok(await sb.from("trabajadores").update({ actividad, actividad_desde: actividad ? ahora() : null }).eq("id", wid));
+}
+
 export const area = (id) => S.areas.find((a) => a.id === id) || null;
 export const enArea = (aid) => S.trabajadores.filter((w) => w.area_id === aid);
 export async function moverTrabajador(wid, areaId) {
