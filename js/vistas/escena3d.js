@@ -356,10 +356,14 @@ function figura(p) {
   const et = etiqueta(p.nombre);
   g.add(cuerpo, cabeza, casco, aro, toque, et);
   Object.assign(g.userData, { ropa, aro, cuerpo, et });
-  g.scale.setScalar(1.7);   // más grandes para verlos y tocarlos en el celular
+  // tamaño real: ~1.75 m de alto según la escala del plano; el rótulo y el área para tocar se mantienen grandes
+  g.scale.setScalar(ESCALA_P); toque.scale.setScalar(2.4); aro.scale.setScalar(1.6); ajustarEtiqueta(et);
   const pos = aEscena(p.x, p.y); pos.y = E.altura(p.x, p.y) * M; g.position.copy(pos); g.userData.destino = pos.clone();
   return g;
 }
+
+const ESCALA_P = (1.75 * (ESC / 0.056)) / 4.9;   // el muñequito mide 4.9 unidades sin escalar
+function ajustarEtiqueta(et) { const k = 1.15 / ESCALA_P; et.scale.set(14 * k, 1.75 * k, 1); et.position.y = 5.2 + 1.2 * k; }
 
 function ponerPersonas(personas) {
   const vistos = new Set();
@@ -370,7 +374,7 @@ function ponerPersonas(personas) {
     f.userData.destino = aEscena(p.x, p.y); f.userData.destino.y = E.altura(p.x, p.y) * M;
     if (f.userData.et.userData.texto !== p.nombre) {   // cambió la actividad: nueva etiqueta
       f.remove(f.userData.et); f.userData.et.material.map.dispose(); f.userData.et.material.dispose();
-      f.userData.et = etiqueta(p.nombre); f.add(f.userData.et);
+      f.userData.et = etiqueta(p.nombre); ajustarEtiqueta(f.userData.et); f.add(f.userData.et);
     }
     f.userData.ropa.color.setHex(p.receso ? NARANJA : VERDE);
     f.userData.aro.visible = !!p.sel;
