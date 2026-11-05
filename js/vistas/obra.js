@@ -2,7 +2,7 @@
 // con cada trabajador en el área donde está asignado.
 // - Normal: tocas a alguien para ver qué hace y moverlo de área; tocas un área para ver o traer gente.
 // - Receso: con "Iniciar receso", cada toque manda a la persona a la bodega (naranja) o la regresa a su área.
-import { S, recesoAbierto, enReceso, recesoTurno, turnoDe, limiteReceso, prestamosActivos, cambiarReceso, iniciarReceso, terminarReceso,
+import { S, recesoAbierto, enReceso, recesoTurno, turnoDe, turnoActual, limiteReceso, prestamosActivos, cambiarReceso, iniciarReceso, terminarReceso,
   trabajador, herramienta, area, enArea, moverTrabajador,
   ESTADOS, TIPOS_ELEMENTO, estadoArea, agregarElemento, editarElemento, borrarElemento,
   ponerActividad, prestarRapido, cerrarPrestamo, disponibles, METROS_POR_UNIDAD, usarComoBodega, estadoPiezas } from "../datos.js";
@@ -189,9 +189,8 @@ export function render(V, { hacer, redibujar }) {
 
   // Barra de mando: aquí van las acciones de la obra (receso y las que se agreguen después)
   const HERRAMIENTAS = [
-    receso
-      ? `<button class="hud-btn activo-edit" id="hudListoReceso">${ICONO.reloj}<span>Listo</span></button>`
-      : `<button class="hud-btn" id="hudReceso">${ICONO.reloj}<span>${hayReceso ? `Receso <b class="cuenta">${enReceso().length}</b>` : "Iniciar receso"}</span></button>`,
+    `<button class="hud-btn ${receso ? "activo-receso" : ""}" id="hudReceso" aria-pressed="${receso}">${ICONO.reloj}<span>${receso
+      ? `Receso de la ${turnoActual() === "manana" ? "mañana" : "tarde"}` : "Receso"}${enReceso().length ? ` <b class="cuenta">${enReceso().length}</b>` : ""}</span></button>`,
     hayReceso ? `<button class="hud-btn secundario" id="hudFinReceso"><span>Terminar receso (todos)</span></button>` : "",
   ];
 
@@ -208,7 +207,7 @@ export function render(V, { hacer, redibujar }) {
     ${es3d ? `<button class="hud-icono" id="centrar" aria-label="Volver a la vista inicial">${ICONO.centrar}</button>`
       : `<div class="zoom"><button data-z="-1" aria-label="Alejar" ${ui.zoom === ZOOMS[0] ? "disabled" : ""}>−</button><button data-z="1" aria-label="Acercar" ${ui.zoom === ZOOMS.at(-1) ? "disabled" : ""}>+</button></div>`}
   </div>
-  ${receso ? `<p class="pista receso">Toca a quien sale: se pone naranja y camina a la bodega. Tócalo otra vez cuando regrese. Toca <b>Listo</b> para volver a mover gente sin terminar los recesos.</p>`
+  ${receso ? `<p class="pista receso">Toca a quien sale: se pone naranja y camina a la bodega. Tócalo otra vez cuando regrese. Toca <b>Receso</b> otra vez para salir (los que están en receso siguen contando).</p>`
     : ui.moviendo && w ? `<p class="pista mover">Toca el área a donde va <b>${esc(primerNombre(w.nombre))}</b> <button class="btn small" data-cancelar-mover>Cancelar</button></p>`
     : ui.nuevo?.tipo ? `<p class="pista mover">${ui.nuevo.p1 ? "Toca la esquina opuesta" : "Toca una esquina"} de: <b>${TIPOS_ELEMENTO[ui.nuevo.tipo]}</b></p>`
     : ui.editar ? `<p class="pista mover">Editando el plano: toca una pared, puerta o grada y márcala como <b>Hecho</b> para que se ponga en negro. Lo transparente es lo que falta.</p>`
@@ -394,9 +393,7 @@ export function render(V, { hacer, redibujar }) {
     hacer(async () => { await usarComoBodega(a.id); return `${a.nombre} ahora es la bodega de receso`; }); };
 
   const hr = V.querySelector("#hudReceso");
-  if (hr) hr.onclick = () => { cerrarTodo(); ui.modoReceso = true;
-    if (!S.sesion) hacer(async () => { await iniciarReceso(); return "Modo receso: toca a quien sale a descansar"; }); else redibujar(); };
-  const hl = V.querySelector("#hudListoReceso"); if (hl) hl.onclick = () => { ui.modoReceso = false; redibujar(); };
+  if (hr) hr.onclick = () => { cerrarTodo(); ui.modoReceso = !ui.modoReceso; redibujar(); };
   const hf = V.querySelector("#hudFinReceso"); if (hf) hf.onclick = () => { ui.modoReceso = false;
     hacer(async () => { await terminarReceso(); return "Receso terminado, todos a trabajar"; }); };
   const rw = V.querySelector("[data-receso-w]"); if (rw) rw.onclick = () => { const id = ui.sel;

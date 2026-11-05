@@ -297,3 +297,4 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
 .receso-card.con-exceso{box-shadow:inset 0 0 0 2px var(--lost)}
 .stat.rojo b{color:var(--lost)}
 .tok.pasado .bub{background:var(--lost);color:#fff}
+.hud-btn.activo-receso{background:var(--surface);color:var(--break);box-shadow:0 0 0 3px color-mix(in srgb,var(--break) 45%,transparent)}
