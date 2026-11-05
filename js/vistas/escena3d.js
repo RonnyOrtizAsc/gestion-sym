@@ -34,7 +34,7 @@ function crear() {
 
   // Terreno alrededor del lote
   const suelo = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), new THREE.MeshLambertMaterial({ color: 0xb7c99a }));
-  suelo.rotation.x = -Math.PI / 2; suelo.position.y = -1.64 * ESC / 0.056 - 0.05; suelo.receiveShadow = true; scene.add(suelo);
+  suelo.rotation.x = -Math.PI / 2; suelo.position.y = -1.64 * 1.6 * ESC / 0.056 - 0.05; suelo.receiveShadow = true; scene.add(suelo);
 
   const piso = new THREE.Mesh(new THREE.PlaneGeometry(ANCHO * ESC, ALTO * ESC), new THREE.MeshLambertMaterial({ color: 0xffffff }));
   piso.rotation.x = -Math.PI / 2; piso.receiveShadow = true; scene.add(piso);
@@ -82,7 +82,7 @@ function ponerPiso(svg) {
 // ---------- Niveles (según secciones AR-08 / G-05) ----------
 // Metros sobre el piso de las salas (N 868.96). Calle ≈ 867.32, oficinas 870.00,
 // plataforma de atrás (taller, rebalse, patio) 871.92, bodega 871.65.
-const BASE_N = 868.96, CALLE = -1.64;
+const BASE_N = 868.96, CALLE = -1.64, EXAGERA = 1.6;   // los desniveles se exageran un poco para que se noten
 const esRampa = (a) => a.tipo === "rampa" || /rampa/i.test(a.nombre || "");
 const caja = (a) => ({ x0: (a.x / 100) * ANCHO, y0: (a.y / 100) * ALTO, x1: ((+a.x + +a.w) / 100) * ANCHO, y1: ((+a.y + +a.h) / 100) * ALTO });
 function nivelFijo(a) {
@@ -113,7 +113,8 @@ function prepararNiveles(areas) {
     const eje = Math.abs(ex[1] - ex[0]) >= Math.abs(ey[1] - ey[0]) ? "x" : "y";
     return { a, c, eje, n: eje === "x" ? ex : ey };
   });
-  E.altura = (x, y) => {
+  E.altura = (x, y) => EXAGERA * alturaReal(x, y);
+  const alturaReal = (x, y) => {
     for (const r of rampas) if (x >= r.c.x0 && x <= r.c.x1 && y >= r.c.y0 && y <= r.c.y1) {
       const t = r.eje === "x" ? (x - r.c.x0) / (r.c.x1 - r.c.x0) : (y - r.c.y0) / (r.c.y1 - r.c.y0);
       return r.n[0] + (r.n[1] - r.n[0]) * t;
@@ -134,7 +135,7 @@ function ponerTerreno() {
   for (let j = 0; j <= ny; j++) for (let i = 0; i <= nx; i++) {
     const k = j * (nx + 1) + i, h = hs[k];
     const v = [i > 0 ? hs[k - 1] : h, i < nx ? hs[k + 1] : h, j > 0 ? hs[k - nx - 1] : h, j < ny ? hs[k + nx + 1] : h];
-    const salto = Math.max(...v.map((o) => Math.abs(o - h))), c = salto > 1.2 ? 0.62 : 1;
+    const salto = Math.max(...v.map((o) => Math.abs(o - h))), c = salto > 1.2 ? 0.5 : 1;
     col.set([c, c, c * 0.98], k * 3);
   }
   g.setAttribute("color", new THREE.BufferAttribute(col, 3)); g.computeVertexNormals();
@@ -239,7 +240,7 @@ function bodega(a, base) {
 function rotulosNivel() {
   const porNivel = new Map();
   for (const p of E.niveles.planas) { const area = (p.c.x1 - p.c.x0) * (p.c.y1 - p.c.y0), o = porNivel.get(p.n); if (!o || area > o.area) porNivel.set(p.n, { p, area }); }
-  const poner = (texto, x, y, n) => { const s = etiqueta(texto, "#24435e"); s.scale.set(11, 1.4, 1); const v = aEscena(x, y); s.position.set(v.x, n * M + 2.2, v.z); E.edificios.add(s); };
+  const poner = (texto, x, y, n) => { const s = etiqueta(texto, "#24435e"); s.scale.set(17, 2.1, 1); const v = aEscena(x, y); s.position.set(v.x, EXAGERA * n * M + 3, v.z); E.edificios.add(s); };
   for (const [n, { p }] of porNivel) poner(`N ${(BASE_N + n).toFixed(2)}`, (p.c.x0 + p.c.x1) / 2, p.c.y0 + 18, n);
   for (const r of E.niveles.rampas) {
     const sube = r.n[1] - r.n[0];
