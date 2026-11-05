@@ -80,20 +80,24 @@ function ponerPiso(svg) {
 }
 
 // ---------- Niveles (según secciones AR-08 / G-05) ----------
-// Metros sobre el piso de las salas (N 868.96). Calle ≈ 867.32, oficinas 870.00,
-// plataforma de atrás (taller, rebalse, patio) 871.92, bodega 871.65.
+// Metros sobre el nivel de abajo (N 868.96). Calle ≈ 867.32.
 const BASE_N = 868.96, CALLE = -1.64, EXAGERA = 1.6;   // los desniveles se exageran un poco para que se noten
 const esRampa = (a) => a.tipo === "rampa" || /rampa/i.test(a.nombre || "");
 const caja = (a) => ({ x0: (a.x / 100) * ANCHO, y0: (a.y / 100) * ALTO, x1: ((+a.x + +a.w) / 100) * ANCHO, y1: ((+a.y + +a.h) / 100) * ALTO });
+// Tres plataformas (confirmadas en obra):
+//  abajo  N 868.96: taller, rebalse técnico, todo GWM y Marca 4, comedor
+//  medio  N 870.00: Chery y Nissan (salas, oficinas, exhibición)
+//  arriba N 871.92: patio de maniobras, rebalse, empleados, entrega de vehículos, café; bodega 871.65
+const ABAJO = 0, MEDIO = 1.04, ARRIBA = 2.96;
 function nivelFijo(a) {
+  const n = a.nombre || "";
   if (a.es_receso) return 2.69;
-  const cx = +a.x + a.w / 2, cy = +a.y + a.h / 2;
-  if (cx >= 67) return 2.96;                       // plataforma de atrás
-  if (a.x >= 51.5 && cy < 5) return 2.96;          // comedor y lockers (arriba)
-  if (a.x >= 51.5 && cy < 47) return 2.96;         // rebalse técnico junto al taller
-  if (cx >= 41) return 1.04;                       // oficinas y entrega (870.00)
-  return 0;                                        // salas y exhibición (868.96)
+  if (/t[eé]cnico|taller|gwm|marca 4|comedor|lockers/i.test(n)) return ABAJO;
+  if (/patio|rebalse|empleados|entrega de veh|caf[eé]|atenci/i.test(n)) return ARRIBA;
+  return MEDIO;
 }
+// Rampa del lado del lavado (franja este del plano): baja del patio de maniobras al nivel del taller
+const RAMPA_ESTE = { c: { x0: 1264, y0: 710, x1: 1337, y1: 1312 }, eje: "y", n: [ABAJO, ARRIBA] };
 // Prepara la función de altura del terreno: cada área a su nivel; las rampas suben de un nivel al otro
 function prepararNiveles(areas) {
   const planas = areas.filter((a) => !esRampa(a)).map((a) => ({ a, c: caja(a), n: nivelFijo(a) }));
@@ -113,6 +117,7 @@ function prepararNiveles(areas) {
     const eje = Math.abs(ex[1] - ex[0]) >= Math.abs(ey[1] - ey[0]) ? "x" : "y";
     return { a, c, eje, n: eje === "x" ? ex : ey };
   });
+  rampas.unshift(RAMPA_ESTE);
   E.altura = (x, y) => EXAGERA * alturaReal(x, y);
   const alturaReal = (x, y) => {
     for (const r of rampas) if (x >= r.c.x0 && x <= r.c.x1 && y >= r.c.y0 && y <= r.c.y1) {
