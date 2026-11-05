@@ -201,6 +201,53 @@ function ponerParedes(areas, piezas) {
   }
 }
 
+
+// ---------- Gradas: escalones de verdad, de un nivel al otro, con pasamanos ----------
+function ponerGradas(piezas) {
+  PIEZAS.forEach(([clase, , , d], i) => {
+    if (clase !== "grada") return;
+    const est = estadoPieza(i, piezas), lineas = polilineas(d).filter((l) => l.length === 2);
+    // los escalones son las rayas cortas paralelas; las largas son los lados y el pasamanos
+    const horiz = lineas.filter(([a, b]) => Math.abs(a[1] - b[1]) < 1), vert = lineas.filter(([a, b]) => Math.abs(a[0] - b[0]) < 1);
+    const largo = (l) => Math.hypot(l[1][0] - l[0][0], l[1][1] - l[0][1]);
+    const ejeY = horiz.length >= vert.length;                  // escalones horizontales → se sube en Y
+    const pasos = (ejeY ? horiz : vert).filter((l) => largo(l) < 40);
+    if (pasos.length < 2) return;
+    const c = CAJAS[i], k = ejeY ? 1 : 0, o = 1 - k;
+    const pos = pasos.map((l) => l[0][k]).sort((a, b) => a - b);
+    const ancho0 = Math.min(...pasos.map((l) => Math.min(l[0][o], l[1][o]))), ancho1 = Math.max(...pasos.map((l) => Math.max(l[0][o], l[1][o])));
+    const paso = (pos[pos.length - 1] - pos[0]) / (pos.length - 1);
+    const ini = pos[0] - paso, fin = pos[pos.length - 1] + paso, mid = (ancho0 + ancho1) / 2;
+    const punto = (t, extra = 0) => (ejeY ? [mid, t + extra] : [t + extra, mid]);
+    let hIni = E.altura(...punto(ini, -10)) * M, hFin = E.altura(...punto(fin, 10)) * M;
+    if (Math.abs(hFin - hIni) < 0.5) hIni = hFin + 0.6 * EXAGERA * M;   // mismo nivel: unos escalones de banqueta
+    const baja = Math.min(hIni, hFin), sube = Math.abs(hFin - hIni), n = Math.max(pos.length + 1, Math.round(sube / (0.18 * EXAGERA * M)));
+    const mat = MAT[est], g = new THREE.Group(), fondo = (fin - ini) / n, ancho = (ancho1 - ancho0) * ESC;
+    for (let s = 0; s < n; s++) {
+      const t = hFin > hIni ? ini + fondo * (s + 0.5) : fin - fondo * (s + 0.5), alto = (sube * (s + 1)) / n;
+      const p = aEscena(...punto(t));
+      const m = new THREE.Mesh(new THREE.BoxGeometry(ejeY ? ancho : fondo * ESC, alto, ejeY ? fondo * ESC : ancho), mat);
+      m.position.set(p.x, baja + alto / 2, p.z); m.castShadow = est !== "falta"; m.receiveShadow = true; g.add(m);
+    }
+    // pasamanos a los dos lados
+    const largoRun = (fin - ini) * ESC, inc = Math.hypot(largoRun, sube), barra = 0.9 * M;
+    const matP = new THREE.MeshStandardMaterial({ color: est === "falta" ? 0x6f93b8 : 0x3b4046, transparent: est === "falta", opacity: est === "falta" ? 0.3 : 1, metalness: 0.5 });
+    for (const lado of [ancho0, ancho1]) {
+      const centro = aEscena(...(ejeY ? [lado, (ini + fin) / 2] : [(ini + fin) / 2, lado]));
+      const r = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, inc), matP);
+      r.position.set(centro.x, baja + sube / 2 + barra, centro.z);
+      const ang = Math.atan2(sube, largoRun) * (hFin > hIni ? -1 : 1);
+      if (ejeY) r.rotation.x = ang; else { r.rotation.order = "YXZ"; r.rotation.y = Math.PI / 2; r.rotation.x = ang; }
+      g.add(r);
+      for (const t of [ini, fin]) {
+        const q = aEscena(...(ejeY ? [lado, t] : [t, lado])), hq = (t === ini) === (hFin > hIni) ? baja : baja + sube;
+        const poste = new THREE.Mesh(new THREE.BoxGeometry(0.15, barra, 0.15), matP); poste.position.set(q.x, hq + barra / 2, q.z); g.add(poste);
+      }
+    }
+    E.edificios.add(g);
+  });
+}
+
 // ---------- Techos: dos aguas en salas y taller, planos en oficinas ----------
 function techo(a, base, alto) {
   const c = caja(a), w = (c.x1 - c.x0) * ESC, h = (c.y1 - c.y0) * ESC, ctr = aEscena((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2);
@@ -256,6 +303,7 @@ function rotulosNivel() {
 function ponerEdificios(areas, elementos = [], piezas = {}) {
   E.edificios.clear();
   ponerParedes(areas, piezas);
+  ponerGradas(piezas);
   for (const a of areas) {
     const c = caja(a), base = E.altura((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2) * M;
     if (a.es_receso) { E.edificios.add(bodega(a, base)); continue; }
