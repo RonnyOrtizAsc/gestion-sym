@@ -60,9 +60,6 @@ const chipPersona = (w) => { const r = recesoAbierto(w.id);
 function hojaTrabajador(w) {
   const r = recesoAbierto(w.id), a = area(w.area_id);
   const herr = prestamosActivos().filter((p) => p.trabajador_id === w.id);
-  // Sugerencias: actividades que ya tiene otra gente + algunas comunes de la obra
-  const usadas = [...new Set(S.trabajadores.map((x) => x.actividad).filter(Boolean))];
-  const sugeridas = [...new Set([...usadas, "Demolición", "Repello", "Pegado de block", "Armado de hierro", "Colado", "Pintura", "Instalación eléctrica", "Fontanería", "Limpieza", "Acarreo de material"])].filter((t) => t !== w.actividad).slice(0, 10);
   return `<div class="hoja-h"><span class="av big ${r ? "on-break" : ""}">${cara(w)}</span>
       <div class="grow"><b>${esc(w.nombre)}</b><small>${esc(w.puesto || "")}${(w.habilidades || []).length ? " · " + esc(w.habilidades.join(", ")) : ""}</small></div>
       <button class="x" data-cerrar aria-label="Cerrar">×</button></div>
@@ -70,8 +67,7 @@ function hojaTrabajador(w) {
       ${r ? `<br><span class="pill out">En receso</span> hace <span class="num" data-desde="${ms(r.inicio)}"></span>` : ""}</p>
     <form class="actividad" id="formAct"><label for="actTxt">Haciendo ahora${w.actividad && w.actividad_desde ? ` <span class="note">desde ${hhmm(w.actividad_desde)}</span>` : ""}</label>
       <div class="addrow" style="margin-top:4px"><input id="actTxt" value="${esc(w.actividad || "")}" placeholder="Ej. Repello de pared norte" autocomplete="off" maxlength="80">
-      <button class="btn primary">Guardar</button>${w.actividad ? `<button type="button" class="btn" data-sin-act>Quitar</button>` : ""}</div>
-      <div class="chips" style="margin-top:8px">${sugeridas.map((t) => `<button type="button" class="chip" data-act="${esc(t)}">${esc(t)}</button>`).join("")}</div></form>
+      <button class="btn primary">Guardar</button>${w.actividad ? `<button type="button" class="btn" data-sin-act>Quitar</button>` : ""}</div></form>
     ${herr.length ? `<p class="note" style="margin:0 0 10px">Tiene: ${herr.map((p) => `${p.cantidad} × ${esc(herramienta(p.herramienta_id).nombre)}`).join(", ")}</p>` : ""}
     <div class="acts"><button class="btn primary" data-mover>Mover de área</button>${a ? `<button class="btn" data-sacar>Quitar del área</button>` : ""}</div>`;
 }
