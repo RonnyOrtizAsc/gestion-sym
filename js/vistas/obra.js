@@ -7,6 +7,7 @@ import { S, recesoAbierto, enReceso, prestamosActivos, cambiarReceso, iniciarRec
   ESTADOS, TIPOS_ELEMENTO, estadoArea, agregarElemento, editarElemento, borrarElemento,
   prestarRapido, cerrarPrestamo, disponibles, METROS_POR_UNIDAD, usarComoBodega, estadoPiezas } from "../datos.js";
 import { esc, iniciales, primerNombre, ms, hhmm } from "../util.js";
+import { miniatura, tarjeta } from "./fotos.js";
 import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, grupoDe, queEs, ANCHO, ALTO } from "./mapa-svg.js";
 
 const ZOOMS = [1, 1.6, 2.4, 3.4];
@@ -88,7 +89,7 @@ function hojaPrestar() {
   return `<div class="hoja-h"><div class="grow"><p class="eyebrow" style="margin:0">Prestar herramienta</p><b>${h ? esc(h.nombre) : P.nuevo.trim() ? esc(P.nuevo.trim()) : "¿Qué se presta?"}</b>
       <small>${P.w ? "a " + esc(trabajador(P.w).nombre) : "Elige la herramienta y a quién"}</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
     <p class="note" style="margin:0 0 6px">Herramienta del proyecto</p>
-    ${S.herramientas.length ? `<div class="chips">${S.herramientas.map((x) => { const a = disponibles(x); return `<button class="chip" data-ph="${x.id}" aria-pressed="${P.h === x.id}" ${a < 1 ? "disabled" : ""}>${esc(x.nombre)}<span class="n">${a}/${x.cantidad}</span></button>`; }).join("")}</div>`
+    ${S.herramientas.length ? `<div class="tarjetas">${S.herramientas.map((x) => tarjeta(x, { attr: "data-ph", seleccionada: P.h === x.id, disponibles: disponibles(x) })).join("")}</div>`
       : `<p class="note" style="margin:0">Todavía no hay herramientas registradas. Escribe el nombre abajo.</p>`}
     <div class="addrow"><input id="hNueva" value="${esc(P.nuevo)}" placeholder="…o escribe una nueva (ej. Rotomartillo)" aria-label="Herramienta nueva" autocomplete="off"></div>
     <p class="note" style="margin:12px 0 6px">¿A quién?</p>
@@ -106,11 +107,11 @@ function hojaPrestamos() {
   return `<div class="hoja-h"><div class="grow"><p class="eyebrow" style="margin:0">Préstamos</p><b>Qué debe entregar cada uno</b>
       <small>${total ? `${total} herramienta${total > 1 ? "s" : ""} afuera` : "Todo está en bodega"}</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
     <div class="list">${Object.keys(por).length ? Object.entries(por).map(([wid, ps]) => `<div class="person-h">${esc(trabajador(wid).nombre)}<span class="pill out">debe ${ps.reduce((a, p) => a + p.cantidad, 0)}</span></div>
-      ${ps.map((p) => `<div class="li"><div class="grow"><b>${p.cantidad} × ${esc(herramienta(p.herramienta_id).nombre)}</b><small>desde ${new Date(p.prestado_en).toLocaleDateString("es-SV", { day: "numeric", month: "short" })} · ${hhmm(p.prestado_en)}</small></div>
+      ${ps.map((p) => `<div class="li">${miniatura(herramienta(p.herramienta_id), "foto chica")}<div class="grow"><b>${p.cantidad} × ${esc(herramienta(p.herramienta_id).nombre)}</b><small>desde ${new Date(p.prestado_en).toLocaleDateString("es-SV", { day: "numeric", month: "short" })} · ${hhmm(p.prestado_en)}</small></div>
         ${ui.perdida === p.id ? `<span class="acts"><button class="btn small danger" data-perdida-si="${p.id}">Sí, se perdió</button><button class="btn small" data-perdida-no>No</button></span>`
           : `<span class="acts"><button class="btn small" data-devolvio="${p.id}">Devolvió</button><button class="btn small danger" data-perdida="${p.id}">Perdida</button></span>`}</div>`).join("")}`).join("")
       : `<div class="empty">Nadie debe nada. Usa “Prestar” cuando alguien se lleve una herramienta.</div>`}</div>
-    ${perd.length ? `<p class="eyebrow" style="margin:14px 0 6px">Perdidas</p><div class="list">${perd.map((p) => `<div class="li"><div class="grow"><b>${p.cantidad} × ${esc(herramienta(p.herramienta_id).nombre)}</b><small>La tenía ${esc(trabajador(p.trabajador_id).nombre)}</small></div><span class="pill lost">Perdida</span></div>`).join("")}</div>` : ""}`;
+    ${perd.length ? `<p class="eyebrow" style="margin:14px 0 6px">Perdidas</p><div class="list">${perd.map((p) => `<div class="li">${miniatura(herramienta(p.herramienta_id), "foto chica")}<div class="grow"><b>${p.cantidad} × ${esc(herramienta(p.herramienta_id).nombre)}</b><small>La tenía ${esc(trabajador(p.trabajador_id).nombre)}</small></div><span class="pill lost">Perdida</span></div>`).join("")}</div>` : ""}`;
 }
 
 const botonesEstado = (actual, attr) => `<div class="estados">${Object.entries(ESTADOS).map(([k, l]) =>

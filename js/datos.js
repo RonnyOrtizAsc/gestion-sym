@@ -122,6 +122,23 @@ export async function usarComoBodega(areaId) {
   if (actual && actual.id !== areaId) ok(await sb.from("areas").update({ es_receso: false, uso_actual: null }).eq("id", actual.id));
   ok(await sb.from("areas").update({ es_receso: true, uso_actual: "Bodega (receso)", estado: "existe" }).eq("id", areaId));
 }
+// Foto de una herramienta: se achica en el cel (máx. 900 px) para que suba rápido aunque la señal esté mala
+async function achicar(file, max = 900) {
+  const img = await createImageBitmap(file).catch(() => null);
+  if (!img) return file;
+  const k = Math.min(1, max / Math.max(img.width, img.height));
+  const cv = document.createElement("canvas"); cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+  cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+  return await new Promise((r) => cv.toBlob((b) => r(b || file), "image/jpeg", 0.82));
+}
+export async function subirFotoHerramienta(hid, file) {
+  const blob = await achicar(file), ruta = `${hid}.jpg`;
+  const { error } = await sb.storage.from("herramientas").upload(ruta, blob, { upsert: true, contentType: "image/jpeg" });
+  if (error) throw new Error(traducir(error));
+  const url = sb.storage.from("herramientas").getPublicUrl(ruta).data.publicUrl + "?v=" + Date.now();
+  ok(await sb.from("herramientas").update({ foto: url }).eq("id", hid));
+}
+
 export async function cambiarCantidad(hid, cantidad) {
   ok(await sb.from("herramientas").update({ cantidad }).eq("id", hid));
 }
