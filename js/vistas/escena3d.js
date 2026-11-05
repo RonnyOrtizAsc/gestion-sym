@@ -222,7 +222,9 @@ function ponerGradas(piezas) {
     const paso = (pos[pos.length - 1] - pos[0]) / (pos.length - 1);
     const ini = pos[0] - paso, fin = pos[pos.length - 1] + paso, mid = (ancho0 + ancho1) / 2;
     const punto = (t, extra = 0) => (ejeY ? [mid, t + extra] : [t + extra, mid]);
-    let hIni = E.altura(...punto(ini, -10)) * M, hFin = E.altura(...punto(fin, 10)) * M;
+    // el nivel se mide pasando el descanso (la grada completa, con pasamanos), no solo los escalones
+    const cIni = ejeY ? c.y0 : c.x0, cFin = ejeY ? c.y1 : c.x1;
+    let hIni = E.altura(...punto(cIni, -8)) * M, hFin = E.altura(...punto(cFin, 8)) * M;
     if (Math.abs(hFin - hIni) < 0.5) hIni = hFin + 0.6 * EXAGERA * M;   // mismo nivel: unos escalones de banqueta
     const baja = Math.min(hIni, hFin), sube = Math.abs(hFin - hIni), n = Math.max(pos.length + 1, Math.round(sube / (0.18 * EXAGERA * M)));
     const mat = MAT[est], g = new THREE.Group(), fondo = (fin - ini) / n, ancho = (ancho1 - ancho0) * ESC;
@@ -231,6 +233,13 @@ function ponerGradas(piezas) {
       const p = aEscena(...punto(t));
       const m = new THREE.Mesh(new THREE.BoxGeometry(ejeY ? ancho : fondo * ESC, alto, ejeY ? fondo * ESC : ancho), mat);
       m.position.set(p.x, baja + alto / 2, p.z); m.castShadow = est !== "falta"; m.receiveShadow = true; g.add(m);
+    }
+    // descanso arriba, a nivel del piso alto
+    const [d0, d1] = hFin > hIni ? [fin, cFin] : [cIni, ini];
+    if (d1 - d0 > 1) {
+      const p = aEscena(...punto((d0 + d1) / 2)), largoD = (d1 - d0) * ESC;
+      const m = new THREE.Mesh(new THREE.BoxGeometry(ejeY ? ancho : largoD, sube, ejeY ? largoD : ancho), mat);
+      m.position.set(p.x, baja + sube / 2, p.z); m.castShadow = est !== "falta"; m.receiveShadow = true; g.add(m);
     }
     // pasamanos a los dos lados
     const largoRun = (fin - ini) * ESC, inc = Math.hypot(largoRun, sube), barra = 0.9 * M;
