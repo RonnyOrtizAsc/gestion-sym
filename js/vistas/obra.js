@@ -2,7 +2,7 @@
 // con cada trabajador en el área donde está asignado.
 // - Normal: tocas a alguien para ver qué hace y moverlo de área; tocas un área para ver o traer gente.
 // - Receso: con "Iniciar receso", cada toque manda a la persona a la bodega (naranja) o la regresa a su área.
-import { S, recesoAbierto, enReceso, prestamosActivos, cambiarReceso, iniciarReceso, terminarReceso,
+import { S, recesoAbierto, enReceso, recesoTurno, turnoDe, limiteReceso, prestamosActivos, cambiarReceso, iniciarReceso, terminarReceso,
   trabajador, herramienta, area, enArea, moverTrabajador,
   ESTADOS, TIPOS_ELEMENTO, estadoArea, agregarElemento, editarElemento, borrarElemento,
   ponerActividad, prestarRapido, cerrarPrestamo, disponibles, METROS_POR_UNIDAD, usarComoBodega, estadoPiezas } from "../datos.js";
@@ -50,7 +50,7 @@ function token(w, x, y) {
   const herr = prestamosActivos().filter((p) => p.trabajador_id === w.id).reduce((s, p) => s + p.cantidad, 0);
   return `<button class="tok ${r ? "on-break" : ""} ${ui.sel === w.id ? "sel" : ""}" data-w="${w.id}" data-to="${x},${y}" style="left:${px}%;top:${py}%"
     aria-label="${esc(w.nombre)}${r ? ", en receso" : ""}">
-    ${r ? `<span class="bub" data-desde="${ms(r.inicio)}"></span>` : ""}
+    ${r ? `<span class="bub" data-desde="${ms(r.inicio) - (recesoTurno(w.id, turnoDe(r.inicio)) - (Date.now() - ms(r.inicio)))}" data-limite="${limiteReceso()}"></span>` : ""}
     <span class="av">${cara(w)}</span>${herr ? `<span class="tl">${herr}</span>` : ""}
     <span class="nm">${esc(primerNombre(w.nombre))}</span>${w.actividad && !r ? `<span class="act">${esc(w.actividad)}</span>` : ""}</button>`;
 }

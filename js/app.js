@@ -37,7 +37,10 @@ const ctx = { hacer, redibujar, caminando };
 function reloj() {
   const ahora = Date.now(), d = new Date();
   document.querySelector("#live span").textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  document.querySelectorAll("[data-desde]").forEach((el) => (el.textContent = dur(ahora - +el.dataset.desde)));
+  document.querySelectorAll("[data-desde]").forEach((el) => {
+    const t = ahora - +el.dataset.desde; el.textContent = dur(t);
+    if (el.dataset.limite) el.closest(".turno, .tok")?.classList.toggle("pasado", t > +el.dataset.limite * 60000);
+  });
 }
 setInterval(reloj, 1000);
 

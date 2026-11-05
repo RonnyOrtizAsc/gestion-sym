@@ -69,6 +69,21 @@ export function recesoHoy(wid) {
   return S.recesos.filter((r) => r.trabajador_id === wid)
     .reduce((a, r) => a + ((r.fin ? ms(r.fin) : ahora) - Math.max(ms(r.inicio), ini)), 0);
 }
+// ---------- Receso por turno (mañana / tarde) ----------
+// Dos recesos fijos al día: 15 min en la mañana y 15 en la tarde (la tarde empieza a las 12:00)
+export const limiteReceso = () => 15;
+const corteMin = () => 12 * 60;
+export const turnoDe = (t) => { const d = new Date(t); return d.getHours() * 60 + d.getMinutes() < corteMin() ? "manana" : "tarde"; };
+export const turnoActual = () => turnoDe(Date.now());
+// Milisegundos de receso de hoy en un turno (suma todos los pedazos, incluido el que está corriendo)
+export function recesoTurno(wid, turno) {
+  const ini = inicioDelDia().getTime(), now = Date.now();
+  return S.recesos.filter((r) => r.trabajador_id === wid && turnoDe(r.inicio) === turno && ms(r.inicio) >= ini)
+    .reduce((a, r) => a + ((r.fin ? ms(r.fin) : now) - ms(r.inicio)), 0);
+}
+// Minutos que se pasó hoy (sumando los dos turnos)
+export const excesoHoy = (wid) => ["manana", "tarde"].reduce((a, t) => a + Math.max(0, recesoTurno(wid, t) / 60000 - limiteReceso()), 0);
+
 export const prestamosActivos = () => S.prestamos.filter((p) => p.estado === "activo");
 const suma = (arr) => arr.reduce((a, p) => a + p.cantidad, 0);
 export const prestadas = (hid) => suma(prestamosActivos().filter((p) => p.herramienta_id === hid));
