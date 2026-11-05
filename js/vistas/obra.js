@@ -15,7 +15,8 @@ let vistaGuardada = "2d"; try { vistaGuardada = localStorage.getItem("sym-vista"
 const ui = { vista: vistaGuardada, zoom: 1, sel: null, areaSel: null, moviendo: false,
   editar: false, elSel: null, nuevo: null, borrar: false,
   prestar: null, verPrestamos: false, perdida: null,
-  pz: null };   // pz = { grupo: [índices], nombre } pieza del plano seleccionada en Editar plano   // prestar = { h, nuevo, w, q }   // nuevo = { tipo, p1 } mientras se dibuja un elemento
+  pz: null,
+  modoReceso: false };   // modo rápido: cada toque manda/regresa de receso   // pz = { grupo: [índices], nombre } pieza del plano seleccionada en Editar plano   // prestar = { h, nuevo, w, q }   // nuevo = { tipo, p1 } mientras se dibuja un elemento
 let ultimas = {};
 let dibujo = { clave: "", svg: "" };
 const ICONO = {
@@ -69,7 +70,8 @@ function hojaTrabajador(w) {
       <div class="addrow" style="margin-top:4px"><input id="actTxt" value="${esc(w.actividad || "")}" placeholder="Ej. Repello de pared norte" autocomplete="off" maxlength="80">
       <button class="btn primary">Guardar</button>${w.actividad ? `<button type="button" class="btn" data-sin-act>Quitar</button>` : ""}</div></form>
     ${herr.length ? `<p class="note" style="margin:0 0 10px">Tiene: ${herr.map((p) => `${p.cantidad} × ${esc(herramienta(p.herramienta_id).nombre)}`).join(", ")}</p>` : ""}
-    <div class="acts"><button class="btn primary" data-mover>Mover de área</button>${a ? `<button class="btn" data-sacar>Quitar del área</button>` : ""}</div>`;
+    <div class="acts">${r ? `<button class="btn" data-receso-w style="border-color:var(--work);color:var(--work)">Regresar a trabajar</button>`
+        : `<button class="btn break" data-receso-w>Mandar a receso</button>`}<button class="btn primary" data-mover>Mover de área</button>${a ? `<button class="btn" data-sacar>Quitar del área</button>` : ""}</div>`;
 }
 
 function hojaArea(a) {
@@ -162,7 +164,8 @@ function hojaNuevo() {
 export function render(V, { hacer, redibujar }) {
   const o = S.obra;
   if (!o) { V.innerHTML = `<h2>Obra</h2><p class="lead">Todavía no hay una obra activa.</p>`; return; }
-  const prop = ANCHO / ALTO, receso = !!S.sesion;
+  const prop = ANCHO / ALTO, hayReceso = enReceso().length > 0 || !!S.sesion;
+  const receso = ui.modoReceso;   // solo el modo rápido cambia lo que hace un toque
   const clave = JSON.stringify([S.areas.map((a) => [a.id, a.x, a.y, a.w, a.h, a.tipo, a.nombre, a.es_receso, a.uso_actual, a.estado]),
     S.elementos.map((e) => [e.id, e.x, e.y, e.w, e.h, e.tipo, e.estado]), S.piezas]);
   if (dibujo.clave !== clave) dibujo = { clave, svg: dibujarObra(S.areas, S.elementos, S.piezas) };
@@ -187,12 +190,13 @@ export function render(V, { hacer, redibujar }) {
   // Barra de mando: aquí van las acciones de la obra (receso y las que se agreguen después)
   const HERRAMIENTAS = [
     receso
-      ? `<button class="hud-btn activo" id="hudReceso" title="Terminar receso">${ICONO.reloj}<span>Terminar receso <b class="num" data-desde="${ms(S.sesion.inicio)}"></b></span></button>`
-      : `<button class="hud-btn" id="hudReceso" title="Iniciar receso">${ICONO.reloj}<span>Iniciar receso</span></button>`,
+      ? `<button class="hud-btn activo-edit" id="hudListoReceso">${ICONO.reloj}<span>Listo</span></button>`
+      : `<button class="hud-btn" id="hudReceso">${ICONO.reloj}<span>${hayReceso ? `Receso <b class="cuenta">${enReceso().length}</b>` : "Iniciar receso"}</span></button>`,
+    hayReceso ? `<button class="hud-btn secundario" id="hudFinReceso"><span>Terminar receso (todos)</span></button>` : "",
   ];
 
   V.innerHTML = `<div class="titulo-obra"><div><p class="eyebrow">${esc(o.nombre)}${o.propietario ? " · " + esc(o.propietario) : ""}</p>
-    <h2>${receso ? "Receso en curso" : "Centro de mando"}</h2></div></div>
+    <h2>${receso ? "Modo receso" : "Centro de mando"}</h2></div></div>
   <div class="hud" role="toolbar" aria-label="Acciones de la obra">
     ${HERRAMIENTAS.join("")}
     ${receso || ui.editar ? "" : `<button class="hud-btn secundario" id="hudPrestar">${ICONO.llave}<span>Prestar</span></button>
@@ -204,7 +208,7 @@ export function render(V, { hacer, redibujar }) {
     ${es3d ? `<button class="hud-icono" id="centrar" aria-label="Volver a la vista inicial">${ICONO.centrar}</button>`
       : `<div class="zoom"><button data-z="-1" aria-label="Alejar" ${ui.zoom === ZOOMS[0] ? "disabled" : ""}>−</button><button data-z="1" aria-label="Acercar" ${ui.zoom === ZOOMS.at(-1) ? "disabled" : ""}>+</button></div>`}
   </div>
-  ${receso ? `<p class="pista receso">Receso abierto desde ${hhmm(S.sesion.inicio)}. Toca a quien sale: se pone naranja y camina a la bodega. Tócalo otra vez cuando regrese.</p>`
+  ${receso ? `<p class="pista receso">Toca a quien sale: se pone naranja y camina a la bodega. Tócalo otra vez cuando regrese. Toca <b>Listo</b> para volver a mover gente sin terminar los recesos.</p>`
     : ui.moviendo && w ? `<p class="pista mover">Toca el área a donde va <b>${esc(primerNombre(w.nombre))}</b> <button class="btn small" data-cancelar-mover>Cancelar</button></p>`
     : ui.nuevo?.tipo ? `<p class="pista mover">${ui.nuevo.p1 ? "Toca la esquina opuesta" : "Toca una esquina"} de: <b>${TIPOS_ELEMENTO[ui.nuevo.tipo]}</b></p>`
     : ui.editar ? `<p class="pista mover">Editando el plano: toca una pared, puerta o grada y márcala como <b>Hecho</b> para que se ponga en negro. Lo transparente es lo que falta.</p>`
@@ -389,7 +393,12 @@ export function render(V, { hacer, redibujar }) {
   const bo = V.querySelector("[data-bodega]"); if (bo) bo.onclick = () => { const a = area(ui.areaSel);
     hacer(async () => { await usarComoBodega(a.id); return `${a.nombre} ahora es la bodega de receso`; }); };
 
-  V.querySelector("#hudReceso").onclick = () => hacer(receso
-    ? async () => { await terminarReceso(); return "Receso cerrado, todos a trabajar"; }
-    : async () => { await iniciarReceso(); return "Receso iniciado: toca a quien sale a descansar"; });
+  const hr = V.querySelector("#hudReceso");
+  if (hr) hr.onclick = () => { cerrarTodo(); ui.modoReceso = true;
+    if (!S.sesion) hacer(async () => { await iniciarReceso(); return "Modo receso: toca a quien sale a descansar"; }); else redibujar(); };
+  const hl = V.querySelector("#hudListoReceso"); if (hl) hl.onclick = () => { ui.modoReceso = false; redibujar(); };
+  const hf = V.querySelector("#hudFinReceso"); if (hf) hf.onclick = () => { ui.modoReceso = false;
+    hacer(async () => { await terminarReceso(); return "Receso terminado, todos a trabajar"; }); };
+  const rw = V.querySelector("[data-receso-w]"); if (rw) rw.onclick = () => { const id = ui.sel;
+    hacer(async () => { const sale = await cambiarReceso(id); return `${primerNombre(trabajador(id).nombre)} ${sale ? "se fue a receso" : "regresó a trabajar"}`; }); };
 }

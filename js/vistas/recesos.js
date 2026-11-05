@@ -28,13 +28,13 @@ export function render(V, { hacer, redibujar }) {
   const registro = S.recesos.filter((r) => r.fin).slice().reverse().slice(0, 20);
 
   V.innerHTML = `<p class="eyebrow">Tiempos de receso</p><h2>Receso</h2>
-  <p class="lead">Naranja es receso, verde es trabajando. Cada toque cambia el estado y el tiempo queda guardado.</p>
+  <p class="lead">Naranja es receso, verde es trabajando. Toca a cualquiera para mandarlo o regresarlo; cada quien puede tomarlo a su hora.</p>
   ${S.sesion
     ? `<div class="session"><div><div class="lbl">Receso abierto desde ${hhmm(S.sesion.inicio)}</div><div class="t" data-desde="${ms(S.sesion.inicio)}"></div></div><button class="btn primary" id="fin">Terminar receso</button></div>`
     : `<button class="btn break big" id="ini" style="margin-bottom:14px">Iniciar receso</button>`}
   <div class="grid">${S.trabajadores.map((w) => {
     const r = recesoAbierto(w.id);
-    return `<button class="card ${r ? "on-break" : ""}" data-w="${w.id}" ${S.sesion ? "" : "disabled"} aria-pressed="${!!r}">
+    return `<button class="card ${r ? "on-break" : ""}" data-w="${w.id}" aria-pressed="${!!r}">
       <span class="av">${cara(w)}</span><span class="who"><b>${esc(w.nombre)}</b><small>${esc(w.puesto || "")}</small>
       <span class="st">${r ? `<span data-desde="${ms(r.inicio)}"></span> en receso` : `Trabajando · hoy ${minutos(recesoHoy(w.id))}`}</span></span></button>`;
   }).join("")}</div>
