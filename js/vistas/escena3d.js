@@ -420,13 +420,22 @@ function techoExistente() {
   const y = (MEDIO * EXAGERA + ALTO_TECHO_EXISTENTE) * M;
   const lamina = new THREE.MeshStandardMaterial({ color: 0xb9c0c6, metalness: 0.5, roughness: 0.45, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false });
   const amarillo = new THREE.MeshStandardMaterial({ color: 0xe8b81f, roughness: 0.6, metalness: 0.3 });
+  // dos aguas: las vigas (amarillas) van de lado a lado, de la fila de columnas del oeste a la del este, con la cumbrera al centro
   for (const c of TECHO_EXISTENTE) {
     const w = (c.x1 - c.x0) * ESC, h = (c.y1 - c.y0) * ESC, p = aEscena((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2);
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.15, h), lamina); m.position.set(p.x, y, p.z); m.receiveShadow = true; g.add(m);
-    // vigas de celosía (amarillas) a lo ancho, cada ~6 m, y la orilla
+    const sube = 1.8 * M, medio = w / 2, inc = Math.atan2(sube, medio), lado = Math.hypot(medio, sube);
+    for (const s of [-1, 1]) {   // las dos aguas
+      const m = new THREE.Mesh(new THREE.BoxGeometry(lado, 0.12, h), lamina);
+      m.position.set(p.x + (s * medio) / 2, y + sube / 2, p.z); m.rotation.z = -s * inc; m.receiveShadow = true; g.add(m);
+    }
     const paso = 6 * M, n = Math.max(1, Math.round(h / paso));
-    for (let k = 0; k <= n; k++) { const v = new THREE.Mesh(new THREE.BoxGeometry(w, 0.9, 0.35), amarillo); v.position.set(p.x, y - 0.55, p.z - h / 2 + (h * k) / n); v.castShadow = true; g.add(v); }
-    for (const s of [-1, 1]) { const v = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.9, h), amarillo); v.position.set(p.x + (s * w) / 2, y - 0.55, p.z); g.add(v); }
+    for (let k = 0; k <= n; k++) {   // cerchas cada ~6 m
+      const z = p.z - h / 2 + (h * k) / n;
+      for (const s of [-1, 1]) { const v = new THREE.Mesh(new THREE.BoxGeometry(lado, 0.7, 0.3), amarillo);
+        v.position.set(p.x + (s * medio) / 2, y + sube / 2 - 0.45, z); v.rotation.z = -s * inc; v.castShadow = true; g.add(v); }
+      const t = new THREE.Mesh(new THREE.BoxGeometry(w, 0.25, 0.25), amarillo); t.position.set(p.x, y - 0.6, z); g.add(t);   // tirante
+    }
+    for (const s of [-1, 1]) { const v = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.7, h), amarillo); v.position.set(p.x + (s * w) / 2, y - 0.35, p.z); g.add(v); }
   }
   // alero sobre la parte baja: sale del borde del techo y baja un poco hacia el boulevard
   for (const c of ALEROS) {
