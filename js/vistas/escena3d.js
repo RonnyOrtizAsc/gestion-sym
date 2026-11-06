@@ -176,12 +176,12 @@ const RAMPA_ESTE = { c: { x0: 1264, y0: 710, x1: 1337, y1: 1312 }, eje: "y", n: 
 // Rampa Chery (AR-01: "Rampa Chery 12%, a verificar"): solo la franja junto a las jardineras; el resto (carros demo) es plano.
 // Baja hacia la calle (oeste) y sube hacia el proyecto (este, nivel Chery).
 const RAMPA_CHERY = { c: { x0: 140, y0: 748, x1: 325, y1: 813 }, eje: "x", n: [ABAJO, MEDIO] };
-// Lado del boulevard (AR-01), más bajo que el proyecto; lo separa un murito con barandal:
-//  carril "RAMPA" pegado a la cerca: N 868.97 junto a Marca 4 → N 868.15 a medio camino → N 868.32 abajo, junto a Exhibición exterior
+// Lado del boulevard (AR-01), más bajo que las salas; lo separa un murito con barandal en la orilla de las salas (x 330):
+//  carriles, carros demo y estacionamiento de clientes: N 868.97 junto a Marca 4 → N 868.15 a medio camino → N 868.32 abajo
 //  Exhibición exterior (3) a N 868.32; "Rampa existente" de Carros demo Nissan sube de N 868.32 a Entrega de vehículos (N 869.95)
 const LADO_BOULEVARD = [
-  { c: { x0: 87, y0: 735, x1: 140, y1: 1063 }, eje: "y", n: [0.01, -0.81] },
-  { c: { x0: 87, y0: 1063, x1: 140, y1: 1338 }, eje: "y", n: [-0.81, -0.64] },
+  { c: { x0: 85, y0: 715, x1: 330, y1: 1063 }, eje: "y", n: [0.01, -0.81] },
+  { c: { x0: 85, y0: 1063, x1: 330, y1: 1310 }, eje: "y", n: [-0.81, -0.64] },
   { c: { x0: 85, y0: 1310, x1: 282, y1: 1446 }, eje: "y", n: [-0.64, -0.64] },
   { c: { x0: 282, y0: 1322, x1: 455, y1: 1446 }, eje: "x", n: [-0.64, 0.99] },
 ];
@@ -410,8 +410,10 @@ function techo(a, base, alto) {
 
 // Techo existente a conservar (AR-01, líneas de "proyección de techo"): estructura metálica amarilla con lámina,
 // sobre carros demo, Chery, clientes y sala Nissan. Columnas grandes del plano cada 14 m (x 333 y 713; y 739, 988, 1237).
-// Cubre toda la parte alta (N 870.00) hasta el murito del carril bajo (x 140); sobre el carril solo un alero pequeño.
-const TECHO_EXISTENTE = [{ x0: 140, y0: 718, x1: 725, y1: 1256 }], ALERO = { x0: 118, x1: 140 };
+// El techo grande cubre las salas Chery y Nissan (N 870.00), sobre las columnas del plano (x 333 y 713).
+// Sobre la parte baja solo va el alero, hasta las líneas de "proyección de techo" del AR-01 (x 194 al norte, x 238 al sur).
+const TECHO_EXISTENTE = [{ x0: 333, y0: 718, x1: 725, y1: 1256 }];
+const ALEROS = [{ x0: 194, y0: 718, x1: 333, y1: 1011 }, { x0: 238, y0: 1011, x1: 333, y1: 1256 }];
 const ALTO_TECHO_EXISTENTE = 7;   // metros sobre el piso de la sala (N 870.00)
 function techoExistente() {
   const g = new THREE.Group(); g.userData.techo = true;
@@ -426,11 +428,14 @@ function techoExistente() {
     for (let k = 0; k <= n; k++) { const v = new THREE.Mesh(new THREE.BoxGeometry(w, 0.9, 0.35), amarillo); v.position.set(p.x, y - 0.55, p.z - h / 2 + (h * k) / n); v.castShadow = true; g.add(v); }
     for (const s of [-1, 1]) { const v = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.9, h), amarillo); v.position.set(p.x + (s * w) / 2, y - 0.55, p.z); g.add(v); }
   }
-  // alero pequeño sobre el carril bajo, un poco más abajo que el techo
-  { const c = TECHO_EXISTENTE[0], w = (ALERO.x1 - ALERO.x0) * ESC, h = (c.y1 - c.y0) * ESC, p = aEscena((ALERO.x0 + ALERO.x1) / 2, (c.y0 + c.y1) / 2);
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.12, h), lamina); m.position.set(p.x, y - 0.8 * M, p.z); m.rotation.z = 0.12; g.add(m); }
-  // columnas existentes hasta el techo (también en la orilla del murito)
-  for (const cx of [140, 333, 713]) for (const cy of [739, 988, 1237]) {
+  // alero sobre la parte baja: sale del borde del techo y baja un poco hacia el boulevard
+  for (const c of ALEROS) {
+    const w = (c.x1 - c.x0) * ESC, h = (c.y1 - c.y0) * ESC, p = aEscena((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2), cae = 0.6 * M;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(Math.hypot(w, cae), 0.12, h), lamina); m.position.set(p.x, y - cae / 2, p.z); m.rotation.z = Math.atan2(cae, w); g.add(m);
+    const v = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.5, h), amarillo); v.position.set(p.x - w / 2, y - cae - 0.25, p.z); g.add(v);
+  }
+  // columnas existentes hasta el techo (la fila del oeste queda en el murito)
+  for (const cx of [333, 713]) for (const cy of [739, 988, 1237]) {
     const base = E.altura(cx, cy) * M, alto = y - base, v = aEscena(cx, cy);
     const col = new THREE.Mesh(new THREE.BoxGeometry(0.9, alto, 0.9), amarillo); col.position.set(v.x, base + alto / 2, v.z); col.castShadow = true; g.add(col);
   }
