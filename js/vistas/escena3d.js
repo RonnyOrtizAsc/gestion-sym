@@ -144,7 +144,7 @@ function prepararNiveles(areas) {
     if (fuera(x, y)) return CALLE;
     let mejor = null, d = Infinity;
     for (const p of planas) {
-      const dx = Math.max(p.c.x0 - x, 0, x - p.c.x1), dy = Math.max(p.c.y0 - y, 0, y - p.c.y1), dd = dx * dx + dy * dy;
+      const dx = Math.max(p.c.x0 - x, 0, x - p.c.x1), dy = Math.max(p.c.y0 - y, 0, y - p.c.y1), dd = 25 * dx * dx + dy * dy;   // fuera de las áreas manda la que está arriba/abajo: los cortes salen rectos, no en diagonal
       if (dd < d || (dd === d && dd === 0 && p.n > mejor.n)) { d = dd; mejor = p; }
     }
     return mejor ? mejor.n : 0;
