@@ -185,7 +185,15 @@ function ponerTerreno() {
   }
   g.setAttribute("color", new THREE.BufferAttribute(col, 3)); g.computeVertexNormals();
   E.piso.geometry.dispose(); E.piso.geometry = g; E.piso.rotation.x = 0;
-  E.piso.material.vertexColors = true; E.piso.material.needsUpdate = true;
+  E.piso.material.vertexColors = true;
+  // En los taludes (caras casi verticales) no se pinta el plano: si no, sus líneas se estiran hacia abajo como rayas
+  E.piso.material.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying float vNY;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvNY = normal.y;");
+    sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nvarying float vNY;")
+      .replace("#include <map_fragment>", "#ifdef USE_MAP\nvec4 sampledDiffuseColor = vNY < 0.55 ? vec4(0.8, 0.79, 0.76, 1.0) : texture2D(map, vMapUv);\ndiffuseColor *= sampledDiffuseColor;\n#endif");
+  };
+  E.piso.material.needsUpdate = true;
 }
 
 // ---------- Paredes y columnas del plano (cada pieza con su estado: hecho, en construcción o falta) ----------
