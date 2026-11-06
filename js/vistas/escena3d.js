@@ -408,6 +408,31 @@ function techo(a, base, alto) {
   return g;
 }
 
+// Techo existente a conservar (AR-01, líneas de "proyección de techo"): estructura metálica amarilla con lámina,
+// sobre carros demo, Chery, clientes y sala Nissan. Columnas grandes del plano cada 14 m (x 333 y 713; y 739, 988, 1237).
+const TECHO_EXISTENTE = [{ x0: 194, y0: 718, x1: 725, y1: 1011 }, { x0: 238, y0: 1011, x1: 725, y1: 1256 }];
+const ALTO_TECHO_EXISTENTE = 7;   // metros sobre el piso de la sala (N 870.00)
+function techoExistente() {
+  const g = new THREE.Group(); g.userData.techo = true;
+  const y = (MEDIO * EXAGERA + ALTO_TECHO_EXISTENTE) * M;
+  const lamina = new THREE.MeshStandardMaterial({ color: 0xb9c0c6, metalness: 0.5, roughness: 0.45, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false });
+  const amarillo = new THREE.MeshStandardMaterial({ color: 0xe8b81f, roughness: 0.6, metalness: 0.3 });
+  for (const c of TECHO_EXISTENTE) {
+    const w = (c.x1 - c.x0) * ESC, h = (c.y1 - c.y0) * ESC, p = aEscena((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.15, h), lamina); m.position.set(p.x, y, p.z); m.receiveShadow = true; g.add(m);
+    // vigas de celosía (amarillas) a lo ancho, cada ~6 m, y la orilla
+    const paso = 6 * M, n = Math.max(1, Math.round(h / paso));
+    for (let k = 0; k <= n; k++) { const v = new THREE.Mesh(new THREE.BoxGeometry(w, 0.9, 0.35), amarillo); v.position.set(p.x, y - 0.55, p.z - h / 2 + (h * k) / n); v.castShadow = true; g.add(v); }
+    for (const s of [-1, 1]) { const v = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.9, h), amarillo); v.position.set(p.x + (s * w) / 2, y - 0.55, p.z); g.add(v); }
+  }
+  // columnas existentes hasta el techo
+  for (const cx of [333, 713]) for (const cy of [739, 988, 1237]) {
+    const base = E.altura(cx, cy) * M, alto = y - base, v = aEscena(cx, cy);
+    const col = new THREE.Mesh(new THREE.BoxGeometry(0.9, alto, 0.9), amarillo); col.position.set(v.x, base + alto / 2, v.z); col.castShadow = true; g.add(col);
+  }
+  return g;
+}
+
 // La bodega (edificación de block existente) con la otra construcción encima
 function bodega(a, base) {
   const c = caja(a), w = (c.x1 - c.x0) * ESC, h = (c.y1 - c.y0) * ESC, ctr = aEscena((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2);
@@ -466,6 +491,7 @@ function ponerEdificios(areas, elementos = [], piezas = {}) {
     if (a.es_receso) { E.edificios.add(bodega(a, base)); continue; }
     if (ALTO_MURO[a.tipo]) { const t = techo(a, base, ALTO_MURO[a.tipo] * M * (a.estado === "en_proceso" ? 0.5 : 1)); t.userData.techo = true; E.edificios.add(t); }
   }
+  E.edificios.add(techoExistente());
   rotulosNivel();
   // Elementos agregados (gradas, jardineras, baños…)
   const ALTO_EL = { grada: 2.2, jardinera: 1.2, bano: 3, muro: 3.5, puerta: 3, columna: 6, bodega: 4, otro: 2 };
