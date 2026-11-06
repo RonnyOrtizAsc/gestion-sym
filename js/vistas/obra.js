@@ -421,7 +421,7 @@ export function render(V, { hacer, redibujar }) {
     const mapa = V.querySelector(".mapa"), prev = V.querySelector("#previa"), tipA = V.querySelector(".mapa .tip");
     let A = null, ultimo = null;
     const punto = (e) => { const r = mapa.getBoundingClientRect(); return [((e.clientX - r.left) / r.width) * ANCHO, ((e.clientY - r.top) / r.height) * ALTO]; };
-    h.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); h.setPointerCapture(e.pointerId); A = asasActuales(); h.classList.add("arrastrando"); });
+    h.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); try { h.setPointerCapture(e.pointerId); } catch (_) {} A = asasActuales(); h.classList.add("arrastrando"); });
     h.addEventListener("pointermove", (e) => {
       if (!A) return; const idx = +h.dataset.asa, m = moverAsa(A, idx, ...punto(e)); ultimo = m.ab;
       const q = m.ab[idx]; h.style.left = (q[0] / ANCHO) * 100 + "%"; h.style.top = (q[1] / ALTO) * 100 + "%";

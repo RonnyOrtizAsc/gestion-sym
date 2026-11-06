@@ -78,7 +78,7 @@ function crear() {
     const r = renderer.domElement.getBoundingClientRect();
     p.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(p, camera);
     const h = ray.intersectObjects(asas.children.filter((o) => o.userData.asa !== undefined))[0]; if (!h) return;
-    e.stopImmediatePropagation(); renderer.domElement.setPointerCapture(e.pointerId);
+    e.stopImmediatePropagation(); try { renderer.domElement.setPointerCapture(e.pointerId); } catch (_) {}
     arrastre = { idx: h.object.userData.asa, fin: null }; plano.set(new THREE.Vector3(0, 1, 0), -h.object.position.y);
   }, { capture: true });
   renderer.domElement.addEventListener("pointermove", (e) => {
