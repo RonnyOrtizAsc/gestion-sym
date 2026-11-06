@@ -149,6 +149,17 @@ function hojaPared(e) {
       <label>Grueso <input id="pGrueso" type="number" step="0.01" min="0.05" value="${gruesoPared(e)}"> m</label><button class="btn">Aplicar</button></form>
     <form class="addrow" id="nomEl"><input id="elNombre" value="${esc(e.nombre || "")}" placeholder="Nombre (opcional)" aria-label="Nombre de la pared"><button class="btn">Guardar nombre</button></form>` : ""}`;
 }
+function hojaElemento(e) {
+  if (e.trazo) return hojaPared(e);
+  return `<div class="hoja-h"><div class="grow"><p class="eyebrow" style="margin:0">Editar plano · elemento</p><b>${esc(e.nombre || TIPOS_ELEMENTO[e.tipo])}</b>
+      <small>${TIPOS_ELEMENTO[e.tipo]}</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
+    ${botonesEstado(e.estado, "data-estado-el")}
+    ${e.trazo ? "" : `<form class="addrow medidas" id="medEl"><label>Ancho <input id="elAncho" type="number" step="0.05" min="0.1" value="${metros(e.w, "x").toFixed(2)}"> m</label>
+      <label>Largo <input id="elLargo" type="number" step="0.05" min="0.1" value="${metros(e.h, "y").toFixed(2)}"> m</label><button class="btn">Aplicar medidas</button></form>`}
+    <form class="addrow" id="nomEl"><input id="elNombre" value="${esc(e.nombre || "")}" placeholder="Nombre (ej. Gradas sala Nissan)" aria-label="Nombre del elemento"><button class="btn">Guardar nombre</button></form>
+    <div class="acts" style="margin-top:10px">${ui.borrar ? `<button class="btn danger" data-borrar-si>Sí, borrar del plano</button><button class="btn" data-borrar-no>No</button>`
+      : `<button class="btn danger" data-borrar>Borrar elemento</button>`}</div>`;
+}
 function hojaPieza() {
   const g = ui.pz.grupo, estados = g.map((i) => estadoPieza(i, S.piezas));
   const actual = estados.every((e) => e === estados[0]) ? estados[0] : null, pared = esPared(g) && actual !== "quitado";
