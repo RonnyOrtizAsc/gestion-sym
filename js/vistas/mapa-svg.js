@@ -37,9 +37,28 @@ function etiqueta(nombre, X, Y, W, H, apagada) {
   return `<text class="et${apagada ? " apagada" : ""}" x="${X + W / 2}" y="${y0}" font-size="${fs.toFixed(1)}" text-anchor="middle" dominant-baseline="middle">${lineas.map((l, i) => `<tspan x="${X + W / 2}" dy="${i ? lh : 0}">${esc(l)}</tspan>`).join("")}<tspan class="m2" x="${X + W / 2}" dy="${lh * 0.95}" font-size="${(fs * 0.72).toFixed(1)}">${m2} m²</tspan></text>`;
 }
 
+// ---------- Paredes dibujadas a mano (elementos con trazo) ----------
+export const MATERIALES = { block: "Block", lamina: "Lámina", ventanal: "Ventanal" };
+const COLOR_MAT = { block: "#1f2327", lamina: "#4d565e", ventanal: "#3d8fd1" };
+export const puntas = (trazo) => { const v = (trazo.match(/-?\d+\.?\d*/g) || []).map(Number); return [[v[0], v[1]], [v[2], v[3]]]; };
+const r1 = (v) => +v.toFixed(1), pct = (v, t) => +((v / t) * 100).toFixed(2);
+// Trazo y caja (en % del plano, con margen para poder tocarla) de una pared de a → b
+export const pared = (a, b) => ({ trazo: `M${r1(a[0])} ${r1(a[1])}L${r1(b[0])} ${r1(b[1])}`,
+  x: pct(Math.min(a[0], b[0]) - 6, ANCHO), y: pct(Math.min(a[1], b[1]) - 6, ALTO), w: pct(Math.abs(b[0] - a[0]) + 12, ANCHO), h: pct(Math.abs(b[1] - a[1]) + 12, ALTO) });
+export const largoPared = (e) => { const [a, b] = puntas(e.trazo); return Math.hypot(b[0] - a[0], b[1] - a[1]) * M; };   // metros
+export const gruesoPared = (e) => +e.grueso || (e.material === "ventanal" ? 0.1 : 0.15);   // metros
+// Endereza b respecto a a si está casi horizontal o vertical
+export const enderezar = (a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1];
+  return Math.abs(dy) < Math.abs(dx) * 0.1 ? [b[0], a[1]] : Math.abs(dx) < Math.abs(dy) * 0.1 ? [a[0], b[1]] : b; };
+// Distancia de un punto a una pared dibujada
+export const distPared = (x, y, e) => distSeg(x, y, puntas(e.trazo));
+
 function elemento(e) {
-  if (e.trazo) { const est = ESTILO[e.estado] || ESTILO.falta;   // pared dibujada a mano: igual que las paredes del plano
-    return `<path class="elem" ${est.muro} fill="none" stroke-linecap="round" d="${e.trazo}"/>`; }
+  if (e.trazo) {   // pared dibujada a mano: grosor real y color de su material
+    const w = Math.max(2.5, gruesoPared(e) / M), col = e.estado === "existe" ? COLOR_MAT[e.material] || COLOR_MAT.block : e.estado === "en_proceso" ? "#b26b00" : "#8ea3b8";
+    const op = e.estado === "falta" ? ' stroke-opacity=".55"' : "";
+    return `<g class="elem"><path stroke="${col}"${op} stroke-width="${w}" fill="none" d="${e.trazo}"/>${e.material === "ventanal" ? `<path stroke="#fff" stroke-width="${w * 0.4}" fill="none" d="${e.trazo}"/>` : ""}</g>`;
+  }
   const { X, Y, W, H } = px(e), col = ELEM[e.tipo] || ELEM.otro;
   const falta = e.estado === "falta", proceso = e.estado === "en_proceso";
   const trazo = falta ? `stroke="${col}" stroke-width="2.5" stroke-dasharray="8 6" fill="${col}" fill-opacity=".08"`

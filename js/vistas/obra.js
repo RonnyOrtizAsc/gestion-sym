@@ -8,7 +8,7 @@ import { S, recesoAbierto, enReceso, recesoTurno, turnoDe, turnoActual, limiteRe
   ponerActividad, prestarRapido, cerrarPrestamo, disponibles, METROS_POR_UNIDAD, usarComoBodega, estadoPiezas } from "../datos.js";
 import { esc, iniciales, primerNombre, ms, hhmm } from "../util.js";
 import { miniatura, tarjeta, avatares, cara } from "./fotos.js";
-import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, grupoDe, queEs, pegar, ANCHO, ALTO } from "./mapa-svg.js";
+import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, CAJAS, grupoDe, queEs, pegar, ANCHO, ALTO, MATERIALES, puntas, pared, largoPared, gruesoPared, enderezar, distPared } from "./mapa-svg.js";
 
 const ZOOMS = [1, 1.6, 2.4, 3.4];
 let vistaGuardada = "2d"; try { vistaGuardada = localStorage.getItem("sym-vista") || "2d"; } catch (e) {}
@@ -133,7 +133,22 @@ function hojaEditarArea(a) {
       `<button class="chip" data-el="${e.id}">${esc(e.nombre || TIPOS_ELEMENTO[e.tipo])}<span class="n">${ESTADOS[e.estado]}</span></button>`).join("")}</div>` : ""}`;
 }
 
+const chipsMaterial = (actual, attr) => `<div class="chips">${Object.entries(MATERIALES).map(([k, l]) =>
+  `<button class="chip" ${attr}="${k}" aria-pressed="${(actual || "block") === k}">${l}</button>`).join("")}</div>`;
+function hojaPared(e) {
+  return `<div class="hoja-h"><div class="grow"><p class="eyebrow" style="margin:0">Editar plano · pared</p><b>${esc(e.nombre || MATERIALES[e.material || "block"])}</b>
+      <small>Largo ${fmtM(largoPared(e))}${ui.punta ? " · toca en el plano a dónde llega la punta" : ""}</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
+    ${botonesEstado(e.estado, "data-estado-el")}
+    ${chipsMaterial(e.material, "data-mat")}
+    <form class="addrow medidas" id="medPared"><label>Alto <input id="pAlto" type="number" step="0.1" min="0.2" value="${e.alto ?? ""}" placeholder="auto"> m</label>
+      <label>Grueso <input id="pGrueso" type="number" step="0.01" min="0.05" value="${gruesoPared(e)}"> m</label><button class="btn">Aplicar</button></form>
+    <div class="acts" style="margin-top:8px"><button class="btn small ${ui.punta ? "activo-edit" : ""}" data-punta>${ui.punta ? "Cancelar mover punta" : "Mover punta (alargar / acortar)"}</button></div>
+    <form class="addrow" id="nomEl"><input id="elNombre" value="${esc(e.nombre || "")}" placeholder="Nombre (opcional)" aria-label="Nombre de la pared"><button class="btn">Guardar nombre</button></form>
+    <div class="acts" style="margin-top:10px">${ui.borrar ? `<button class="btn danger" data-borrar-si>Sí, borrar pared</button><button class="btn" data-borrar-no>No</button>`
+      : `<button class="btn danger" data-borrar>Borrar pared</button>`}</div>`;
+}
 function hojaElemento(e) {
+  if (e.trazo) return hojaPared(e);
   return `<div class="hoja-h"><div class="grow"><p class="eyebrow" style="margin:0">Editar plano · elemento</p><b>${esc(e.nombre || TIPOS_ELEMENTO[e.tipo])}</b>
       <small>${TIPOS_ELEMENTO[e.tipo]}</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
     ${botonesEstado(e.estado, "data-estado-el")}
@@ -151,15 +166,18 @@ function hojaPieza() {
       <small>${actual ? "Ahora: " + NOMBRE_ESTADO[actual] : "Tiene partes en distinto estado"} · resaltado en verde en el plano</small></div>
       <button class="x" data-cerrar aria-label="Cerrar">×</button></div>
     ${botonesEstado(actual, "data-estado-pz")}
+    ${actual !== "quitado" && ui.pz.grupo.some((i) => ["muro", "lamina", "fino", "borde"].includes(PIEZAS[i][0])) ? `<button class="btn small" data-a-pared style="margin:8px 8px 0 0">Editar esta pared (largo, material, alto, grueso)</button>` : ""}
     <button class="btn small ${actual === "quitado" ? "" : "danger"}" data-estado-pz="${actual === "quitado" ? (PIEZAS[ui.pz.tocada][4] ? "existe" : "falta") : "quitado"}" style="margin-top:8px">${actual === "quitado" ? "Sí va (regresarla)" : "No va (quitar del plano)"}</button>
     ${g.length > 1 ? `<button class="linkbtn" data-solo-pieza style="margin-top:10px">Marcar solo la línea que toqué</button>` : ""}`;
 }
 
 function hojaNuevo() {
   return `<div class="hoja-h"><div class="grow"><p class="eyebrow" style="margin:0">Agregar al plano</p><b>${ui.nuevo.tipo ? TIPOS_ELEMENTO[ui.nuevo.tipo] : "¿Qué vas a agregar?"}</b>
-      <small>${ui.nuevo.tipo === "muro" ? (ui.nuevo.p1 ? "Ahora toca donde termina. Se pega sola a las paredes cercanas y se endereza." : "Toca donde empieza la pared.") : ui.nuevo.tipo ? (ui.nuevo.p1 ? "Ahora toca la esquina opuesta. Después puedes ajustar la medida exacta en metros." : "Toca una esquina en el plano.") : "Elige el tipo y luego marca dos esquinas en el plano."}</small></div>
+      <small>${ui.nuevo.tipo === "muro" ? (ui.nuevo.p1 ? "Toca donde termina este tramo. Se pega a las paredes cercanas y se endereza." : "Toca donde empieza la pared.") : ui.nuevo.tipo ? (ui.nuevo.p1 ? "Ahora toca la esquina opuesta. Después puedes ajustar la medida exacta en metros." : "Toca una esquina en el plano.") : "Elige el tipo y luego marca dos esquinas en el plano."}</small></div>
       <button class="x" data-cerrar aria-label="Cancelar">×</button></div>
-    <div class="chips">${Object.entries(TIPOS_ELEMENTO).map(([k, l]) => `<button class="chip" data-tipo="${k}" aria-pressed="${ui.nuevo.tipo === k}">${l}</button>`).join("")}</div>`;
+    <div class="chips">${Object.entries(TIPOS_ELEMENTO).map(([k, l]) => `<button class="chip" data-tipo="${k}" aria-pressed="${ui.nuevo.tipo === k}">${l}</button>`).join("")}</div>
+    ${ui.nuevo.tipo === "muro" ? `<p class="note" style="margin:10px 0 6px">Material</p>${chipsMaterial(ui.nuevo.material, "data-mat-nuevo")}
+      <p class="note" style="margin:8px 0 0">Sigue tocando para hacer más tramos pegados. Cierra (×) cuando termines.</p>` : ""}`;
 }
 
 export function render(V, { hacer, redibujar }) {
@@ -211,6 +229,7 @@ export function render(V, { hacer, redibujar }) {
   </div>
   ${receso ? `<p class="pista receso">Toca a quien sale: se pone naranja y camina a la bodega. Tócalo otra vez cuando regrese. Toca <b>Receso</b> otra vez para salir (los que están en receso siguen contando).</p>`
     : ui.moviendo && w ? `<p class="pista mover">Toca el área a donde va <b>${esc(primerNombre(w.nombre))}</b> <button class="btn small" data-cancelar-mover>Cancelar</button></p>`
+    : ui.punta ? `<p class="pista mover">Toca a dónde llega la pared: se mueve la punta más cercana (se pega y se endereza).</p>`
     : ui.nuevo?.tipo ? `<p class="pista mover">${ui.nuevo.tipo === "muro" ? (ui.nuevo.p1 ? "Toca donde termina la" : "Toca donde empieza la") : ui.nuevo.p1 ? "Toca la esquina opuesta de:" : "Toca una esquina de:"} <b>${TIPOS_ELEMENTO[ui.nuevo.tipo]}</b></p>`
     : ui.editar ? `<p class="pista mover">Editando: pasa el mouse o toca una pared, puerta o grada (se pone verde) y márcala <b>Hecho</b>, <b>En construcción</b> o <b>Falta</b>.${es3d ? " Los techos se esconden mientras editas." : ""}</p>`
     : `<p class="pista">Toca un área para ver quién está ahí, o toca a una persona para moverla.${es3d ? " Arrastra para moverte, dos dedos o clic derecho para girar, pellizca o rueda para acercar." : ""}</p>`}
@@ -224,9 +243,9 @@ export function render(V, { hacer, redibujar }) {
           style="left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%" aria-label="${esc(nombre)}, ${n} asignados"></button>`; }).join("")}
       ${tokens.map(([p, x, y]) => token(p, x, y)).join("")}
       ${ui.editar && !ui.nuevo ? capaPiezas(S.piezas, ui.pz?.grupo) : ""}
-      ${ui.editar ? S.elementos.map((e) => `<button class="el-btn ${ui.elSel === e.id ? "sel" : ""}" data-el="${e.id}" style="left:${e.x}%;top:${e.y}%;width:${e.w}%;height:${e.h}%" aria-label="${esc(e.nombre || TIPOS_ELEMENTO[e.tipo])}"></button>`).join("") : ""}
+      ${ui.editar ? S.elementos.map((e) => `<button class="el-btn ${e.trazo ? "pared" : ""} ${ui.elSel === e.id ? "sel" : ""}" data-el="${e.id}" style="left:${e.x}%;top:${e.y}%;width:${e.w}%;height:${e.h}%" aria-label="${esc(e.nombre || TIPOS_ELEMENTO[e.tipo])}"></button>`).join("") : ""}
       ${ui.nuevo?.p1 ? `<span class="punto" style="left:${ui.nuevo.p1[0]}%;top:${ui.nuevo.p1[1]}%"></span>` : ""}
-      ${ui.nuevo?.tipo ? `<div class="captura" id="captura"></div>` : ""}
+      ${ui.nuevo?.tipo || ui.punta ? `<div class="captura" id="captura"></div>` : ""}
     </div>
   </div>`}
   <div class="section" style="margin-top:12px">${resumen()}</div>
@@ -247,22 +266,30 @@ export function render(V, { hacer, redibujar }) {
     if (receso) return hacer(async () => { const sale = await cambiarReceso(id); return `${primerNombre(trabajador(id).nombre)} ${sale ? "se fue a receso" : "regresó a trabajar"}`; });
     ui.sel = id; ui.areaSel = null; ui.moviendo = false; redibujar();
   };
+  const puntasDibujadas = () => S.elementos.filter((e) => e.trazo).flatMap((e) => puntas(e.trazo));
   const tocarPunto = (px, py) => {   // al dibujar un elemento nuevo: dos esquinas
+    if (ui.punta) {   // mover la punta más cercana de una pared dibujada
+      const e = S.elementos.find((q) => q.id === ui.punta); if (!e) { ui.punta = null; return false; }
+      const [a, b] = puntas(e.trazo), t = [(px / 100) * ANCHO, (py / 100) * ALTO];
+      const otras = puntasDibujadas().filter((q) => q !== a && q !== b && !(q[0] === a[0] && q[1] === a[1]) && !(q[0] === b[0] && q[1] === b[1]));
+      const mueveA = Math.hypot(t[0] - a[0], t[1] - a[1]) < Math.hypot(t[0] - b[0], t[1] - b[1]), fija = mueveA ? b : a;
+      const nueva = enderezar(fija, pegar(t[0], t[1], 9, otras)), cambios = pared(mueveA ? nueva : a, mueveA ? b : nueva);
+      Object.assign(e, cambios); ui.punta = null; redibujar();
+      hacer(async () => { await editarElemento(e.id, cambios); return `Pared: ${fmtM(largoPared(e))}`; });
+      return true;
+    }
     if (!ui.nuevo?.tipo) return false;
     if (!ui.nuevo.p1) { ui.nuevo.p1 = [px, py]; redibujar(); return true; }
     const [x1, y1] = ui.nuevo.p1, tipo = ui.nuevo.tipo;
     if (tipo === "muro") {   // pared: de una punta a la otra
-      const extra = S.elementos.filter((e) => e.trazo).flatMap((e) => (e.trazo.match(/-?\d+\.?\d*/g) || []).map(Number).reduce((a, v, k, arr) => (k % 2 ? a : [...a, [v, arr[k + 1]]]), []));
-      const a = pegar((x1 / 100) * ANCHO, (y1 / 100) * ALTO, 9, extra);
-      let b = pegar((px / 100) * ANCHO, (py / 100) * ALTO, 9, extra);
-      const dx = b[0] - a[0], dy = b[1] - a[1];
-      if (Math.abs(dy) < Math.abs(dx) * 0.1) b = [b[0], a[1]]; else if (Math.abs(dx) < Math.abs(dy) * 0.1) b = [a[0], b[1]];   // casi derecha → derecha
-      if (Math.hypot(b[0] - a[0], b[1] - a[1]) < 4) { ui.nuevo.p1 = null; return redibujar(), true; }
-      const r = (v) => +v.toFixed(1), pct = (v, t) => +((v / t) * 100).toFixed(2), pad = 6;
-      const el = { tipo, estado: "falta", trazo: `M${r(a[0])} ${r(a[1])}L${r(b[0])} ${r(b[1])}`,
-        x: pct(Math.min(a[0], b[0]) - pad, ANCHO), y: pct(Math.min(a[1], b[1]) - pad, ALTO), w: pct(Math.abs(dx) + 2 * pad, ANCHO), h: pct(Math.abs(dy) + 2 * pad, ALTO) };
-      ui.nuevo = null;
-      hacer(async () => { const n = await agregarElemento(el); ui.elSel = n.id; ui.areaSel = null; return `Pared agregada (${fmtM(Math.hypot(dx, dy) * METROS_POR_UNIDAD)})`; });
+      const extra = puntasDibujadas(), a = ui.nuevo.a || pegar((x1 / 100) * ANCHO, (y1 / 100) * ALTO, 9, extra);
+      const b = enderezar(a, pegar((px / 100) * ANCHO, (py / 100) * ALTO, 9, extra.concat(ui.nuevo.hechas || [])));
+      if (Math.hypot(b[0] - a[0], b[1] - a[1]) < 4) return true;
+      const el = { tipo, estado: "falta", material: ui.nuevo.material || "block", ...pared(a, b) };
+      // sigue dibujando desde aquí: el próximo toque hace otro tramo pegado
+      ui.nuevo.a = b; ui.nuevo.p1 = [(b[0] / ANCHO) * 100, (b[1] / ALTO) * 100]; ui.nuevo.hechas = [...(ui.nuevo.hechas || []), a, b];
+      S.elementos.push({ id: "tmp" + Date.now(), ...el }); redibujar();   // se ve al instante
+      hacer(async () => { await agregarElemento(el); return `Pared agregada (${fmtM(Math.hypot(b[0] - a[0], b[1] - a[1]) * METROS_POR_UNIDAD)})`; });
       return true;
     }
     const el = { tipo, estado: "falta", x: +Math.min(x1, px).toFixed(2), y: +Math.min(y1, py).toFixed(2), w: +Math.max(0.6, Math.abs(px - x1)).toFixed(2), h: +Math.max(0.6, Math.abs(py - y1)).toFixed(2) };
@@ -288,8 +315,9 @@ export function render(V, { hacer, redibujar }) {
     import("./escena3d.js").then((m) => {
       const cont = V.querySelector("#escena"); if (!cont) return;
       cont.querySelector(".cargando")?.remove();
-      m.montar(cont, { svg: dibujo.svg, clave: dibujo.clave, areas: S.areas, elementos: S.elementos, piezas: S.piezas, personas, editar: ui.editar && !ui.nuevo, seleccion: ui.pz?.grupo, handlers: {
+      m.montar(cont, { svg: dibujo.svg, clave: dibujo.clave, areas: S.areas, elementos: S.elementos, piezas: S.piezas, personas, editar: ui.editar && !ui.nuevo && !ui.punta, seleccion: ui.pz?.grupo, handlers: {
         persona: tocarPersona, pieza: tocarPieza, textoPieza,
+        pared: (x, y) => { const e = S.elementos.filter((q) => q.trazo).find((q) => distPared(x, y, q) < 8); if (!e) return false; ui.elSel = e.id; ui.pz = null; ui.areaSel = null; ui.borrar = false; redibujar(); return true; },
         punto: (px, py) => { // el área más pequeña que contiene el punto tocado
           if (tocarPunto(px, py)) return;
           if (ui.editar) { const e = S.elementos.find((e) => px >= e.x && px <= +e.x + +e.w && py >= e.y && py <= +e.y + +e.h); if (e) { ui.elSel = e.id; ui.areaSel = null; return redibujar(); } }
@@ -349,8 +377,8 @@ export function render(V, { hacer, redibujar }) {
 
   // ---- Interacción ----
   const $$ = (s) => V.querySelectorAll(s);
-  function cerrarTodo() { ui.pz = null; ui.sel = null; ui.areaSel = null; ui.moviendo = false; ui.elSel = null; ui.nuevo = null; ui.borrar = false; ui.prestar = null; ui.verPrestamos = false; ui.perdida = null; }
-  const cerrar = () => { ui.pz = null; ui.sel = null; ui.areaSel = null; ui.moviendo = false; ui.elSel = null; ui.nuevo = null; ui.borrar = false; ui.prestar = null; ui.verPrestamos = false; ui.perdida = null; redibujar(); };
+  function cerrarTodo() { ui.punta = null; ui.pz = null; ui.sel = null; ui.areaSel = null; ui.moviendo = false; ui.elSel = null; ui.nuevo = null; ui.borrar = false; ui.prestar = null; ui.verPrestamos = false; ui.perdida = null; }
+  const cerrar = () => { ui.punta = null; ui.pz = null; ui.sel = null; ui.areaSel = null; ui.moviendo = false; ui.elSel = null; ui.nuevo = null; ui.borrar = false; ui.prestar = null; ui.verPrestamos = false; ui.perdida = null; redibujar(); };
   $$("[data-vista]").forEach((b) => (b.onclick = () => { ui.vista = b.dataset.vista; try { localStorage.setItem("sym-vista", ui.vista); } catch (e) {} redibujar(); }));
   $$("[data-w]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); tocarPersona(b.dataset.w); }));
   $$("[data-cerrar]").forEach((b) => (b.onclick = cerrar));
@@ -372,8 +400,24 @@ export function render(V, { hacer, redibujar }) {
   const he = V.querySelector("#hudEditar");
   if (he) he.onclick = () => { ui.pz = null; ui.editar = !ui.editar; ui.nuevo = null; ui.elSel = null; ui.areaSel = null; ui.sel = null; ui.moviendo = false; redibujar(); };
   const ha = V.querySelector("#hudAgregar"); if (ha) ha.onclick = () => { ui.nuevo = { tipo: null, p1: null }; ui.elSel = null; ui.areaSel = null; redibujar(); };
-  $$("[data-tipo]").forEach((b) => (b.onclick = () => { ui.nuevo = { tipo: b.dataset.tipo, p1: null }; redibujar(); }));
-  $$("[data-el]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); ui.elSel = b.dataset.el; ui.areaSel = null; ui.borrar = false; redibujar(); }));
+  $$("[data-tipo]").forEach((b) => (b.onclick = () => { ui.nuevo = { tipo: b.dataset.tipo, p1: null, material: ui.nuevo?.material }; redibujar(); }));
+  $$("[data-mat-nuevo]").forEach((b) => (b.onclick = () => { ui.nuevo.material = b.dataset.matNuevo; redibujar(); }));
+  $$("[data-mat]").forEach((b) => (b.onclick = () => { const id = ui.elSel, material = b.dataset.mat;
+    hacer(async () => { await editarElemento(id, { material }); return `Material: ${MATERIALES[material]}`; }); }));
+  const mp = V.querySelector("#medPared"); if (mp) mp.onsubmit = (ev) => { ev.preventDefault(); const id = ui.elSel;
+    const alto = parseFloat(V.querySelector("#pAlto").value), grueso = parseFloat(V.querySelector("#pGrueso").value);
+    const cambios = { alto: alto > 0 ? alto : null, grueso: grueso > 0 ? grueso : null };
+    hacer(async () => { await editarElemento(id, cambios); return `Alto ${alto > 0 ? fmtM(alto) : "automático"} · grueso ${grueso > 0 ? fmtM(grueso) : "normal"}`; }); };
+  const pp = V.querySelector("[data-punta]"); if (pp) pp.onclick = () => { ui.punta = ui.punta ? null : ui.elSel; redibujar(); };
+  const ap = V.querySelector("[data-a-pared]"); if (ap) ap.onclick = () => {   // pieza del plano → pared editable (y la pieza se quita)
+    const g = ui.pz.grupo, c = g.map((i) => CAJAS[i]), x0 = Math.min(...c.map((q) => q.x0)), x1 = Math.max(...c.map((q) => q.x1)), y0 = Math.min(...c.map((q) => q.y0)), y1 = Math.max(...c.map((q) => q.y1));
+    const horiz = x1 - x0 >= y1 - y0, a = horiz ? [x0, (y0 + y1) / 2] : [(x0 + x1) / 2, y0], b = horiz ? [x1, (y0 + y1) / 2] : [(x0 + x1) / 2, y1];
+    const grueso = +Math.min(0.4, Math.max(0.1, (horiz ? y1 - y0 : x1 - x0) * METROS_POR_UNIDAD)).toFixed(2);
+    const clases = g.map((i) => PIEZAS[i][0]), material = clases.includes("lamina") ? "lamina" : clases.includes("muro") ? "block" : "ventanal";
+    const est = estadoPieza(ui.pz.tocada, S.piezas), el = { tipo: "muro", estado: est === "quitado" ? "falta" : est, material, grueso, ...pared(a, b) };
+    g.forEach((i) => (S.piezas[i] = "quitado")); ui.pz = null;
+    hacer(async () => { await estadoPiezas(g, "quitado"); const n = await agregarElemento(el); ui.elSel = n.id; return "Ahora es una pared editable"; }); };
+  $$("[data-el]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); if (ui.punta) return; ui.elSel = b.dataset.el; ui.areaSel = null; ui.borrar = false; redibujar(); }));
   $$("[data-estado-area]").forEach((b) => (b.onclick = () => { const a = area(ui.areaSel), est = b.dataset.estadoArea;
     const X0 = (a.x / 100) * ANCHO, Y0 = (a.y / 100) * ALTO, X1 = X0 + (a.w / 100) * ANCHO, Y1 = Y0 + (a.h / 100) * ALTO;
     const dentro = PIEZAS.map((p, i) => [p, i]).filter(([p, i]) => p[0] !== "jardin" && S.piezas[i] !== "quitado" && p[1] >= X0 && p[1] <= X1 && p[2] >= Y0 && p[2] <= Y1).map(([, i]) => i);

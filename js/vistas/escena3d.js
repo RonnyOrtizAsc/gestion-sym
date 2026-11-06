@@ -2,7 +2,7 @@
 // y cada trabajador como un muñequito con casco que camina a su área (o a la bodega en el receso).
 import * as THREE from "three";
 import { MapControls } from "three/addons/controls/MapControls.js";
-import { ANCHO, ALTO, PIEZAS, CAJAS, estadoPieza, piezaEn, grupoDe, segmentos } from "./mapa-svg.js";
+import { ANCHO, ALTO, PIEZAS, CAJAS, estadoPieza, piezaEn, grupoDe, segmentos, puntas, gruesoPared } from "./mapa-svg.js";
 
 const ESC = 0.1;                                   // unidades del plano → metros de la escena
 const VERDE = 0x2b9a57, NARANJA = 0xee8420, LIMA = 0xc4ee4a;
@@ -51,6 +51,14 @@ function crear() {
     editar: false, hovKey: "", selKey: "" };
 
   // Editar plano: qué pieza hay bajo el puntero (pared, grada, puerta…), o -1
+  const puntoBajo = (cx, cy) => {
+    const r = renderer.domElement.getBoundingClientRect();
+    p.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(p, camera);
+    const visible = (o) => { for (; o; o = o.parent) if (!o.visible || o.userData.techo) return false; return true; };
+    const golpe = ray.intersectObjects([piso, ...edificios.children], true).find((h) => !h.object.isSprite && visible(h.object));
+    return golpe ? [golpe.point.x / ESC + ANCHO / 2, golpe.point.z / ESC + ALTO / 2] : null;
+  };
   const piezaBajo = (cx, cy) => {
     const r = renderer.domElement.getBoundingClientRect();
     p.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
@@ -87,7 +95,11 @@ function crear() {
     if (!ini || Math.hypot(e.clientX - ini[0], e.clientY - ini[1]) > 8) return; ini = null;
     const r = renderer.domElement.getBoundingClientRect();
     p.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-    if (E.editar) { const i = piezaBajo(e.clientX, e.clientY); if (i >= 0) { tip.hidden = true; return E.handlers?.pieza?.(i); } }
+    if (E.editar) {
+      const q = puntoBajo(e.clientX, e.clientY);
+      if (q && E.handlers?.pared?.(q[0], q[1])) { tip.hidden = true; return; }
+      const i = piezaBajo(e.clientX, e.clientY); if (i >= 0) { tip.hidden = true; return E.handlers?.pieza?.(i); }
+    }
     ray.setFromCamera(p, camera);
     const golpe = ray.intersectObjects(gente.children, true)[0];
     if (golpe) { let o = golpe.object; while (o && !o.userData.id) o = o.parent; if (o) return E.handlers?.persona(o.userData.id); }
@@ -390,6 +402,24 @@ function rotulosNivel() {
   }
 }
 
+// Pared dibujada a mano: block, lámina (con murito) o ventanal (murito + vidrio), con su alto y grueso
+const MAT_VIDRIO = new THREE.MeshStandardMaterial({ color: 0x9fd0ee, transparent: true, opacity: 0.38, metalness: 0.2, roughness: 0.1, depthWrite: false });
+function paredDibujada(e, areas) {
+  const [[x0, y0], [x1, y1]] = puntas(e.trazo), L = Math.hypot(x1 - x0, y1 - y0), mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+  const g = new THREE.Group(); g.userData.elemento = e.id; if (L < 1) return g;
+  const mat = e.material || "block", altoM = +e.alto || (mat === "lamina" ? ALTO_LAMINA : ALTO_MURO[tipoEn(areas, mx, my)] || 3);
+  const grueso = gruesoPared(e) * M, largo = L * ESC + grueso, base = E.altura(mx, my) * M;
+  const caja = (desde, alto, material, gr = grueso) => { const m = new THREE.Mesh(new THREE.BoxGeometry(largo, alto, gr), material);
+    m.position.set(0, desde + alto / 2, 0); m.castShadow = material !== MAT.falta && material !== MAT_VIDRIO; m.receiveShadow = true; g.add(m); };
+  if (e.estado === "falta") caja(0, altoM * M, MAT.falta);
+  else if (e.estado === "en_proceso") caja(0, altoM * M * 0.5, MAT.en_proceso);
+  else if (mat === "lamina") { caja(0, MURITO * M, MAT_MURITO, grueso * 1.4); caja(MURITO * M, (altoM - MURITO) * M, MAT_LAMINA, grueso * 0.6); }
+  else if (mat === "ventanal") { const ant = Math.min(0.9, altoM / 2); caja(0, ant * M, MAT.existe); caja(ant * M, (altoM - ant) * M, MAT_VIDRIO, grueso * 0.5); }
+  else caja(0, altoM * M, MAT.existe);
+  const p = aEscena(mx, my); g.position.set(p.x, base, p.z); g.rotation.y = -Math.atan2(y1 - y0, x1 - x0);
+  return g;
+}
+
 function ponerEdificios(areas, elementos = [], piezas = {}) {
   E.edificios.clear(); E.areas = areas;
   ponerParedes(areas, piezas);
@@ -404,16 +434,7 @@ function ponerEdificios(areas, elementos = [], piezas = {}) {
   const ALTO_EL = { grada: 2.2, jardinera: 1.2, bano: 3, muro: 3.5, puerta: 3, columna: 6, bodega: 4, otro: 2 };
   const COL_EL = { grada: 0x8a8f96, jardinera: 0x5f9a45, bano: 0x4f9fd0, muro: 0x3b4046, puerta: 0x6c5a3d, columna: 0x3b4046, bodega: 0xee8420, otro: 0x7d6bb3 };
   for (const e of elementos) {
-    if (e.trazo) {   // pared dibujada a mano
-      for (const pl of polilineas(e.trazo)) for (let k = 1; k < pl.length; k++) {
-        const [x0, y0] = pl[k - 1], [x1, y1] = pl[k], L = Math.hypot(x1 - x0, y1 - y0); if (L < 1) continue;
-        const mx = (x0 + x1) / 2, my = (y0 + y1) / 2, alto = (ALTO_MURO[tipoEn(areas, mx, my)] || 3) * M * (e.estado === "en_proceso" ? 0.5 : 1);
-        const m = new THREE.Mesh(new THREE.BoxGeometry(L * ESC + 0.35, alto, 0.4), MAT[e.estado] || MAT.falta);
-        const p = aEscena(mx, my); m.position.set(p.x, E.altura(mx, my) * M + alto / 2, p.z); m.rotation.y = -Math.atan2(y1 - y0, x1 - x0);
-        m.castShadow = e.estado !== "falta"; m.receiveShadow = true; E.edificios.add(m);
-      }
-      continue;
-    }
+    if (e.trazo) { E.edificios.add(paredDibujada(e, areas)); continue; }
     const X = (e.x / 100) * ANCHO, Y = (e.y / 100) * ALTO, W = Math.max(2, (e.w / 100) * ANCHO), H = Math.max(2, (e.h / 100) * ALTO);
     const alto = (ALTO_EL[e.tipo] || 2) * (e.estado === "en_proceso" ? 0.5 : 1), c = aEscena(X + W / 2, Y + H / 2);
     const m = new THREE.Mesh(new THREE.BoxGeometry(W * ESC, alto, H * ESC), new THREE.MeshStandardMaterial({
