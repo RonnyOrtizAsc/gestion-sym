@@ -4,11 +4,11 @@
 // - Receso: con "Iniciar receso", cada toque manda a la persona a la bodega (naranja) o la regresa a su área.
 import { S, recesoAbierto, enReceso, recesoTurno, turnoDe, turnoActual, limiteReceso, prestamosActivos, cambiarReceso, iniciarReceso, terminarReceso,
   trabajador, herramienta, area, enArea, moverTrabajador,
-  ESTADOS, TIPOS_ELEMENTO, estadoArea, agregarElemento, editarElemento, borrarElemento,
+  ESTADOS, NOMBRE_ESTADO, TIPOS_ELEMENTO, estadoArea, agregarElemento, editarElemento, borrarElemento,
   ponerActividad, prestarRapido, cerrarPrestamo, disponibles, METROS_POR_UNIDAD, usarComoBodega, estadoPiezas } from "../datos.js";
 import { esc, iniciales, primerNombre, ms, hhmm } from "../util.js";
 import { miniatura, tarjeta, avatares, cara } from "./fotos.js";
-import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, grupoDe, queEs, ANCHO, ALTO } from "./mapa-svg.js";
+import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, grupoDe, queEs, pegar, ANCHO, ALTO } from "./mapa-svg.js";
 
 const ZOOMS = [1, 1.6, 2.4, 3.4];
 let vistaGuardada = "2d"; try { vistaGuardada = localStorage.getItem("sym-vista") || "2d"; } catch (e) {}
@@ -137,8 +137,8 @@ function hojaElemento(e) {
   return `<div class="hoja-h"><div class="grow"><p class="eyebrow" style="margin:0">Editar plano · elemento</p><b>${esc(e.nombre || TIPOS_ELEMENTO[e.tipo])}</b>
       <small>${TIPOS_ELEMENTO[e.tipo]}</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
     ${botonesEstado(e.estado, "data-estado-el")}
-    <form class="addrow medidas" id="medEl"><label>Ancho <input id="elAncho" type="number" step="0.05" min="0.1" value="${metros(e.w, "x").toFixed(2)}"> m</label>
-      <label>Largo <input id="elLargo" type="number" step="0.05" min="0.1" value="${metros(e.h, "y").toFixed(2)}"> m</label><button class="btn">Aplicar medidas</button></form>
+    ${e.trazo ? "" : `<form class="addrow medidas" id="medEl"><label>Ancho <input id="elAncho" type="number" step="0.05" min="0.1" value="${metros(e.w, "x").toFixed(2)}"> m</label>
+      <label>Largo <input id="elLargo" type="number" step="0.05" min="0.1" value="${metros(e.h, "y").toFixed(2)}"> m</label><button class="btn">Aplicar medidas</button></form>`}
     <form class="addrow" id="nomEl"><input id="elNombre" value="${esc(e.nombre || "")}" placeholder="Nombre (ej. Gradas sala Nissan)" aria-label="Nombre del elemento"><button class="btn">Guardar nombre</button></form>
     <div class="acts" style="margin-top:10px">${ui.borrar ? `<button class="btn danger" data-borrar-si>Sí, borrar del plano</button><button class="btn" data-borrar-no>No</button>`
       : `<button class="btn danger" data-borrar>Borrar elemento</button>`}</div>`;
@@ -148,15 +148,16 @@ function hojaPieza() {
   const g = ui.pz.grupo, estados = g.map((i) => estadoPieza(i, S.piezas));
   const actual = estados.every((e) => e === estados[0]) ? estados[0] : null;
   return `<div class="hoja-h"><div class="grow"><p class="eyebrow" style="margin:0">Editar plano</p><b>${esc(ui.pz.nombre)}</b>
-      <small>${actual ? "Ahora: " + ESTADOS[actual] : "Tiene partes en distinto estado"} · resaltado en verde en el plano</small></div>
+      <small>${actual ? "Ahora: " + NOMBRE_ESTADO[actual] : "Tiene partes en distinto estado"} · resaltado en verde en el plano</small></div>
       <button class="x" data-cerrar aria-label="Cerrar">×</button></div>
     ${botonesEstado(actual, "data-estado-pz")}
+    <button class="btn small ${actual === "quitado" ? "" : "danger"}" data-estado-pz="${actual === "quitado" ? (PIEZAS[ui.pz.tocada][4] ? "existe" : "falta") : "quitado"}" style="margin-top:8px">${actual === "quitado" ? "Sí va (regresarla)" : "No va (quitar del plano)"}</button>
     ${g.length > 1 ? `<button class="linkbtn" data-solo-pieza style="margin-top:10px">Marcar solo la línea que toqué</button>` : ""}`;
 }
 
 function hojaNuevo() {
   return `<div class="hoja-h"><div class="grow"><p class="eyebrow" style="margin:0">Agregar al plano</p><b>${ui.nuevo.tipo ? TIPOS_ELEMENTO[ui.nuevo.tipo] : "¿Qué vas a agregar?"}</b>
-      <small>${ui.nuevo.tipo ? (ui.nuevo.p1 ? "Ahora toca la esquina opuesta. Después puedes ajustar la medida exacta en metros." : "Toca una esquina en el plano.") : "Elige el tipo y luego marca dos esquinas en el plano."}</small></div>
+      <small>${ui.nuevo.tipo === "muro" ? (ui.nuevo.p1 ? "Ahora toca donde termina. Se pega sola a las paredes cercanas y se endereza." : "Toca donde empieza la pared.") : ui.nuevo.tipo ? (ui.nuevo.p1 ? "Ahora toca la esquina opuesta. Después puedes ajustar la medida exacta en metros." : "Toca una esquina en el plano.") : "Elige el tipo y luego marca dos esquinas en el plano."}</small></div>
       <button class="x" data-cerrar aria-label="Cancelar">×</button></div>
     <div class="chips">${Object.entries(TIPOS_ELEMENTO).map(([k, l]) => `<button class="chip" data-tipo="${k}" aria-pressed="${ui.nuevo.tipo === k}">${l}</button>`).join("")}</div>`;
 }
@@ -201,6 +202,7 @@ export function render(V, { hacer, redibujar }) {
     ${receso || ui.editar ? "" : `<button class="hud-btn secundario" id="hudPrestar">${ICONO.llave}<span>Prestar</span></button>
       <button class="hud-btn secundario" id="hudVerPrestamos">${ICONO.lista}<span>Ver préstamos${prestamosActivos().length ? ` <b class="cuenta">${prestamosActivos().reduce((a, p) => a + p.cantidad, 0)}</b>` : ""}</span></button>`}
     ${receso ? "" : `<button class="hud-btn secundario ${ui.editar ? "activo-edit" : ""}" id="hudEditar">${ICONO.lapiz}<span>${ui.editar ? "Listo" : "Editar plano"}</span></button>`}
+    ${ui.editar && !receso ? `<button class="hud-btn secundario ${ui.nuevo ? "activo-edit" : ""}" id="hudAgregar"><b aria-hidden="true">＋</b><span>Agregar</span></button>` : ""}
     <span class="hud-sep"></span>
     <div class="seg mini hud-vista" role="group" aria-label="Vista">
       <button data-vista="2d" aria-pressed="${!es3d}">2D</button><button data-vista="3d" aria-pressed="${es3d}">3D</button></div>
@@ -209,7 +211,7 @@ export function render(V, { hacer, redibujar }) {
   </div>
   ${receso ? `<p class="pista receso">Toca a quien sale: se pone naranja y camina a la bodega. Tócalo otra vez cuando regrese. Toca <b>Receso</b> otra vez para salir (los que están en receso siguen contando).</p>`
     : ui.moviendo && w ? `<p class="pista mover">Toca el área a donde va <b>${esc(primerNombre(w.nombre))}</b> <button class="btn small" data-cancelar-mover>Cancelar</button></p>`
-    : ui.nuevo?.tipo ? `<p class="pista mover">${ui.nuevo.p1 ? "Toca la esquina opuesta" : "Toca una esquina"} de: <b>${TIPOS_ELEMENTO[ui.nuevo.tipo]}</b></p>`
+    : ui.nuevo?.tipo ? `<p class="pista mover">${ui.nuevo.tipo === "muro" ? (ui.nuevo.p1 ? "Toca donde termina la" : "Toca donde empieza la") : ui.nuevo.p1 ? "Toca la esquina opuesta de:" : "Toca una esquina de:"} <b>${TIPOS_ELEMENTO[ui.nuevo.tipo]}</b></p>`
     : ui.editar ? `<p class="pista mover">Editando: pasa el mouse o toca una pared, puerta o grada (se pone verde) y márcala <b>Hecho</b>, <b>En construcción</b> o <b>Falta</b>.${es3d ? " Los techos se esconden mientras editas." : ""}</p>`
     : `<p class="pista">Toca un área para ver quién está ahí, o toca a una persona para moverla.${es3d ? " Arrastra para moverte, dos dedos o clic derecho para girar, pellizca o rueda para acercar." : ""}</p>`}
   ${es3d ? `<div class="escena" id="escena"><p class="cargando">Levantando la obra en 3D…</p></div>`
@@ -249,6 +251,20 @@ export function render(V, { hacer, redibujar }) {
     if (!ui.nuevo?.tipo) return false;
     if (!ui.nuevo.p1) { ui.nuevo.p1 = [px, py]; redibujar(); return true; }
     const [x1, y1] = ui.nuevo.p1, tipo = ui.nuevo.tipo;
+    if (tipo === "muro") {   // pared: de una punta a la otra
+      const extra = S.elementos.filter((e) => e.trazo).flatMap((e) => (e.trazo.match(/-?\d+\.?\d*/g) || []).map(Number).reduce((a, v, k, arr) => (k % 2 ? a : [...a, [v, arr[k + 1]]]), []));
+      const a = pegar((x1 / 100) * ANCHO, (y1 / 100) * ALTO, 9, extra);
+      let b = pegar((px / 100) * ANCHO, (py / 100) * ALTO, 9, extra);
+      const dx = b[0] - a[0], dy = b[1] - a[1];
+      if (Math.abs(dy) < Math.abs(dx) * 0.1) b = [b[0], a[1]]; else if (Math.abs(dx) < Math.abs(dy) * 0.1) b = [a[0], b[1]];   // casi derecha → derecha
+      if (Math.hypot(b[0] - a[0], b[1] - a[1]) < 4) { ui.nuevo.p1 = null; return redibujar(), true; }
+      const r = (v) => +v.toFixed(1), pct = (v, t) => +((v / t) * 100).toFixed(2), pad = 6;
+      const el = { tipo, estado: "falta", trazo: `M${r(a[0])} ${r(a[1])}L${r(b[0])} ${r(b[1])}`,
+        x: pct(Math.min(a[0], b[0]) - pad, ANCHO), y: pct(Math.min(a[1], b[1]) - pad, ALTO), w: pct(Math.abs(dx) + 2 * pad, ANCHO), h: pct(Math.abs(dy) + 2 * pad, ALTO) };
+      ui.nuevo = null;
+      hacer(async () => { const n = await agregarElemento(el); ui.elSel = n.id; ui.areaSel = null; return `Pared agregada (${fmtM(Math.hypot(dx, dy) * METROS_POR_UNIDAD)})`; });
+      return true;
+    }
     const el = { tipo, estado: "falta", x: +Math.min(x1, px).toFixed(2), y: +Math.min(y1, py).toFixed(2), w: +Math.max(0.6, Math.abs(px - x1)).toFixed(2), h: +Math.max(0.6, Math.abs(py - y1)).toFixed(2) };
     ui.nuevo = null;
     hacer(async () => { const n = await agregarElemento(el); ui.elSel = n.id; ui.areaSel = null; return `${TIPOS_ELEMENTO[tipo]} agregado al plano`; });
@@ -256,7 +272,7 @@ export function render(V, { hacer, redibujar }) {
   };
   const tocarPieza = (i) => { const grupo = grupoDe(i); ui.pz = { tocada: i, grupo, nombre: queEs(grupo) }; ui.areaSel = null; ui.elSel = null; redibujar(); };
   const textoPieza = (grupo) => { const est = grupo.map((i) => estadoPieza(i, S.piezas));
-    return `<b>${esc(queEs(grupo))}</b><span>${est.every((e) => e === est[0]) ? ESTADOS[est[0]] : "Partes en distinto estado"}</span>`; };
+    return `<b>${esc(queEs(grupo))}</b><span>${est.every((e) => e === est[0]) ? NOMBRE_ESTADO[est[0]] : "Partes en distinto estado"}</span>`; };
   const tocarArea = (aid) => {
     if (receso || !aid) return;
     if (ui.editar) { ui.areaSel = aid; ui.elSel = null; ui.sel = null; ui.pz = null; return redibujar(); }
@@ -360,7 +376,7 @@ export function render(V, { hacer, redibujar }) {
   $$("[data-el]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); ui.elSel = b.dataset.el; ui.areaSel = null; ui.borrar = false; redibujar(); }));
   $$("[data-estado-area]").forEach((b) => (b.onclick = () => { const a = area(ui.areaSel), est = b.dataset.estadoArea;
     const X0 = (a.x / 100) * ANCHO, Y0 = (a.y / 100) * ALTO, X1 = X0 + (a.w / 100) * ANCHO, Y1 = Y0 + (a.h / 100) * ALTO;
-    const dentro = PIEZAS.map((p, i) => [p, i]).filter(([p]) => p[0] !== "jardin" && p[1] >= X0 && p[1] <= X1 && p[2] >= Y0 && p[2] <= Y1).map(([, i]) => i);
+    const dentro = PIEZAS.map((p, i) => [p, i]).filter(([p, i]) => p[0] !== "jardin" && S.piezas[i] !== "quitado" && p[1] >= X0 && p[1] <= X1 && p[2] >= Y0 && p[2] <= Y1).map(([, i]) => i);
     dentro.forEach((i) => (S.piezas[i] = est));
     hacer(async () => { await estadoArea(a.id, est); await estadoPiezas(dentro, est); return `${a.nombre}: ${ESTADOS[est]} (${dentro.length} piezas)`; }); }));
   $$("[data-estado-el]").forEach((b) => (b.onclick = () => { const id = ui.elSel, est = b.dataset.estadoEl;
@@ -374,7 +390,7 @@ export function render(V, { hacer, redibujar }) {
   // Marcar pieza(s) del plano
   $$("[data-estado-pz]").forEach((b) => (b.onclick = () => { const g = ui.pz.grupo, est = b.dataset.estadoPz, nombre = ui.pz.nombre;
     g.forEach((i) => (S.piezas[i] = est)); ui.pz = null; redibujar();   // se ve al instante; se guarda atrás
-    hacer(async () => { await estadoPiezas(g, est); return `${nombre}: ${ESTADOS[est]}`; }); }));
+    hacer(async () => { await estadoPiezas(g, est); return `${nombre}: ${NOMBRE_ESTADO[est]}`; }); }));
   const sp = V.querySelector("[data-solo-pieza]"); if (sp) sp.onclick = () => { ui.pz.grupo = [ui.pz.tocada]; ui.pz.nombre = queEs(ui.pz.grupo); redibujar(); };
 
   // Prestar / Ver préstamos

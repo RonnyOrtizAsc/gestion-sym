@@ -224,6 +224,7 @@ function ponerParedes(areas, piezas) {
   PIEZAS.forEach(([clase, , , d], i) => {
     if (clase !== "muro" && clase !== "columna") return;
     const est = estadoPieza(i, piezas), c = CAJAS[i], cx = (c.x0 + c.x1) / 2, cy = (c.y0 + c.y1) / 2;
+    if (!lista[est]) return;   // "no va"
     const tipo = tipoEn(areas, cx, cy), base = E.altura(cx, cy) * M;
     if (clase === "columna") {
       const alto = (ALTO_MURO[tipo] || 4.5) * M * (est === "en_proceso" ? 0.5 : 1), lado = Math.max(0.7, Math.min(2.5, c.largo * ESC));
@@ -259,6 +260,7 @@ function ponerLamina(piezas, lista) {
   PIEZAS.forEach(([clase, , , d], i) => {
     if (clase !== "lamina") return;
     const est = estadoPieza(i, piezas);
+    if (est === "quitado") return;
     for (const pl of polilineas(d)) for (let k = 1; k < pl.length; k++) {
       const [x0, y0] = pl[k - 1], [x1, y1] = pl[k], L = Math.hypot(x1 - x0, y1 - y0);
       if (L < 1.5) continue;
@@ -285,6 +287,7 @@ function ponerGradas(piezas) {
   PIEZAS.forEach(([clase, , , d], i) => {
     if (clase !== "grada") return;
     const est = estadoPieza(i, piezas), lineas = polilineas(d).filter((l) => l.length === 2);
+    if (!MAT[est]) return;
     // los escalones son las rayas cortas paralelas; las largas son los lados y el pasamanos
     const horiz = lineas.filter(([a, b]) => Math.abs(a[1] - b[1]) < 1), vert = lineas.filter(([a, b]) => Math.abs(a[0] - b[0]) < 1);
     const largo = (l) => Math.hypot(l[1][0] - l[0][0], l[1][1] - l[0][1]);
@@ -401,6 +404,16 @@ function ponerEdificios(areas, elementos = [], piezas = {}) {
   const ALTO_EL = { grada: 2.2, jardinera: 1.2, bano: 3, muro: 3.5, puerta: 3, columna: 6, bodega: 4, otro: 2 };
   const COL_EL = { grada: 0x8a8f96, jardinera: 0x5f9a45, bano: 0x4f9fd0, muro: 0x3b4046, puerta: 0x6c5a3d, columna: 0x3b4046, bodega: 0xee8420, otro: 0x7d6bb3 };
   for (const e of elementos) {
+    if (e.trazo) {   // pared dibujada a mano
+      for (const pl of polilineas(e.trazo)) for (let k = 1; k < pl.length; k++) {
+        const [x0, y0] = pl[k - 1], [x1, y1] = pl[k], L = Math.hypot(x1 - x0, y1 - y0); if (L < 1) continue;
+        const mx = (x0 + x1) / 2, my = (y0 + y1) / 2, alto = (ALTO_MURO[tipoEn(areas, mx, my)] || 3) * M * (e.estado === "en_proceso" ? 0.5 : 1);
+        const m = new THREE.Mesh(new THREE.BoxGeometry(L * ESC + 0.35, alto, 0.4), MAT[e.estado] || MAT.falta);
+        const p = aEscena(mx, my); m.position.set(p.x, E.altura(mx, my) * M + alto / 2, p.z); m.rotation.y = -Math.atan2(y1 - y0, x1 - x0);
+        m.castShadow = e.estado !== "falta"; m.receiveShadow = true; E.edificios.add(m);
+      }
+      continue;
+    }
     const X = (e.x / 100) * ANCHO, Y = (e.y / 100) * ALTO, W = Math.max(2, (e.w / 100) * ANCHO), H = Math.max(2, (e.h / 100) * ALTO);
     const alto = (ALTO_EL[e.tipo] || 2) * (e.estado === "en_proceso" ? 0.5 : 1), c = aEscena(X + W / 2, Y + H / 2);
     const m = new THREE.Mesh(new THREE.BoxGeometry(W * ESC, alto, H * ESC), new THREE.MeshStandardMaterial({

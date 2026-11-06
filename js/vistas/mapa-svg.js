@@ -38,6 +38,8 @@ function etiqueta(nombre, X, Y, W, H, apagada) {
 }
 
 function elemento(e) {
+  if (e.trazo) { const est = ESTILO[e.estado] || ESTILO.falta;   // pared dibujada a mano: igual que las paredes del plano
+    return `<path class="elem" ${est.muro} fill="none" stroke-linecap="round" d="${e.trazo}"/>`; }
   const { X, Y, W, H } = px(e), col = ELEM[e.tipo] || ELEM.otro;
   const falta = e.estado === "falta", proceso = e.estado === "en_proceso";
   const trazo = falta ? `stroke="${col}" stroke-width="2.5" stroke-dasharray="8 6" fill="${col}" fill-opacity=".08"`
@@ -130,6 +132,14 @@ export function piezaEn(x, y, radio = 12) {
   return mejor;
 }
 export { segmentos };
+// Puntas de todas las piezas (para que una pared nueva se pegue a lo que ya está dibujado)
+let PUNTAS = null;
+export function pegar(x, y, radio = 9, extra = []) {
+  PUNTAS ||= TRAZO.flatMap(([c], i) => c === "jardin" ? [] : segmentos(i).flat());
+  let mejor = null, d = radio;
+  for (const p of PUNTAS.concat(extra)) { const e = Math.hypot(p[0] - x, p[1] - y); if (e < d) { d = e; mejor = p; } }
+  return mejor ? [mejor[0], mejor[1]] : [x, y];
+}
 
 // Qué es (para el título de la hoja)
 export function queEs(grupo) {

@@ -244,6 +244,7 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
 /* Piezas tocables en Editar plano */
 .capa-piezas{position:absolute;inset:0;width:100%;height:100%;z-index:4;pointer-events:none}
 .capa-piezas .pz{fill:none;stroke:transparent;stroke-width:16;pointer-events:stroke;cursor:pointer}
+.capa-piezas .pz.quitado{stroke:#d9483b;stroke-opacity:.45;stroke-width:4;stroke-dasharray:6 5}
 .capa-piezas .pz.hov{stroke:#c4ee4a;stroke-opacity:.75;stroke-width:12}
 .capa-piezas .pz.sel{stroke:#9fd400;stroke-opacity:.85;stroke-width:10}
 
