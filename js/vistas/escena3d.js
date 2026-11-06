@@ -411,9 +411,9 @@ function techo(a, base, alto) {
 // Techo existente a conservar (AR-01, líneas de "proyección de techo"): estructura metálica amarilla con lámina,
 // sobre carros demo, Chery, clientes y sala Nissan. Columnas grandes del plano cada 14 m (x 333 y 713; y 739, 988, 1237).
 // El techo grande cubre las salas Chery y Nissan (N 870.00), sobre las columnas del plano (x 333 y 713).
-// Sobre la parte baja solo va el alero, hasta las líneas de "proyección de techo" del AR-01 (x 194 al norte, x 238 al sur).
+// Sobre la parte baja solo va el alero: un solo ancho de punta a punta (≈5.3 m, hasta la "proyección de techo" del AR-01 en x 238).
 const TECHO_EXISTENTE = [{ x0: 333, y0: 718, x1: 725, y1: 1256 }];
-const ALEROS = [{ x0: 194, y0: 718, x1: 333, y1: 1011 }, { x0: 238, y0: 1011, x1: 333, y1: 1256 }];
+const ALEROS = [{ x0: 238, y0: 718, x1: 333, y1: 1256 }];
 const ALTO_TECHO_EXISTENTE = 7;   // metros sobre el piso de la sala (N 870.00)
 function techoExistente() {
   const g = new THREE.Group(); g.userData.techo = true;
