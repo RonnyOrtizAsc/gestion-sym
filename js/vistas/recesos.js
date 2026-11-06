@@ -41,7 +41,7 @@ export function render(V, { hacer, redibujar }) {
   const desde = ui.periodo === "semana" ? fechaISO(lunes) : fechaISO(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
   const acu = acumulado(desde), filasP = S.trabajadores.filter((w) => acu[w.id]).map((w) => ({ w, ...acu[w.id] })).sort((a, b) => b.exceso - a.exceso || b.min - a.min);
   const perdido = filasP.reduce((a, f) => a + f.exceso, 0), totalMin = filasP.reduce((a, f) => a + f.min, 0);
-  const excesoHoyTotal = Math.round(S.trabajadores.reduce((a, w) => a + excesoHoy(w.id), 0));
+  const excesoHoyTotal = Math.round(S.trabajadores.reduce((a, w) => a + excesoHoy(w.id) + excesoAlmuerzo(w.id), 0));
   const registro = S.recesos.filter((r) => r.fin).slice().reverse().slice(0, 30);
 
   V.innerHTML = `<p class="eyebrow">Tiempos · receso ${lim} min mañana y ${lim} min tarde · almuerzo ${LIMITE_ALMUERZO} min</p><h2>Receso</h2>
