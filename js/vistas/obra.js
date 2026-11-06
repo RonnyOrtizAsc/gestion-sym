@@ -2,7 +2,7 @@
 // con cada trabajador en el área donde está asignado.
 // - Normal: tocas a alguien para ver qué hace y moverlo de área; tocas un área para ver o traer gente.
 // - Receso: con "Iniciar receso", cada toque manda a la persona a la bodega (naranja) o la regresa a su área.
-import { S, recesoAbierto, enReceso, recesoTurno, turnoDe, turnoActual, limiteReceso, prestamosActivos, cambiarReceso, iniciarReceso, terminarReceso,
+import { S, recesoAbierto, enReceso, recesoTurno, turnoDe, turnoActual, limiteReceso, esAlmuerzo, almuerzoHoy, LIMITE_ALMUERZO, prestamosActivos, cambiarReceso, terminarReceso,
   trabajador, herramienta, area, enArea, moverTrabajador,
   ESTADOS, NOMBRE_ESTADO, TIPOS_ELEMENTO, estadoArea, agregarElemento, editarElemento, borrarElemento,
   ponerActividad, prestarRapido, cerrarPrestamo, disponibles, METROS_POR_UNIDAD, usarComoBodega, estadoPiezas } from "../datos.js";
@@ -16,7 +16,7 @@ const ui = { vista: vistaGuardada, zoom: 1, sel: null, areaSel: null, moviendo: 
   editar: false, elSel: null, nuevo: null, borrar: false,
   prestar: null, verPrestamos: false, perdida: null,
   pz: null,
-  modoReceso: false };   // modo rápido: cada toque manda/regresa de receso   // pz = { grupo: [índices], nombre } pieza del plano seleccionada en Editar plano   // prestar = { h, nuevo, w, q }   // nuevo = { tipo, p1 } mientras se dibuja un elemento
+  modo: null };   // modo rápido: "receso" o "almuerzo"; cada toque manda/regresa a esa pausa   // modo rápido: cada toque manda/regresa de receso   // pz = { grupo: [índices], nombre } pieza del plano seleccionada en Editar plano   // prestar = { h, nuevo, w, q }   // nuevo = { tipo, p1 } mientras se dibuja un elemento
 let ultimas = {};
 let dibujo = { clave: "", svg: "" };
 const ICONO = {
@@ -29,11 +29,11 @@ const ICONO = {
 };
 
 export function resumen() {
-  const nb = enReceso().length, nl = prestamosActivos().reduce((a, p) => a + p.cantidad, 0);
+  const nb = enReceso().length, na = enReceso().filter(esAlmuerzo).length, nl = prestamosActivos().reduce((a, p) => a + p.cantidad, 0);
   const sinArea = S.trabajadores.filter((w) => !w.area_id && !recesoAbierto(w.id)).length;
   return `<div class="stats">
     <div class="stat w"><b>${S.trabajadores.length - nb - sinArea}</b><span>en su área</span></div>
-    <div class="stat b"><b>${nb}</b><span>en receso</span></div>
+    <div class="stat b"><b>${nb}</b><span>${na ? `en pausa (${na} almorzando)` : "en receso"}</span></div>
     <div class="stat"><b>${nl}</b><span>herramientas prestadas</span></div></div>`;
 }
 
@@ -48,15 +48,16 @@ function posiciones(a, gente, prop) {
 function token(w, x, y) {
   const r = recesoAbierto(w.id), [px, py] = ultimas[w.id] || [x, y];
   const herr = prestamosActivos().filter((p) => p.trabajador_id === w.id).reduce((s, p) => s + p.cantidad, 0);
-  return `<button class="tok ${r ? "on-break" : ""} ${ui.sel === w.id ? "sel" : ""}" data-w="${w.id}" data-to="${x},${y}" style="left:${px}%;top:${py}%"
-    aria-label="${esc(w.nombre)}${r ? ", en receso" : ""}">
-    ${r ? `<span class="bub" data-desde="${ms(r.inicio) - (recesoTurno(w.id, turnoDe(r.inicio)) - (Date.now() - ms(r.inicio)))}" data-limite="${limiteReceso()}"></span>` : ""}
+  const alm = esAlmuerzo(r), usado = alm ? almuerzoHoy(w.id) : r ? recesoTurno(w.id, turnoDe(r.inicio)) : 0;
+  return `<button class="tok ${r ? "on-break" : ""} ${alm ? "almuerzo" : ""} ${ui.sel === w.id ? "sel" : ""}" data-w="${w.id}" data-to="${x},${y}" style="left:${px}%;top:${py}%"
+    aria-label="${esc(w.nombre)}${r ? (alm ? ", almorzando" : ", en receso") : ""}">
+    ${r ? `<span class="bub" data-desde="${ms(r.inicio) - (usado - (Date.now() - ms(r.inicio)))}" data-limite="${alm ? LIMITE_ALMUERZO : limiteReceso()}"></span>` : ""}
     <span class="av">${cara(w)}</span>${herr ? `<span class="tl">${herr}</span>` : ""}
     <span class="nm">${esc(primerNombre(w.nombre))}</span>${w.actividad && !r ? `<span class="act">${esc(w.actividad)}</span>` : ""}</button>`;
 }
 
 const chipPersona = (w) => { const r = recesoAbierto(w.id);
-  return `<button class="persona ${r ? "on-break" : ""}" data-w="${w.id}"><span class="av">${cara(w)}</span><span>${esc(primerNombre(w.nombre))}${w.actividad && !r ? ` <small class="p-act">· ${esc(w.actividad)}</small>` : ""}${r ? ` <span class="num" data-desde="${ms(r.inicio)}"></span>` : ""}</span></button>`; };
+  return `<button class="persona ${r ? "on-break" : ""} ${esAlmuerzo(r) ? "almuerzo" : ""}" data-w="${w.id}"><span class="av">${cara(w)}</span><span>${esc(primerNombre(w.nombre))}${w.actividad && !r ? ` <small class="p-act">· ${esc(w.actividad)}</small>` : ""}${r ? ` <span class="num" data-desde="${ms(r.inicio)}"></span>` : ""}</span></button>`; };
 
 function hojaTrabajador(w) {
   const r = recesoAbierto(w.id), a = area(w.area_id);
@@ -65,7 +66,7 @@ function hojaTrabajador(w) {
       <div class="grow"><b>${esc(w.nombre)}</b><small>${esc(w.puesto || "")}${(w.habilidades || []).length ? " · " + esc(w.habilidades.join(", ")) : ""}</small></div>
       <button class="x" data-cerrar aria-label="Cerrar">×</button></div>
     <p class="estado">${a ? `<span class="pill ok">Asignado</span> <b>${esc(a.nombre)}</b>` : `<span class="pill">Sin área</span> Toca “Mover de área” para asignarlo.`}
-      ${r ? `<br><span class="pill out">En receso</span> hace <span class="num" data-desde="${ms(r.inicio)}"></span>` : ""}</p>
+      ${r ? `<br><span class="pill out ${esAlmuerzo(r) ? "almuerzo" : ""}">${esAlmuerzo(r) ? "Almorzando" : "En receso"}</span> hace <span class="num" data-desde="${ms(r.inicio)}"></span>` : ""}</p>
     <form class="actividad" id="formAct"><label for="actTxt">Haciendo ahora${w.actividad && w.actividad_desde ? ` <span class="note">desde ${hhmm(w.actividad_desde)}</span>` : ""}</label>
       <div class="addrow" style="margin-top:4px"><input id="actTxt" value="${esc(w.actividad || "")}" placeholder="Ej. Repello de pared norte" autocomplete="off" maxlength="80">
       <button class="btn primary">Guardar</button>${w.actividad ? `<button type="button" class="btn" data-sin-act>Quitar</button>` : ""}</div></form>
@@ -208,8 +209,9 @@ let soltarAsa = () => {};
 export function render(V, { hacer, redibujar }) {
   const o = S.obra;
   if (!o) { V.innerHTML = `<h2>Obra</h2><p class="lead">Todavía no hay una obra activa.</p>`; return; }
-  const prop = ANCHO / ALTO, hayReceso = enReceso().length > 0 || !!S.sesion;
-  const receso = ui.modoReceso;   // solo el modo rápido cambia lo que hace un toque
+  const prop = ANCHO / ALTO;
+  const receso = !!ui.modo, alm = ui.modo === "almuerzo";   // solo el modo rápido cambia lo que hace un toque
+  const nRec = enReceso().filter((r) => !esAlmuerzo(r)).length, nAlm = enReceso().filter(esAlmuerzo).length;
   const clave = JSON.stringify([S.areas.map((a) => [a.id, a.x, a.y, a.w, a.h, a.tipo, a.nombre, a.es_receso, a.uso_actual, a.estado]),
     S.elementos.map((e) => [e.id, e.x, e.y, e.w, e.h, e.tipo, e.estado]), S.piezas]);
   if (dibujo.clave !== clave) dibujo = { clave, svg: dibujarObra(S.areas, S.elementos, S.piezas) };
@@ -233,13 +235,13 @@ export function render(V, { hacer, redibujar }) {
 
   // Barra de mando: aquí van las acciones de la obra (receso y las que se agreguen después)
   const HERRAMIENTAS = [
-    `<button class="hud-btn ${receso ? "activo-receso" : ""}" id="hudReceso" aria-pressed="${receso}">${ICONO.reloj}<span>${receso
-      ? `Receso de la ${turnoActual() === "manana" ? "mañana" : "tarde"}` : "Receso"}${enReceso().length ? ` <b class="cuenta">${enReceso().length}</b>` : ""}</span></button>`,
-    hayReceso ? `<button class="hud-btn secundario" id="hudFinReceso"><span>Terminar receso (todos)</span></button>` : "",
+    `<button class="hud-btn ${ui.modo === "receso" ? "activo-receso" : ""}" id="hudReceso" aria-pressed="${ui.modo === "receso"}">${ICONO.reloj}<span>${ui.modo === "receso"
+      ? `Receso de la ${turnoActual() === "manana" ? "mañana" : "tarde"}` : "Receso"}${nRec ? ` <b class="cuenta">${nRec}</b>` : ""}</span></button>`,
+    `<button class="hud-btn almuerzo ${alm ? "activo-receso" : ""}" id="hudAlmuerzo" aria-pressed="${alm}">${ICONO.reloj}<span>Almuerzo${nAlm ? ` <b class="cuenta">${nAlm}</b>` : ""}</span></button>`,
   ];
 
   V.innerHTML = `<div class="titulo-obra"><div><p class="eyebrow">${esc(o.nombre)}${o.propietario ? " · " + esc(o.propietario) : ""}</p>
-    <h2>${receso ? "Modo receso" : "Centro de mando"}</h2></div></div>
+    <h2>${alm ? "Modo almuerzo" : receso ? "Modo receso" : "Centro de mando"}</h2></div></div>
   <div class="hud" role="toolbar" aria-label="Acciones de la obra">
     ${HERRAMIENTAS.join("")}
     ${receso || ui.editar ? "" : `<button class="hud-btn secundario" id="hudPrestar">${ICONO.llave}<span>Prestar</span></button>
@@ -252,7 +254,7 @@ export function render(V, { hacer, redibujar }) {
     ${es3d ? `<button class="hud-icono" id="centrar" aria-label="Volver a la vista inicial">${ICONO.centrar}</button>`
       : `<div class="zoom"><button data-z="-1" aria-label="Alejar" ${ui.zoom === ZOOMS[0] ? "disabled" : ""}>−</button><button data-z="1" aria-label="Acercar" ${ui.zoom === ZOOMS.at(-1) ? "disabled" : ""}>+</button></div>`}
   </div>
-  ${receso ? `<p class="pista receso">Toca a quien sale: se pone naranja y camina a la bodega. Tócalo otra vez cuando regrese. Toca <b>Receso</b> otra vez para salir (los que están en receso siguen contando).</p>`
+  ${receso ? `<p class="pista receso ${alm ? "almuerzo" : ""}">Toca a quien sale ${alm ? "a almorzar (se pone azul, cuenta su hora)" : "a receso (se pone naranja)"}. Tócalo otra vez cuando regrese. Toca <b>${alm ? "Almuerzo" : "Receso"}</b> otra vez para terminar: todos regresan a trabajar.</p>`
     : ui.moviendo && w ? `<p class="pista mover">Toca el área a donde va <b>${esc(primerNombre(w.nombre))}</b> <button class="btn small" data-cancelar-mover>Cancelar</button></p>`
     : ui.punta ? `<p class="pista mover">Toca a dónde llega la pared: se mueve la punta más cercana (se pega y se endereza).</p>`
     : ui.nuevo?.tipo ? `<p class="pista mover">${ui.nuevo.tipo === "muro" ? (ui.nuevo.p1 ? "Toca donde termina la" : "Toca donde empieza la") : ui.nuevo.p1 ? "Toca la esquina opuesta de:" : "Toca una esquina de:"} <b>${TIPOS_ELEMENTO[ui.nuevo.tipo]}</b></p>`
@@ -291,7 +293,7 @@ export function render(V, { hacer, redibujar }) {
   // ---- Qué pasa al tocar ----
   const tocarPersona = (id) => {
     if (ui.editar) return;
-    if (receso) return hacer(async () => { const sale = await cambiarReceso(id); return `${primerNombre(trabajador(id).nombre)} ${sale ? "se fue a receso" : "regresó a trabajar"}`; });
+    if (receso) return hacer(async () => { const sale = await cambiarReceso(id, ui.modo); return `${primerNombre(trabajador(id).nombre)} ${sale ? (alm ? "se fue a almorzar" : "se fue a receso") : "regresó a trabajar"}`; });
     ui.sel = id; ui.areaSel = null; ui.moviendo = false; redibujar();
   };
   const puntasDibujadas = () => S.elementos.filter((e) => e.trazo).flatMap((e) => puntas(e.trazo));
@@ -339,7 +341,7 @@ export function render(V, { hacer, redibujar }) {
   };
 
   if (es3d) {
-    const personas = tokens.map(([p, x, y]) => ({ id: p.id, nombre: primerNombre(p.nombre) + (p.actividad && !recesoAbierto(p.id) ? " · " + p.actividad : ""), x: (x / 100) * ANCHO, y: (y / 100) * ALTO, receso: !!recesoAbierto(p.id), sel: ui.sel === p.id }));
+    const personas = tokens.map(([p, x, y]) => ({ id: p.id, nombre: primerNombre(p.nombre) + (p.actividad && !recesoAbierto(p.id) ? " · " + p.actividad : ""), x: (x / 100) * ANCHO, y: (y / 100) * ALTO, receso: !!recesoAbierto(p.id), almuerzo: esAlmuerzo(recesoAbierto(p.id)), sel: ui.sel === p.id }));
     import("./escena3d.js").then((m) => {
       const cont = V.querySelector("#escena"); if (!cont) return;
       cont.querySelector(".cargando")?.remove();
@@ -514,10 +516,16 @@ export function render(V, { hacer, redibujar }) {
   const bo = V.querySelector("[data-bodega]"); if (bo) bo.onclick = () => { const a = area(ui.areaSel);
     hacer(async () => { await usarComoBodega(a.id); return `${a.nombre} ahora es la bodega de receso`; }); };
 
-  const hr = V.querySelector("#hudReceso");
-  if (hr) hr.onclick = () => { cerrarTodo(); ui.modoReceso = !ui.modoReceso; redibujar(); };
-  const hf = V.querySelector("#hudFinReceso"); if (hf) hf.onclick = () => { ui.modoReceso = false;
-    hacer(async () => { await terminarReceso(); return "Receso terminado, todos a trabajar"; }); };
+  // Receso / Almuerzo: un toque lo activa; otro toque lo termina (todos los de esa pausa regresan a trabajar)
+  const modoPausa = (tipo) => {
+    cerrarTodo(); const antes = ui.modo, nombre = { receso: "Receso", almuerzo: "Almuerzo" };
+    ui.modo = antes === tipo ? null : tipo;
+    const abiertos = (t) => enReceso().some((r) => (r.tipo || "receso") === t);
+    if (antes && abiertos(antes)) return hacer(async () => { await terminarReceso(antes); return `${nombre[antes]} terminado, todos a trabajar`; });
+    redibujar();
+  };
+  const hr = V.querySelector("#hudReceso"); if (hr) hr.onclick = () => modoPausa("receso");
+  const hal = V.querySelector("#hudAlmuerzo"); if (hal) hal.onclick = () => modoPausa("almuerzo");
   const rw = V.querySelector("[data-receso-w]"); if (rw) rw.onclick = () => { const id = ui.sel;
-    hacer(async () => { const sale = await cambiarReceso(id); return `${primerNombre(trabajador(id).nombre)} ${sale ? "se fue a receso" : "regresó a trabajar"}`; }); };
+    hacer(async () => { const sale = await cambiarReceso(id, recesoAbierto(id)?.tipo || "receso"); return `${primerNombre(trabajador(id).nombre)} ${sale ? "se fue a receso" : "regresó a trabajar"}`; }); };
 }

@@ -561,7 +561,7 @@ function ponerPersonas(personas) {
       f.remove(f.userData.et); f.userData.et.material.map.dispose(); f.userData.et.material.dispose();
       f.userData.et = etiqueta(p.nombre); ajustarEtiqueta(f.userData.et); f.add(f.userData.et);
     }
-    f.userData.ropa.color.setHex(p.receso ? NARANJA : VERDE);
+    f.userData.ropa.color.setHex(p.almuerzo ? 0x2f7fc4 : p.receso ? NARANJA : VERDE);
     f.userData.aro.visible = !!p.sel;
   }
   for (const [id, f] of E.figuras) if (!vistos.has(id)) { E.gente.remove(f); E.figuras.delete(id); }

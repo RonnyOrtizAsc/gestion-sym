@@ -10,7 +10,7 @@ export const S = {
   usuario: null,      // usuario de Supabase Auth
   perfil: null,       // fila de "perfiles" (rol, aprobado)
   trabajadores: [],
-  sesion: null,       // receso abierto (o null)
+  sesiones: [],      // pausas abiertas: una de receso y/o una de almuerzo
   recesos: [],        // recesos de hoy + los que siguen abiertos
   herramientas: [],
   prestamos: [],      // activos y perdidos
@@ -41,7 +41,7 @@ export async function cargarTodo() {
   const hoy = inicioDelDia().toISOString();
   const [t, s, r, h, p, o, a, el, pz, rs] = await Promise.all([
     sb.from("trabajadores").select("*").eq("activo", true).order("nombre"),
-    sb.from("sesiones_receso").select("*").is("fin", null).maybeSingle(),
+    sb.from("sesiones_receso").select("*").is("fin", null),
     sb.from("recesos").select("*").or(`inicio.gte.${hoy},fin.is.null`).order("inicio"),
     sb.from("herramientas").select("*").order("nombre"),
     sb.from("prestamos").select("*").in("estado", ["activo", "perdido"]).order("prestado_en", { ascending: false }),
@@ -51,7 +51,7 @@ export async function cargarTodo() {
     sb.from("piezas").select("idx, estado, obra_id"),
     sb.from("resumen_recesos").select("*").gte("fecha", new Date(Date.now() - 62 * 864e5).toISOString().slice(0, 10)),
   ]);
-  S.trabajadores = ok(t); S.sesion = ok(s); S.recesos = ok(r); S.herramientas = ok(h); S.prestamos = ok(p);
+  S.trabajadores = ok(t); S.sesiones = ok(s); S.recesos = ok(r); S.herramientas = ok(h); S.prestamos = ok(p);
   S.obra = ok(o); S.areas = ok(a).filter((x) => !S.obra || x.obra_id === S.obra.id);
   S.elementos = ok(el).filter((x) => !S.obra || x.obra_id === S.obra.id);
   S.resumen = ok(rs);
@@ -63,12 +63,21 @@ export async function cargarTodo() {
 export const trabajador = (id) => S.trabajadores.find((w) => w.id === id) || { nombre: "(ya no está)", puesto: "" };
 export const herramienta = (id) => S.herramientas.find((h) => h.id === id) || { nombre: "(borrada)", cantidad: 0 };
 export const recesoAbierto = (wid) => S.recesos.find((r) => r.trabajador_id === wid && !r.fin);
+export const esAlmuerzo = (r) => r?.tipo === "almuerzo";
 export const enReceso = () => S.recesos.filter((r) => !r.fin);
 export function recesoHoy(wid) {
   const ini = inicioDelDia().getTime(), ahora = Date.now();
   return S.recesos.filter((r) => r.trabajador_id === wid)
     .reduce((a, r) => a + ((r.fin ? ms(r.fin) : ahora) - Math.max(ms(r.inicio), ini)), 0);
 }
+// ---------- Almuerzo: una hora al día (puede empezar 12:00, 12:05, 12:15…; se suma aunque sea en pedazos) ----------
+export const LIMITE_ALMUERZO = 60;
+export function almuerzoHoy(wid) {
+  const ini = inicioDelDia().getTime(), now = Date.now();
+  return S.recesos.filter((r) => r.trabajador_id === wid && esAlmuerzo(r) && ms(r.inicio) >= ini)
+    .reduce((a, r) => a + ((r.fin ? ms(r.fin) : now) - ms(r.inicio)), 0);
+}
+export const excesoAlmuerzo = (wid) => Math.max(0, almuerzoHoy(wid) / 60000 - LIMITE_ALMUERZO);
 // ---------- Receso por turno (mañana / tarde) ----------
 // Dos recesos fijos al día: 15 min en la mañana y 15 en la tarde (la tarde empieza a las 12:00)
 export const limiteReceso = () => 15;
@@ -78,7 +87,7 @@ export const turnoActual = () => turnoDe(Date.now());
 // Milisegundos de receso de hoy en un turno (suma todos los pedazos, incluido el que está corriendo)
 export function recesoTurno(wid, turno) {
   const ini = inicioDelDia().getTime(), now = Date.now();
-  return S.recesos.filter((r) => r.trabajador_id === wid && turnoDe(r.inicio) === turno && ms(r.inicio) >= ini)
+  return S.recesos.filter((r) => r.trabajador_id === wid && !esAlmuerzo(r) && turnoDe(r.inicio) === turno && ms(r.inicio) >= ini)
     .reduce((a, r) => a + ((r.fin ? ms(r.fin) : now) - ms(r.inicio)), 0);
 }
 // Minutos que se pasó hoy (sumando los dos turnos)
@@ -94,20 +103,27 @@ export const disponibles = (h) => h.cantidad - prestadas(h.id) - perdidas(h.id);
 const yo = () => S.usuario?.id;
 const ahora = () => new Date().toISOString();
 
-export async function iniciarReceso() {
-  S.sesion = ok(await sb.from("sesiones_receso").insert({ iniciado_por: yo() }).select().single());
+// tipo = "receso" o "almuerzo"
+const sesionDe = (tipo) => S.sesiones.find((s) => (s.tipo || "receso") === tipo);
+export async function iniciarReceso(tipo = "receso") {
+  const s = ok(await sb.from("sesiones_receso").insert({ iniciado_por: yo(), tipo }).select().single());
+  S.sesiones.push(s); return s;
 }
-export async function cambiarReceso(wid) {
-  if (!S.sesion) await iniciarReceso();   // si no hay receso abierto, se abre solo
+// Toca a una persona: sale a receso/almuerzo o regresa. Si estaba en la otra pausa, pasa a esta.
+export async function cambiarReceso(wid, tipo = "receso") {
   const abierto = recesoAbierto(wid);
   if (abierto) ok(await sb.from("recesos").update({ fin: ahora() }).eq("id", abierto.id));
-  else ok(await sb.from("recesos").insert({ trabajador_id: wid, sesion_id: S.sesion.id, registrado_por: yo() }));
-  return !abierto;
+  if (abierto && (abierto.tipo || "receso") === tipo) return false;
+  const s = sesionDe(tipo) || (await iniciarReceso(tipo));
+  ok(await sb.from("recesos").insert({ trabajador_id: wid, sesion_id: s.id, registrado_por: yo(), tipo }));
+  return true;
 }
-export async function terminarReceso() {
+// Terminar: todos los que están en ese tipo de pausa regresan a trabajar
+export async function terminarReceso(tipo = "receso") {
   const t = ahora();
-  ok(await sb.from("recesos").update({ fin: t }).is("fin", null));
-  if (S.sesion) ok(await sb.from("sesiones_receso").update({ fin: t }).eq("id", S.sesion.id));
+  ok(await sb.from("recesos").update({ fin: t }).is("fin", null).eq("tipo", tipo));
+  ok(await sb.from("sesiones_receso").update({ fin: t }).is("fin", null).eq("tipo", tipo));
+  S.sesiones = S.sesiones.filter((s) => (s.tipo || "receso") !== tipo);
 }
 
 export async function prestar(hid, wid, cantidad) {

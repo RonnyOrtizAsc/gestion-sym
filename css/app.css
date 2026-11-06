@@ -304,3 +304,7 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
 .stat.rojo b{color:var(--lost)}
 .tok.pasado .bub{background:var(--lost);color:#fff}
 .hud-btn.activo-receso{background:var(--surface);color:var(--break);box-shadow:0 0 0 3px color-mix(in srgb,var(--break) 45%,transparent)}
+
+/* Almuerzo: igual que receso pero en azul */
+.almuerzo{--break:#2f7fc4;--break-soft:#dbe9f7;--on-break:#fff}
+@media (prefers-color-scheme:dark){.almuerzo{--break:#5aa6e8;--break-soft:#17304a;--on-break:#0b1a28}}
