@@ -229,6 +229,7 @@ function ponerParedes(areas, piezas) {
       lista[est].push([mx, my, L * ESC + 0.35, 0.38, Math.atan2(y1 - y0, x1 - x0), E.altura(mx, my) * M, alto]);
     }
   });
+  ponerLamina(piezas, lista);
   const geo = new THREE.BoxGeometry(1, 1, 1), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), eje = new THREE.Vector3(0, 1, 0);
   for (const [est, items] of Object.entries(lista)) {
     if (!items.length) continue;
@@ -241,6 +242,35 @@ function ponerParedes(areas, piezas) {
   }
 }
 
+// Paredes del taller de murito de block con lámina encima (como en obra). Lo que falta o está en construcción va con el estilo de siempre.
+const MURITO = 1.2, ALTO_LAMINA = 6;   // metros
+const MAT_MURITO = new THREE.MeshStandardMaterial({ color: 0xd8c48c, roughness: 0.95 });
+const MAT_LAMINA = new THREE.MeshStandardMaterial({ color: 0x8b949b, roughness: 0.55, metalness: 0.45 });
+function ponerLamina(piezas, lista) {
+  const murito = [], lamina = [];
+  PIEZAS.forEach(([clase, , , d], i) => {
+    if (clase !== "lamina") return;
+    const est = estadoPieza(i, piezas);
+    for (const pl of polilineas(d)) for (let k = 1; k < pl.length; k++) {
+      const [x0, y0] = pl[k - 1], [x1, y1] = pl[k], L = Math.hypot(x1 - x0, y1 - y0);
+      if (L < 1.5) continue;
+      const mx = (x0 + x1) / 2, my = (y0 + y1) / 2, base = E.altura(mx, my) * M, ang = Math.atan2(y1 - y0, x1 - x0), largo = L * ESC + 0.2;
+      if (est !== "existe") { lista[est].push([mx, my, largo, 0.38, ang, base, ALTO_LAMINA * M * (est === "en_proceso" ? 0.5 : 1)]); continue; }
+      murito.push([mx, my, largo, 0.5, ang, base, MURITO * M]);
+      lamina.push([mx, my, largo, 0.18, ang, base + MURITO * M, (ALTO_LAMINA - MURITO) * M]);
+    }
+  });
+  const geo = new THREE.BoxGeometry(1, 1, 1), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), eje = new THREE.Vector3(0, 1, 0);
+  for (const [items, mat] of [[murito, MAT_MURITO], [lamina, MAT_LAMINA]]) {
+    if (!items.length) continue;
+    const im = new THREE.InstancedMesh(geo, mat, items.length);
+    items.forEach(([x, y, largo, grueso, ang, base, alto], k) => {
+      const p = aEscena(x, y); p.y = base + alto / 2; q.setFromAxisAngle(eje, -ang);
+      im.setMatrixAt(k, m4.compose(p, q, new THREE.Vector3(largo, alto, grueso)));
+    });
+    im.castShadow = true; im.receiveShadow = true; E.edificios.add(im);
+  }
+}
 
 // ---------- Gradas: escalones de verdad, de un nivel al otro, con pasamanos ----------
 function ponerGradas(piezas) {
@@ -386,8 +416,8 @@ function resaltar(capa, grupo, llave, color = 0x9fd400, opacidad = 0.8) {
   if (!grupo) return;
   const items = [];
   for (const i of grupo) {
-    const clase = PIEZAS[i][0], c = CAJAS[i], pared = clase === "muro" || clase === "columna";
-    const alto = pared ? (ALTO_MURO[tipoEn(E.areas || [], (c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2)] || (clase === "columna" ? 4.5 : 1.1)) * M : 0.35;
+    const clase = PIEZAS[i][0], c = CAJAS[i], pared = clase === "muro" || clase === "columna" || clase === "lamina";
+    const alto = clase === "lamina" ? ALTO_LAMINA * M : pared ? (ALTO_MURO[tipoEn(E.areas || [], (c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2)] || (clase === "columna" ? 4.5 : 1.1)) * M : 0.35;
     for (const [[x0, y0], [x1, y1]] of segmentos(i)) {
       const L = Math.hypot(x1 - x0, y1 - y0); if (L < 0.5) continue;
       const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;

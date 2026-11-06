@@ -15,10 +15,10 @@ const C = {
 };
 // Cómo se ve cada clase de trazo según el estado del área donde está
 const ESTILO = {
-  existe:     { grada: 'stroke="#1f2327" stroke-width="1.6"', muro: 'stroke="#1f2327" stroke-width="3.4"', fino: 'stroke="#6b7178" stroke-width="1"', borde: 'stroke="#454a50" stroke-width="2"', columna: 'stroke="#1d2125" stroke-width="2.2" fill="#1d2125"', jardin: 'stroke="#3f7d32" stroke-width="1.3"' },
-  en_proceso: { grada: 'stroke="#b26b00" stroke-width="1.6"', muro: 'stroke="#b26b00" stroke-width="2.6"', fino: 'stroke="#c48a2c" stroke-width="1.2"', borde: 'stroke="#b26b00" stroke-width="2.6"', columna: 'stroke="#b26b00" stroke-width="2.2" fill="#b26b00"', jardin: 'stroke="#8aa64a" stroke-width="1.3"' },
+  existe:     { lamina: 'stroke="#4d565e" stroke-width="3.4"', grada: 'stroke="#1f2327" stroke-width="1.6"', muro: 'stroke="#1f2327" stroke-width="3.4"', fino: 'stroke="#6b7178" stroke-width="1"', borde: 'stroke="#454a50" stroke-width="2"', columna: 'stroke="#1d2125" stroke-width="2.2" fill="#1d2125"', jardin: 'stroke="#3f7d32" stroke-width="1.3"' },
+  en_proceso: { lamina: 'stroke="#b26b00" stroke-width="2.6"', grada: 'stroke="#b26b00" stroke-width="1.6"', muro: 'stroke="#b26b00" stroke-width="2.6"', fino: 'stroke="#c48a2c" stroke-width="1.2"', borde: 'stroke="#b26b00" stroke-width="2.6"', columna: 'stroke="#b26b00" stroke-width="2.2" fill="#b26b00"', jardin: 'stroke="#8aa64a" stroke-width="1.3"' },
   // lo que falta se ve transparente: es el proyecto final "en espera"
-  falta:      { grada: 'stroke="#8ea3b8" stroke-opacity=".6" stroke-width="1.4"', muro: 'stroke="#8ea3b8" stroke-opacity=".5" stroke-width="2.4"', fino: 'stroke="#9fb0c2" stroke-opacity=".45" stroke-width="1"', borde: 'stroke="#8ea3b8" stroke-opacity=".5" stroke-width="1.8"', columna: 'stroke="#8ea3b8" stroke-opacity=".5" stroke-width="1.6" fill="#8ea3b8" fill-opacity=".2"', jardin: 'stroke="#7fae6c" stroke-opacity=".35" stroke-width="1"' },
+  falta:      { lamina: 'stroke="#8ea3b8" stroke-opacity=".5" stroke-width="2.4"', grada: 'stroke="#8ea3b8" stroke-opacity=".6" stroke-width="1.4"', muro: 'stroke="#8ea3b8" stroke-opacity=".5" stroke-width="2.4"', fino: 'stroke="#9fb0c2" stroke-opacity=".45" stroke-width="1"', borde: 'stroke="#8ea3b8" stroke-opacity=".5" stroke-width="1.8"', columna: 'stroke="#8ea3b8" stroke-opacity=".5" stroke-width="1.6" fill="#8ea3b8" fill-opacity=".2"', jardin: 'stroke="#7fae6c" stroke-opacity=".35" stroke-width="1"' },
 };
 const ELEM = { grada: "#8a8f96", jardinera: "#5f9a45", bano: "#4f9fd0", muro: "#1d2125", puerta: "#6c5a3d", columna: "#1d2125", bodega: "#ee8420", otro: "#7d6bb3" };
 
@@ -86,7 +86,7 @@ export function grupoDe(i) {
   return GRUPOS.get(i);
 }
 function calcularGrupo(i) {
-  const base = CAJAS[i], esMuro = TRAZO[i][0] === "muro", tope = Math.max(base.largo * 4, 30), M = 5;
+  const base = CAJAS[i], esMuro = TRAZO[i][0] === "muro", esLamina = TRAZO[i][0] === "lamina", tope = Math.max(base.largo * 4, 30), M = 5;
   const R = Math.max(25, base.largo * 1.2);   // el objeto no se sale de alrededor de lo tocado
   const lim = { x0: base.x0 - R, y0: base.y0 - R, x1: base.x1 + R, y1: base.y1 + R };
   const grupo = new Set([i]), cola = [i];
@@ -95,7 +95,7 @@ function calcularGrupo(i) {
     CAJAS.forEach((o, j) => {
       const clase = TRAZO[j][0];
       if (grupo.has(j) || clase === "jardin" || o.largo > tope) return;
-      if ((clase === "muro") !== esMuro) return;   // paredes con paredes; puertas y gradas aparte
+      if ((clase === "muro") !== esMuro || (clase === "lamina") !== esLamina) return;   // paredes con paredes; puertas y gradas aparte
       if (o.x0 < lim.x0 || o.x1 > lim.x1 || o.y0 < lim.y0 || o.y1 > lim.y1) return;
       if (o.x0 <= c.x1 + M && o.x1 >= c.x0 - M && o.y0 <= c.y1 + M && o.y1 >= c.y0 - M) { grupo.add(j); cola.push(j); }
     });
@@ -135,6 +135,7 @@ export { segmentos };
 export function queEs(grupo) {
   const clases = grupo.map((i) => TRAZO[i][0]);
   if (TRAZO[grupo[0]][0] === "grada" || clases.includes("grada")) return "Gradas";
+  if (TRAZO[grupo[0]][0] === "lamina") return "Pared de murito y lámina";
   if (TRAZO[grupo[0]][0] === "muro") return "Pared";
   const cortasParalelas = grupo.filter((i) => TRAZO[i][0] === "borde" && CAJAS[i].largo < 40).length;
   if (cortasParalelas >= 3) return "Gradas";
@@ -155,7 +156,7 @@ export function dibujarObra(areas, elementos = [], piezas = {}) {
   const zonas = areas.map((a) => ({ a, ...px(a) }));
   const grupos = {};
   TRAZO.forEach(([clase, , , d], i) => { (grupos[estadoPieza(i, piezas) + "|" + clase] ||= []).push(d); });
-  const trazo = ["falta", "en_proceso", "existe"].flatMap((e) => ["jardin", "fino", "grada", "borde", "muro", "columna"].map((c) => {
+  const trazo = ["falta", "en_proceso", "existe"].flatMap((e) => ["jardin", "fino", "grada", "borde", "lamina", "muro", "columna"].map((c) => {
     const ds = grupos[e + "|" + c]; return ds ? `<path ${ESTILO[e][c]} ${c === "columna" ? "" : 'fill="none"'} stroke-linecap="round" d="${ds.join("")}"/>` : "";
   })).join("");
   const arboles = Array.from({ length: 12 }, (_, i) => `<circle cx="${42 + (i % 2) * 10}" cy="${120 + i * 112}" r="${17 + (i % 3) * 3}" fill="#6f9a4c"/><circle cx="${38 + (i % 2) * 10}" cy="${115 + i * 112}" r="8" fill="#89b263"/>`).join("");
