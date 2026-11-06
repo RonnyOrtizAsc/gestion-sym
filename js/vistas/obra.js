@@ -210,8 +210,8 @@ export function render(V, { hacer, redibujar }) {
   ${receso ? `<p class="pista receso">Toca a quien sale: se pone naranja y camina a la bodega. Tócalo otra vez cuando regrese. Toca <b>Receso</b> otra vez para salir (los que están en receso siguen contando).</p>`
     : ui.moviendo && w ? `<p class="pista mover">Toca el área a donde va <b>${esc(primerNombre(w.nombre))}</b> <button class="btn small" data-cancelar-mover>Cancelar</button></p>`
     : ui.nuevo?.tipo ? `<p class="pista mover">${ui.nuevo.p1 ? "Toca la esquina opuesta" : "Toca una esquina"} de: <b>${TIPOS_ELEMENTO[ui.nuevo.tipo]}</b></p>`
-    : ui.editar ? `<p class="pista mover">Editando el plano: toca una pared, puerta o grada y márcala como <b>Hecho</b> para que se ponga en negro. Lo transparente es lo que falta.</p>`
-    : `<p class="pista">Toca un área para ver quién está ahí, o toca a una persona para moverla.${es3d ? " Arrastra para girar, pellizca para acercar." : ""}</p>`}
+    : ui.editar ? `<p class="pista mover">Editando: pasa el mouse o toca una pared, puerta o grada (se pone verde) y márcala <b>Hecho</b>, <b>En construcción</b> o <b>Falta</b>.${es3d ? " Los techos se esconden mientras editas." : ""}</p>`
+    : `<p class="pista">Toca un área para ver quién está ahí, o toca a una persona para moverla.${es3d ? " Arrastra para moverte, dos dedos o clic derecho para girar, pellizca o rueda para acercar." : ""}</p>`}
   ${es3d ? `<div class="escena" id="escena"><p class="cargando">Levantando la obra en 3D…</p></div>`
   : `<div class="mapa-scroll ${ui.zoom > 1 ? "acercado" : ""}" id="mapaScroll">
     <div class="mapa z${ZOOMS.indexOf(ui.zoom)} ${ui.moviendo ? "moviendo" : ""} ${receso ? "en-receso" : ""} ${ui.editar ? "editando" : ""}" style="width:${ui.zoom * 100}%;aspect-ratio:${prop}">
@@ -254,6 +254,9 @@ export function render(V, { hacer, redibujar }) {
     hacer(async () => { const n = await agregarElemento(el); ui.elSel = n.id; ui.areaSel = null; return `${TIPOS_ELEMENTO[tipo]} agregado al plano`; });
     return true;
   };
+  const tocarPieza = (i) => { const grupo = grupoDe(i); ui.pz = { tocada: i, grupo, nombre: queEs(grupo) }; ui.areaSel = null; ui.elSel = null; redibujar(); };
+  const textoPieza = (grupo) => { const est = grupo.map((i) => estadoPieza(i, S.piezas));
+    return `<b>${esc(queEs(grupo))}</b><span>${est.every((e) => e === est[0]) ? ESTADOS[est[0]] : "Partes en distinto estado"}</span>`; };
   const tocarArea = (aid) => {
     if (receso || !aid) return;
     if (ui.editar) { ui.areaSel = aid; ui.elSel = null; ui.sel = null; ui.pz = null; return redibujar(); }
@@ -269,8 +272,8 @@ export function render(V, { hacer, redibujar }) {
     import("./escena3d.js").then((m) => {
       const cont = V.querySelector("#escena"); if (!cont) return;
       cont.querySelector(".cargando")?.remove();
-      m.montar(cont, { svg: dibujo.svg, clave: dibujo.clave, areas: S.areas, elementos: S.elementos, piezas: S.piezas, personas, handlers: {
-        persona: tocarPersona,
+      m.montar(cont, { svg: dibujo.svg, clave: dibujo.clave, areas: S.areas, elementos: S.elementos, piezas: S.piezas, personas, editar: ui.editar && !ui.nuevo, seleccion: ui.pz?.grupo, handlers: {
+        persona: tocarPersona, pieza: tocarPieza, textoPieza,
         punto: (px, py) => { // el área más pequeña que contiene el punto tocado
           if (tocarPunto(px, py)) return;
           if (ui.editar) { const e = S.elementos.find((e) => px >= e.x && px <= +e.x + +e.w && py >= e.y && py <= +e.y + +e.h); if (e) { ui.elSel = e.id; ui.areaSel = null; return redibujar(); } }
@@ -309,11 +312,20 @@ export function render(V, { hacer, redibujar }) {
       el.addEventListener("pointerleave", () => (tip.hidden = true));
     });
     // Editar plano: cada pieza avanza falta → en construcción → existe → falta
-    V.querySelectorAll("[data-pz]").forEach((el) => {
-      el.addEventListener("click", (e) => {
-        e.stopPropagation(); const i = +el.dataset.pz, grupo = grupoDe(i);
-        ui.pz = { tocada: i, grupo, nombre: queEs(grupo) }; ui.areaSel = null; ui.elSel = null; redibujar();
+    const pzs = [...V.querySelectorAll("[data-pz]")], porIdx = new Map(pzs.map((el) => [+el.dataset.pz, el]));
+    let hov = [];
+    const quitarHov = () => { hov.forEach((el) => el.classList.remove("hov")); hov = []; tip.hidden = true; };
+    pzs.forEach((el) => {
+      el.addEventListener("click", (e) => { e.stopPropagation(); tocarPieza(+el.dataset.pz); });
+      // al pasar el mouse se resalta la pieza completa (toda la pared, todas las gradas…)
+      el.addEventListener("pointerenter", (e) => {
+        if (e.pointerType !== "mouse") return;
+        quitarHov(); const grupo = grupoDe(+el.dataset.pz);
+        hov = grupo.map((i) => porIdx.get(i)).filter(Boolean); hov.forEach((p) => p.classList.add("hov"));
+        tip.innerHTML = textoPieza(grupo); tip.hidden = false;
       });
+      el.addEventListener("pointermove", (e) => { const r = mapaEl.getBoundingClientRect(); tip.style.left = e.clientX - r.left + 14 + "px"; tip.style.top = e.clientY - r.top + 14 + "px"; });
+      el.addEventListener("pointerleave", quitarHov);
     });
     const cap = V.querySelector("#captura");
     if (cap) cap.onclick = (e) => { const r = cap.getBoundingClientRect(); tocarPunto(((e.clientX - r.left) / r.width) * 100, ((e.clientY - r.top) / r.height) * 100); };

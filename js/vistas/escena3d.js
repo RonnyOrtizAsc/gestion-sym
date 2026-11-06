@@ -1,8 +1,8 @@
 // Vista 3D de la obra: el mapa dibujado como piso, los edificios levantados
 // y cada trabajador como un muñequito con casco que camina a su área (o a la bodega en el receso).
 import * as THREE from "three";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { ANCHO, ALTO, PIEZAS, CAJAS, estadoPieza } from "./mapa-svg.js";
+import { MapControls } from "three/addons/controls/MapControls.js";
+import { ANCHO, ALTO, PIEZAS, CAJAS, estadoPieza, piezaEn, grupoDe, segmentos } from "./mapa-svg.js";
 
 const ESC = 0.1;                                   // unidades del plano → metros de la escena
 const VERDE = 0x2b9a57, NARANJA = 0xee8420, LIMA = 0xc4ee4a;
@@ -21,8 +21,11 @@ function crear() {
   scene.fog = new THREE.Fog(0xcfe3ef, 260, 520);
   const camera = new THREE.PerspectiveCamera(42, 1, 1, 1200);
   camera.position.set(-35, 120, 135);
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true; controls.maxPolarAngle = 1.32; controls.minDistance = 30; controls.maxDistance = 360;
+  // Se mueve como un mapa: arrastrar = desplazar, dos dedos / clic derecho = girar, pellizcar / rueda = acercar hacia donde apuntas
+  const controls = new MapControls(camera, renderer.domElement);
+  controls.enableDamping = true; controls.dampingFactor = 0.12; controls.maxPolarAngle = 1.32; controls.minDistance = 12; controls.maxDistance = 360;
+  controls.zoomToCursor = true; controls.screenSpacePanning = false; controls.panSpeed = 1.2; controls.rotateSpeed = 0.6;
+  renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
   controls.target.set(0, 0, 5);
 
   scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f7a, 1.15));
@@ -41,8 +44,41 @@ function crear() {
 
   const edificios = new THREE.Group(); scene.add(edificios);
   const gente = new THREE.Group(); scene.add(gente);
+  const hover = new THREE.Group(), marcado = new THREE.Group(); scene.add(hover, marcado);
+  const tip = document.createElement("div"); tip.className = "tip"; tip.hidden = true;
 
-  E = { renderer, scene, camera, controls, piso, edificios, gente, figuras: new Map(), clave: "", corriendo: false, reloj: new THREE.Clock() };
+  E = { renderer, scene, camera, controls, piso, edificios, gente, hover, marcado, tip, figuras: new Map(), clave: "", corriendo: false, reloj: new THREE.Clock(),
+    editar: false, hovKey: "", selKey: "" };
+
+  // Editar plano: qué pieza hay bajo el puntero (pared, grada, puerta…), o -1
+  const piezaBajo = (cx, cy) => {
+    const r = renderer.domElement.getBoundingClientRect();
+    p.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(p, camera);
+    const visible = (o) => { for (; o; o = o.parent) if (!o.visible || o.userData.techo) return false; return true; };
+    const golpe = ray.intersectObjects([piso, ...edificios.children], true).find((h) => !h.object.isSprite && visible(h.object));
+    if (!golpe) return -1;
+    return piezaEn(golpe.point.x / ESC + ANCHO / 2, golpe.point.z / ESC + ALTO / 2, 10);
+  };
+  let pendiente = null;
+  renderer.domElement.addEventListener("pointermove", (e) => {
+    if (!E.editar || e.pointerType !== "mouse") return;
+    if (e.buttons) { tip.hidden = true; return; }                // arrastrando: no resaltar
+    const ev = { x: e.clientX, y: e.clientY };
+    if (pendiente) { pendiente = ev; return; }
+    pendiente = ev;
+    requestAnimationFrame(() => {
+      const { x, y } = pendiente; pendiente = null;
+      const i = piezaBajo(x, y), grupo = i < 0 ? null : grupoDe(i);
+      renderer.domElement.style.cursor = grupo ? "pointer" : "";
+      resaltar(E.hover, grupo, "hovKey", 0xc4ee4a, 0.5);
+      if (!grupo) { tip.hidden = true; return; }
+      const r = renderer.domElement.getBoundingClientRect();
+      tip.innerHTML = E.handlers?.textoPieza?.(grupo) || ""; tip.hidden = !tip.innerHTML;
+      tip.style.left = x - r.left + 14 + "px"; tip.style.top = y - r.top + 14 + "px";
+    });
+  });
+  renderer.domElement.addEventListener("pointerleave", () => { tip.hidden = true; resaltar(E.hover, null, "hovKey"); });
 
   // Tocar (sin arrastrar) = seleccionar persona o área
   const ray = new THREE.Raycaster(), p = new THREE.Vector2(); let ini = null;
@@ -51,6 +87,7 @@ function crear() {
     if (!ini || Math.hypot(e.clientX - ini[0], e.clientY - ini[1]) > 8) return; ini = null;
     const r = renderer.domElement.getBoundingClientRect();
     p.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    if (E.editar) { const i = piezaBajo(e.clientX, e.clientY); if (i >= 0) { tip.hidden = true; return E.handlers?.pieza?.(i); } }
     ray.setFromCamera(p, camera);
     const golpe = ray.intersectObjects(gente.children, true)[0];
     if (golpe) { let o = golpe.object; while (o && !o.userData.id) o = o.parent; if (o) return E.handlers?.persona(o.userData.id); }
@@ -313,13 +350,13 @@ function rotulosNivel() {
 }
 
 function ponerEdificios(areas, elementos = [], piezas = {}) {
-  E.edificios.clear();
+  E.edificios.clear(); E.areas = areas;
   ponerParedes(areas, piezas);
   ponerGradas(piezas);
   for (const a of areas) {
     const c = caja(a), base = E.altura((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2) * M;
     if (a.es_receso) { E.edificios.add(bodega(a, base)); continue; }
-    if (ALTO_MURO[a.tipo]) E.edificios.add(techo(a, base, ALTO_MURO[a.tipo] * M * (a.estado === "en_proceso" ? 0.5 : 1)));
+    if (ALTO_MURO[a.tipo]) { const t = techo(a, base, ALTO_MURO[a.tipo] * M * (a.estado === "en_proceso" ? 0.5 : 1)); t.userData.techo = true; E.edificios.add(t); }
   }
   rotulosNivel();
   // Elementos agregados (gradas, jardineras, baños…)
@@ -339,6 +376,33 @@ function ponerEdificios(areas, elementos = [], piezas = {}) {
     t.position.set(p.x, yc + 2, p.z); const c = new THREE.Mesh(new THREE.SphereGeometry(3.2 + (i % 3) * 0.5, 10, 8), copa);
     c.position.set(p.x, yc + 6, p.z); c.castShadow = true; t.castShadow = true; E.edificios.add(t, c);
   }
+}
+
+// Resalta en verde las piezas de un grupo (hover o seleccionada): paredes a su altura, lo demás como franja en el piso
+function resaltar(capa, grupo, llave, color = 0x9fd400, opacidad = 0.8) {
+  const k = grupo ? grupo.join(",") : "";
+  if (E[llave] === k) return; E[llave] = k;
+  capa.children.forEach((m) => m.geometry?.dispose()); capa.clear();
+  if (!grupo) return;
+  const items = [];
+  for (const i of grupo) {
+    const clase = PIEZAS[i][0], c = CAJAS[i], pared = clase === "muro" || clase === "columna";
+    const alto = pared ? (ALTO_MURO[tipoEn(E.areas || [], (c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2)] || (clase === "columna" ? 4.5 : 1.1)) * M : 0.35;
+    for (const [[x0, y0], [x1, y1]] of segmentos(i)) {
+      const L = Math.hypot(x1 - x0, y1 - y0); if (L < 0.5) continue;
+      const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+      items.push([mx, my, L * ESC + 0.5, pared ? 0.6 : 0.7, Math.atan2(y1 - y0, x1 - x0), E.altura(mx, my) * M + (pared ? 0 : 0.05), alto + (pared ? 0.15 : 0)]);
+    }
+  }
+  if (!items.length) return;
+  const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: opacidad, depthWrite: false });
+  const im = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), mat, items.length);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), eje = new THREE.Vector3(0, 1, 0);
+  items.forEach(([x, y, largo, grueso, ang, base, alto], n) => {
+    const p = aEscena(x, y); p.y = base + alto / 2; q.setFromAxisAngle(eje, -ang);
+    im.setMatrixAt(n, m4.compose(p, q, new THREE.Vector3(largo, alto, grueso)));
+  });
+  im.renderOrder = 5; capa.add(im);
 }
 
 function etiqueta(texto, fondo = "rgba(255,255,255,.92)", tinta) {
@@ -405,16 +469,25 @@ function animar() {
       f.rotation.y = Math.atan2(falta.x, falta.z); f.userData.cuerpo.position.y = 1.8 + Math.abs(Math.sin(t * 14)) * 0.35;
     } else { f.userData.cuerpo.position.y = 1.8; f.position.y = d.y; }
   }
+  // que la cámara no se vaya lejos del lote
+  const tg = E.controls.target, bx = (ANCHO * ESC) / 2 + 10, bz = (ALTO * ESC) / 2 + 10;
+  const cx = Math.max(-bx, Math.min(bx, tg.x)), cz = Math.max(-bz, Math.min(bz, tg.z));
+  if (cx !== tg.x || cz !== tg.z) { E.camera.position.x += cx - tg.x; E.camera.position.z += cz - tg.z; tg.x = cx; tg.z = cz; }
   E.controls.update(); E.renderer.render(E.scene, E.camera);
 }
 
 // Pone la escena dentro del contenedor y la actualiza con los datos actuales
-export function montar(contenedor, { svg, clave, areas, elementos, piezas, personas, handlers }) {
+export function montar(contenedor, { svg, clave, areas, elementos, piezas, personas, handlers, editar = false, seleccion = null }) {
   if (!E) crear();
   E.handlers = handlers;
-  contenedor.appendChild(E.renderer.domElement);
+  contenedor.appendChild(E.renderer.domElement); contenedor.appendChild(E.tip); E.tip.hidden = true;
   ajustar();
-  if (E.clave !== clave) { E.clave = clave; prepararNiveles(areas); ponerTerreno(); ponerPiso(svg); ponerEdificios(areas, elementos, piezas); }
+  if (E.clave !== clave) { E.clave = clave; E.hovKey = E.selKey = "-"; prepararNiveles(areas); ponerTerreno(); ponerPiso(svg); ponerEdificios(areas, elementos, piezas); }
+  // Editando: sin techos (para ver las paredes) y con la pieza elegida resaltada
+  E.editar = editar; E.gente.visible = !editar; E.renderer.domElement.style.cursor = "";
+  E.edificios.children.forEach((o) => { if (o.userData.techo) o.visible = !editar; });
+  resaltar(E.hover, null, "hovKey");
+  resaltar(E.marcado, editar && seleccion?.length ? seleccion : null, "selKey");
   ponerPersonas(personas);
   if (!E.corriendo) { E.corriendo = true; E.reloj.getDelta(); animar(); }
 }

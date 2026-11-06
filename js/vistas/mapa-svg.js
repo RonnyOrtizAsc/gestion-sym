@@ -80,7 +80,12 @@ export const CAJAS = TRAZO.map(([, , , d]) => {
 // Objeto completo a partir de una pieza tocada: piezas pegadas (a menos de 8 unidades ≈ 45 cm)
 // que no sean mucho más largas que la tocada. Así una grada toma todos sus escalones,
 // pero tocar un escalón no arrastra la pared de al lado.
+const GRUPOS = new Map();
 export function grupoDe(i) {
+  if (!GRUPOS.has(i)) GRUPOS.set(i, calcularGrupo(i));
+  return GRUPOS.get(i);
+}
+function calcularGrupo(i) {
   const base = CAJAS[i], esMuro = TRAZO[i][0] === "muro", tope = Math.max(base.largo * 4, 30), M = 5;
   const R = Math.max(25, base.largo * 1.2);   // el objeto no se sale de alrededor de lo tocado
   const lim = { x0: base.x0 - R, y0: base.y0 - R, x1: base.x1 + R, y1: base.y1 + R };
@@ -97,6 +102,35 @@ export function grupoDe(i) {
   }
   return [...grupo];
 }
+// Pieza más cercana a un punto del plano (unidades del mapa), a menos de "radio". Sirve para tocar en 3D.
+const SEGS = [];
+const segmentos = (i) => SEGS[i] ||= (() => {
+  const t = TRAZO[i][3].match(/[MLCZ]|-?\d+\.?\d*/g) || [], out = []; let ini = null, cur = null, k = 0;
+  while (k < t.length) {
+    const c = t[k++];
+    if (c === "M") { ini = cur = [+t[k], +t[k + 1]]; k += 2; }
+    else if (c === "L") { const n = [+t[k], +t[k + 1]]; out.push([cur, n]); cur = n; k += 2; }
+    else if (c === "C") { const n = [+t[k + 4], +t[k + 5]]; out.push([cur, n]); cur = n; k += 6; }
+    else if (c === "Z") { if (ini && cur) out.push([cur, ini]); cur = ini; }
+    else if (cur) { const n = [+c, +t[k]]; out.push([cur, n]); cur = n; k += 1; }
+  }
+  return out;
+})();
+const distSeg = (x, y, [a, b]) => {
+  const dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy;
+  const t = L ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / L)) : 0;
+  return Math.hypot(x - a[0] - t * dx, y - a[1] - t * dy);
+};
+export function piezaEn(x, y, radio = 12) {
+  let mejor = -1, d = radio;
+  CAJAS.forEach((c, i) => {
+    if (TRAZO[i][0] === "jardin" || x < c.x0 - d || x > c.x1 + d || y < c.y0 - d || y > c.y1 + d) return;
+    for (const s of segmentos(i)) { const e = distSeg(x, y, s); if (e < d) { d = e; mejor = i; } }
+  });
+  return mejor;
+}
+export { segmentos };
+
 // Qué es (para el título de la hoja)
 export function queEs(grupo) {
   const clases = grupo.map((i) => TRAZO[i][0]);

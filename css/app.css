@@ -213,6 +213,7 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
 .pista.mover{color:var(--lime-ink);background:var(--lime);border-radius:10px;padding:8px 12px}
 .escena{position:relative;width:100%;height:min(72vh,720px);border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#cfe3ef;touch-action:none}
 .escena canvas{display:block;width:100%;height:100%}
+.escena .tip{position:absolute}
 .escena .cargando{position:absolute;inset:0;display:grid;place-items:center;margin:0;color:#3b4046}
 
 /* ---------- Editar plano ---------- */
@@ -243,8 +244,7 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
 /* Piezas tocables en Editar plano */
 .capa-piezas{position:absolute;inset:0;width:100%;height:100%;z-index:4;pointer-events:none}
 .capa-piezas .pz{fill:none;stroke:transparent;stroke-width:16;pointer-events:stroke;cursor:pointer}
-.capa-piezas .pz:hover{stroke:color-mix(in srgb,var(--lime) 70%,transparent)}
-.capa-piezas .pz.falta:hover{stroke:#c4ee4aaa}
+.capa-piezas .pz.hov{stroke:#c4ee4a;stroke-opacity:.75;stroke-width:12}
 .capa-piezas .pz.sel{stroke:#9fd400;stroke-opacity:.85;stroke-width:10}
 
 /* ---------- Fotos de herramientas ---------- */
