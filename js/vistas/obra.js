@@ -166,7 +166,7 @@ function hojaPieza() {
 function hojaNuevo() {
   const pared = ui.nuevo.tipo === "muro";
   return `<div class="hoja-h"><div class="grow"><b>${pared ? "Dibujar pared" : ui.nuevo.tipo ? "Agregar " + TIPOS_ELEMENTO[ui.nuevo.tipo].toLowerCase() : "¿Qué vas a agregar?"}</b>
-      <small>${pared ? (ui.nuevo.p1 ? "Toca donde termina. Sigue tocando para más tramos; cierra (×) al terminar." : "Toca donde empieza la pared.") : ui.nuevo.tipo ? (ui.nuevo.p1 ? "Ahora toca la esquina opuesta." : "Toca una esquina en el plano.") : "Elige qué vas a agregar."}</small></div>
+      <small>${pared ? (ui.nuevo.p1 ? "Ahora toca donde termina." : "Toca donde empieza la pared.") : ui.nuevo.tipo ? (ui.nuevo.p1 ? "Ahora toca la esquina opuesta." : "Toca una esquina en el plano.") : "Elige qué vas a agregar."}</small></div>
       <button class="x" data-cerrar aria-label="Terminar">×</button></div>
     ${pared ? chipsMaterial(ui.nuevo.material, "data-mat-nuevo") : ""}
     <button class="linkbtn" data-mas style="margin-top:8px">${ui.mas ? "Ocultar otras cosas ▴" : "Agregar otra cosa (gradas, jardinera…) ▾"}</button>
@@ -308,10 +308,10 @@ export function render(V, { hacer, redibujar }) {
       const b = enderezar(a, pegar((px / 100) * ANCHO, (py / 100) * ALTO, 9, extra.concat(ui.nuevo.hechas || [])));
       if (Math.hypot(b[0] - a[0], b[1] - a[1]) < 4) return true;
       const el = { tipo, estado: "falta", material: ui.nuevo.material || "block", ...pared(a, b) };
-      // sigue dibujando desde aquí: el próximo toque hace otro tramo pegado
-      ui.nuevo.a = b; ui.nuevo.p1 = [(b[0] / ANCHO) * 100, (b[1] / ALTO) * 100]; ui.nuevo.hechas = [...(ui.nuevo.hechas || []), a, b];
-      S.elementos.push({ id: "tmp" + Date.now(), ...el }); redibujar();   // se ve al instante
-      hacer(async () => { await agregarElemento(el); return `Pared agregada (${fmtM(Math.hypot(b[0] - a[0], b[1] - a[1]) * METROS_POR_UNIDAD)})`; });
+      // una pared por vez: queda seleccionada con sus puntos verdes para ajustarla
+      const tmp = { id: "tmp" + Date.now(), ...el }; S.elementos.push(tmp);
+      ui.nuevo = null; ui.mas = false; ui.pz = null; ui.areaSel = null; ui.elSel = tmp.id; redibujar();   // se ve al instante
+      hacer(async () => { const n = await agregarElemento(el); if (ui.elSel === tmp.id) ui.elSel = n.id; return `Pared agregada (${fmtM(Math.hypot(b[0] - a[0], b[1] - a[1]) * METROS_POR_UNIDAD)})`; });
       return true;
     }
     const el = { tipo, estado: "falta", x: +Math.min(x1, px).toFixed(2), y: +Math.min(y1, py).toFixed(2), w: +Math.max(0.6, Math.abs(px - x1)).toFixed(2), h: +Math.max(0.6, Math.abs(py - y1)).toFixed(2) };
@@ -403,7 +403,7 @@ export function render(V, { hacer, redibujar }) {
   soltarAsa = (A, ab, w0) => {
     if (A?.e) {   // pared dibujada: solo cambia su trazo
       const cambios = pared(ab[0], ab[1]); Object.assign(A.e, cambios); redibujar();
-      return hacer(async () => { await editarElemento(A.e.id, cambios); return `Pared: ${fmtM(largoPared(A.e))}`; });
+      return hacer(async () => { const id = String(A.e.id).startsWith("tmp") ? ui.elSel : A.e.id; await editarElemento(id, cambios); return `Pared: ${fmtM(largoPared(A.e))}`; });
     }
     const w = w0 || A.w, [a, b] = ab || [w.a, w.b], g = w.grupo;   // pared del plano → se vuelve pared editable
     const est = estadoPieza(ui.pz.tocada, S.piezas), el = { tipo: "muro", estado: est === "quitado" ? "falta" : est, material: w.material, grueso: w.grueso, ...pared(a, b) };

@@ -25,8 +25,10 @@ function redibujar() {
 }
 
 // Ejecuta una acción, recarga los datos y avisa el resultado
-async function hacer(accion) {
-  if (ocupado) return;
+// Las acciones se forman en fila: si tocas rápido, ninguna se pierde
+let cola = Promise.resolve();
+function hacer(accion) { cola = cola.then(() => ejecutar(accion)); return cola; }
+async function ejecutar(accion) {
   ocupado = true;
   try { const msg = await accion(); await cargarTodo(); redibujar(); if (msg) toast(msg); }
   catch (e) { toast(e.message || "Algo salió mal. Intenta de nuevo."); await cargarTodo().catch(() => {}); redibujar(); }
