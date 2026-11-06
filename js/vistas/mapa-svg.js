@@ -53,11 +53,50 @@ export const enderezar = (a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1];
 // Distancia de un punto a una pared dibujada
 export const distPared = (x, y, e) => distSeg(x, y, puntas(e.trazo));
 
+// Huecos (puertas y ventanas) de una pared: { t: "puerta" | "ventana", c: [x, y] centro, w: metros }.
+// Se guardan por su centro en el plano, así no se mueven si la pared se alarga.
+export const ANCHO_HUECO = { puerta: 0.9, ventana: 1.5 };
+// Tramos de la pared a lo largo (en unidades del mapa desde la punta a): sólidos y huecos
+export function tramosPared(e) {
+  const [a, b] = puntas(e.trazo), L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, u = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
+  const huecos = (e.huecos || []).map((h) => { const s = (h.c[0] - a[0]) * u[0] + (h.c[1] - a[1]) * u[1], m = h.w / M / 2;
+    return { t: h.t, s0: Math.max(0, s - m), s1: Math.min(L, s + m) }; }).filter((h) => h.s1 - h.s0 > 1).sort((p, q) => p.s0 - q.s0);
+  const solidos = []; let ini = 0;
+  for (const h of huecos) { if (h.s0 > ini) solidos.push([ini, h.s0]); ini = Math.max(ini, h.s1); }
+  if (ini < L) solidos.push([ini, L]);
+  return { a, b, L, u, solidos, huecos };
+}
+// Punto de la pared más cercano a (x, y) y su distancia
+export function sobrePared(e, x, y) {
+  const { a, L, u } = tramosPared(e), s = Math.max(0, Math.min(L, (x - a[0]) * u[0] + (y - a[1]) * u[1])), p = [a[0] + u[0] * s, a[1] + u[1] * s];
+  return { p, s, d: Math.hypot(x - p[0], y - p[1]) };
+}
+// Paredes en la misma línea que a→b que la tocan o se enciman: se juntan en una sola
+export function enLinea(a, b, paredes) {
+  const L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (L < 1) return { a, b, juntas: [] };
+  const u = [(b[0] - a[0]) / L, (b[1] - a[1]) / L], juntas = []; let s0 = 0, s1 = L;
+  for (const e of paredes) {
+    const [p, q] = puntas(e.trazo), Lq = Math.hypot(q[0] - p[0], q[1] - p[1]); if (Lq < 1) continue;
+    const cruz = Math.abs(u[0] * (q[1] - p[1]) - u[1] * (q[0] - p[0])) / Lq;
+    const dl = (r) => Math.abs((r[0] - a[0]) * u[1] - (r[1] - a[1]) * u[0]);
+    if (cruz > 0.06 || dl(p) > 4 || dl(q) > 4) continue;
+    const sp = (p[0] - a[0]) * u[0] + (p[1] - a[1]) * u[1], sq = (q[0] - a[0]) * u[0] + (q[1] - a[1]) * u[1];
+    if (Math.max(sp, sq) < s0 - 4 || Math.min(sp, sq) > s1 + 4) continue;   // ni se tocan
+    juntas.push(e); s0 = Math.min(s0, sp, sq); s1 = Math.max(s1, sp, sq);
+  }
+  return { a: [a[0] + u[0] * s0, a[1] + u[1] * s0], b: [a[0] + u[0] * s1, a[1] + u[1] * s1], juntas };
+}
+
 function elemento(e) {
-  if (e.trazo) {   // pared dibujada a mano: grosor real y color de su material
+  if (e.trazo) {   // pared dibujada a mano: grosor real, color de su material y sus huecos
     const w = Math.max(2.5, gruesoPared(e) / M), col = e.estado === "existe" ? COLOR_MAT[e.material] || COLOR_MAT.block : e.estado === "en_proceso" ? "#b26b00" : "#8ea3b8";
-    const op = e.estado === "falta" ? ' stroke-opacity=".55"' : "";
-    return `<g class="elem"><path stroke="${col}"${op} stroke-width="${w}" fill="none" d="${e.trazo}"/>${e.material === "ventanal" ? `<path stroke="#fff" stroke-width="${w * 0.4}" fill="none" d="${e.trazo}"/>` : ""}</g>`;
+    const op = e.estado === "falta" ? ' stroke-opacity=".55"' : "", { a, u, solidos, huecos } = tramosPared(e);
+    const P = (s) => `${(a[0] + u[0] * s).toFixed(1)} ${(a[1] + u[1] * s).toFixed(1)}`, d = solidos.map(([s0, s1]) => `M${P(s0)}L${P(s1)}`).join("");
+    const vid = huecos.filter((h) => h.t === "ventana").map((h) => `M${P(h.s0)}L${P(h.s1)}`).join("");
+    const pue = huecos.filter((h) => h.t === "puerta").map((h) => { const r = h.s1 - h.s0, q = [a[0] + u[0] * h.s0 - u[1] * r, a[1] + u[1] * h.s0 + u[0] * r];
+      return `M${P(h.s0)}L${q[0].toFixed(1)} ${q[1].toFixed(1)}A${r.toFixed(1)} ${r.toFixed(1)} 0 0 0 ${P(h.s1)}`; }).join("");
+    return `<g class="elem">${d ? `<path stroke="${col}"${op} stroke-width="${w}" fill="none" d="${d}"/>` : ""}${e.material === "ventanal" && d ? `<path stroke="#fff" stroke-width="${w * 0.4}" fill="none" d="${d}"/>` : ""}
+      ${vid ? `<path stroke="#3d8fd1" stroke-width="${Math.max(1.5, w * 0.35)}" fill="none" d="${vid}"/>` : ""}${pue ? `<path stroke="#6c5a3d" stroke-width="1.2" fill="none" d="${pue}"/>` : ""}</g>`;
   }
   const { X, Y, W, H } = px(e), col = ELEM[e.tipo] || ELEM.otro;
   const falta = e.estado === "falta", proceso = e.estado === "en_proceso";
