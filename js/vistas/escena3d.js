@@ -176,6 +176,15 @@ const RAMPA_ESTE = { c: { x0: 1264, y0: 710, x1: 1337, y1: 1312 }, eje: "y", n: 
 // Rampa Chery (AR-01: "Rampa Chery 12%, a verificar"): solo la franja junto a las jardineras; el resto (carros demo) es plano.
 // Baja hacia la calle (oeste) y sube hacia el proyecto (este, nivel Chery).
 const RAMPA_CHERY = { c: { x0: 140, y0: 748, x1: 325, y1: 813 }, eje: "x", n: [ABAJO, MEDIO] };
+// Lado del boulevard (AR-01), más bajo que el proyecto; lo separa un murito con barandal:
+//  carril "RAMPA" pegado a la cerca: N 868.97 junto a Marca 4 → N 868.15 a medio camino → N 868.32 abajo, junto a Exhibición exterior
+//  Exhibición exterior (3) a N 868.32; "Rampa existente" de Carros demo Nissan sube de N 868.32 a Entrega de vehículos (N 869.95)
+const LADO_BOULEVARD = [
+  { c: { x0: 87, y0: 735, x1: 140, y1: 1063 }, eje: "y", n: [0.01, -0.81] },
+  { c: { x0: 87, y0: 1063, x1: 140, y1: 1338 }, eje: "y", n: [-0.81, -0.64] },
+  { c: { x0: 85, y0: 1310, x1: 282, y1: 1446 }, eje: "y", n: [-0.64, -0.64] },
+  { c: { x0: 282, y0: 1322, x1: 455, y1: 1446 }, eje: "x", n: [-0.64, 0.99] },
+];
 // Prepara la función de altura del terreno: cada área a su nivel; las rampas suben de un nivel al otro
 function prepararNiveles(areas) {
   const planas = areas.filter((a) => !esRampa(a)).map((a) => ({ a, c: caja(a), n: nivelFijo(a) }));
@@ -197,7 +206,7 @@ function prepararNiveles(areas) {
     const eje = Math.abs(dx - dy) < 0.3 ? (c.x1 - c.x0 >= c.y1 - c.y0 ? "x" : "y") : dx > dy ? "x" : "y";
     return { a, c, eje, n: eje === "x" ? ex : ey };
   });
-  rampas.unshift(RAMPA_ESTE, RAMPA_CHERY);
+  rampas.unshift(RAMPA_ESTE, RAMPA_CHERY, ...LADO_BOULEVARD);
   E.altura = (x, y) => EXAGERA * alturaReal(x, y);
   const alturaReal = (x, y) => {
     for (const r of rampas) if (x >= r.c.x0 && x <= r.c.x1 && y >= r.c.y0 && y <= r.c.y1) {
