@@ -174,8 +174,8 @@ function nivelFijo(a) {
 // Rampa del lado del lavado (franja este del plano): baja del patio de maniobras al nivel del taller
 const RAMPA_ESTE = { c: { x0: 1264, y0: 710, x1: 1337, y1: 1312 }, eje: "y", n: [ABAJO, ARRIBA] };
 // Rampa Chery (AR-01: "Rampa Chery 12%, a verificar"): solo la franja junto a las jardineras; el resto (carros demo) es plano.
-// Va de este a oeste: abajo en el este, arriba (nivel Chery) en el oeste.
-const RAMPA_CHERY = { c: { x0: 140, y0: 748, x1: 325, y1: 813 }, eje: "x", n: [MEDIO, ABAJO] };
+// Baja hacia la calle (oeste) y sube hacia el proyecto (este, nivel Chery).
+const RAMPA_CHERY = { c: { x0: 140, y0: 748, x1: 325, y1: 813 }, eje: "x", n: [ABAJO, MEDIO] };
 // Prepara la función de altura del terreno: cada área a su nivel; las rampas suben de un nivel al otro
 function prepararNiveles(areas) {
   const planas = areas.filter((a) => !esRampa(a)).map((a) => ({ a, c: caja(a), n: nivelFijo(a) }));
