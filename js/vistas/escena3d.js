@@ -131,7 +131,7 @@ function nivelFijo(a) {
   const n = a.nombre || "";
   if (a.es_receso) return ABAJO;                   // bodega: abajo, al nivel del rebalse técnico
   if (/t[eé]cnico|taller|gwm|marca 4|comedor|lockers/i.test(n)) return ABAJO;
-  if (/patio|rebalse|empleados|entrega de veh|caf[eé]|atenci/i.test(n)) return ARRIBA;
+  if (/patio|rebalse|empleados|entrega de veh|caf[eé]|atenci|lavado/i.test(n)) return ARRIBA;   // el lavado va al nivel del patio de maniobras
   return MEDIO;
 }
 // Rampa del lado del lavado (franja este del plano): baja del patio de maniobras al nivel del taller
