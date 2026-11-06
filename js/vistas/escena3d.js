@@ -44,10 +44,10 @@ function crear() {
 
   const edificios = new THREE.Group(); scene.add(edificios);
   const gente = new THREE.Group(); scene.add(gente);
-  const hover = new THREE.Group(), marcado = new THREE.Group(); scene.add(hover, marcado);
+  const hover = new THREE.Group(), marcado = new THREE.Group(), asas = new THREE.Group(); scene.add(hover, marcado, asas);
   const tip = document.createElement("div"); tip.className = "tip"; tip.hidden = true;
 
-  E = { renderer, scene, camera, controls, piso, edificios, gente, hover, marcado, tip, figuras: new Map(), clave: "", corriendo: false, reloj: new THREE.Clock(),
+  E = { renderer, scene, camera, controls, piso, edificios, gente, hover, marcado, asas, tip, figuras: new Map(), clave: "", corriendo: false, reloj: new THREE.Clock(),
     editar: false, hovKey: "", selKey: "" };
 
   // Editar plano: qué pieza hay bajo el puntero (pared, grada, puerta…), o -1
@@ -68,6 +68,31 @@ function crear() {
     if (!golpe) return -1;
     return piezaEn(golpe.point.x / ESC + ANCHO / 2, golpe.point.z / ESC + ALTO / 2, 10);
   };
+  // Agarraderas: se arrastran para alargar la pared (la cámara no se mueve mientras tanto)
+  let arrastre = null; const plano = new THREE.Plane(), golpeP = new THREE.Vector3();
+  const alPlano = (e) => { const r = renderer.domElement.getBoundingClientRect();
+    p.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(p, camera);
+    return ray.ray.intersectPlane(plano, golpeP) ? [golpeP.x / ESC + ANCHO / 2, golpeP.z / ESC + ALTO / 2] : null; };
+  renderer.domElement.addEventListener("pointerdown", (e) => {
+    if (!asas.children.length) return;
+    const r = renderer.domElement.getBoundingClientRect();
+    p.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(p, camera);
+    const h = ray.intersectObjects(asas.children.filter((o) => o.userData.asa !== undefined))[0]; if (!h) return;
+    e.stopImmediatePropagation(); renderer.domElement.setPointerCapture(e.pointerId);
+    arrastre = { idx: h.object.userData.asa, fin: null }; plano.set(new THREE.Vector3(0, 1, 0), -h.object.position.y);
+  }, { capture: true });
+  renderer.domElement.addEventListener("pointermove", (e) => {
+    if (!arrastre) return; e.stopImmediatePropagation();
+    const q = alPlano(e); if (!q) return; const m = E.handlers?.asaMueve?.(arrastre.idx, q[0], q[1]); if (!m) return;
+    arrastre.fin = q; ponerAsas(m.ab);
+    const r = renderer.domElement.getBoundingClientRect(); tip.innerHTML = `<b>${m.texto}</b>`; tip.hidden = false;
+    tip.style.left = e.clientX - r.left + 16 + "px"; tip.style.top = e.clientY - r.top + 16 + "px";
+  }, { capture: true });
+  const soltar = (e) => { if (!arrastre) return; e.stopImmediatePropagation(); const a = arrastre; arrastre = null; tip.hidden = true;
+    if (a.fin) E.handlers?.asaSuelta?.(a.idx, a.fin[0], a.fin[1]); };
+  renderer.domElement.addEventListener("pointerup", soltar, { capture: true });
+  renderer.domElement.addEventListener("pointercancel", soltar, { capture: true });
+
   let pendiente = null;
   renderer.domElement.addEventListener("pointermove", (e) => {
     if (!E.editar || e.pointerType !== "mouse") return;
@@ -450,6 +475,19 @@ function ponerEdificios(areas, elementos = [], piezas = {}) {
   }
 }
 
+// Dos esferas verdes en las puntas de la pared elegida y una línea entre ellas
+const MAT_ASA = new THREE.MeshBasicMaterial({ color: 0x9fd400, depthTest: false });
+const MAT_LINEA = new THREE.MeshBasicMaterial({ color: 0xc4ee4a, transparent: true, opacity: 0.8, depthTest: false });
+function ponerAsas(ab) {
+  E.asas.children.forEach((o) => o.geometry?.dispose()); E.asas.clear();
+  if (!ab) return;
+  const pts = ab.map(([x, y]) => { const v = aEscena(x, y); v.y = E.altura(x, y) * M + 0.6; return v; });
+  pts.forEach((v, i) => { const s = new THREE.Mesh(new THREE.SphereGeometry(1.3, 16, 12), MAT_ASA); s.position.copy(v); s.renderOrder = 10; s.userData.asa = i; E.asas.add(s); });
+  const L = pts[0].distanceTo(pts[1]); if (L < 0.1) return;
+  const l = new THREE.Mesh(new THREE.BoxGeometry(L, 0.25, 0.25), MAT_LINEA); l.position.copy(pts[0]).add(pts[1]).multiplyScalar(0.5);
+  l.rotation.y = -Math.atan2(pts[1].z - pts[0].z, pts[1].x - pts[0].x); l.renderOrder = 9; E.asas.add(l);
+}
+
 // Resalta en verde las piezas de un grupo (hover o seleccionada): paredes a su altura, lo demás como franja en el piso
 function resaltar(capa, grupo, llave, color = 0x9fd400, opacidad = 0.8) {
   const k = grupo ? grupo.join(",") : "";
@@ -549,7 +587,7 @@ function animar() {
 }
 
 // Pone la escena dentro del contenedor y la actualiza con los datos actuales
-export function montar(contenedor, { svg, clave, areas, elementos, piezas, personas, handlers, editar = false, seleccion = null }) {
+export function montar(contenedor, { svg, clave, areas, elementos, piezas, personas, handlers, editar = false, seleccion = null, asas = null }) {
   if (!E) crear();
   E.handlers = handlers;
   contenedor.appendChild(E.renderer.domElement); contenedor.appendChild(E.tip); E.tip.hidden = true;
@@ -560,6 +598,7 @@ export function montar(contenedor, { svg, clave, areas, elementos, piezas, perso
   E.edificios.children.forEach((o) => { if (o.userData.techo) o.visible = !editar; });
   resaltar(E.hover, null, "hovKey");
   resaltar(E.marcado, editar && seleccion?.length ? seleccion : null, "selKey");
+  ponerAsas(asas);
   ponerPersonas(personas);
   if (!E.corriendo) { E.corriendo = true; E.reloj.getDelta(); animar(); }
 }
