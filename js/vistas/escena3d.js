@@ -206,7 +206,7 @@ function prepararNiveles(areas) {
     const eje = Math.abs(dx - dy) < 0.3 ? (c.x1 - c.x0 >= c.y1 - c.y0 ? "x" : "y") : dx > dy ? "x" : "y";
     return { a, c, eje, n: eje === "x" ? ex : ey };
   });
-  rampas.unshift(RAMPA_ESTE, RAMPA_CHERY, ...LADO_BOULEVARD);
+  rampas.unshift(RAMPA_ESTE, ...LADO_BOULEVARD);   // RAMPA_CHERY aún no existe en obra: esa franja queda plana como el resto de lo techado
   E.altura = (x, y) => EXAGERA * alturaReal(x, y);
   const alturaReal = (x, y) => {
     for (const r of rampas) if (x >= r.c.x0 && x <= r.c.x1 && y >= r.c.y0 && y <= r.c.y1) {
@@ -410,7 +410,8 @@ function techo(a, base, alto) {
 
 // Techo existente a conservar (AR-01, líneas de "proyección de techo"): estructura metálica amarilla con lámina,
 // sobre carros demo, Chery, clientes y sala Nissan. Columnas grandes del plano cada 14 m (x 333 y 713; y 739, 988, 1237).
-const TECHO_EXISTENTE = [{ x0: 194, y0: 718, x1: 725, y1: 1011 }, { x0: 238, y0: 1011, x1: 725, y1: 1256 }];
+// Cubre toda la parte alta (N 870.00) hasta el murito del carril bajo (x 140); sobre el carril solo un alero pequeño.
+const TECHO_EXISTENTE = [{ x0: 140, y0: 718, x1: 725, y1: 1256 }], ALERO = { x0: 118, x1: 140 };
 const ALTO_TECHO_EXISTENTE = 7;   // metros sobre el piso de la sala (N 870.00)
 function techoExistente() {
   const g = new THREE.Group(); g.userData.techo = true;
@@ -425,8 +426,11 @@ function techoExistente() {
     for (let k = 0; k <= n; k++) { const v = new THREE.Mesh(new THREE.BoxGeometry(w, 0.9, 0.35), amarillo); v.position.set(p.x, y - 0.55, p.z - h / 2 + (h * k) / n); v.castShadow = true; g.add(v); }
     for (const s of [-1, 1]) { const v = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.9, h), amarillo); v.position.set(p.x + (s * w) / 2, y - 0.55, p.z); g.add(v); }
   }
-  // columnas existentes hasta el techo
-  for (const cx of [333, 713]) for (const cy of [739, 988, 1237]) {
+  // alero pequeño sobre el carril bajo, un poco más abajo que el techo
+  { const c = TECHO_EXISTENTE[0], w = (ALERO.x1 - ALERO.x0) * ESC, h = (c.y1 - c.y0) * ESC, p = aEscena((ALERO.x0 + ALERO.x1) / 2, (c.y0 + c.y1) / 2);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.12, h), lamina); m.position.set(p.x, y - 0.8 * M, p.z); m.rotation.z = 0.12; g.add(m); }
+  // columnas existentes hasta el techo (también en la orilla del murito)
+  for (const cx of [140, 333, 713]) for (const cy of [739, 988, 1237]) {
     const base = E.altura(cx, cy) * M, alto = y - base, v = aEscena(cx, cy);
     const col = new THREE.Mesh(new THREE.BoxGeometry(0.9, alto, 0.9), amarillo); col.position.set(v.x, base + alto / 2, v.z); col.castShadow = true; g.add(col);
   }
