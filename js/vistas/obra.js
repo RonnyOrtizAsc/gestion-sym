@@ -16,7 +16,7 @@ const ui = { vista: vistaGuardada, zoom: 1, sel: null, areaSel: null, moviendo: 
   editar: false, elSel: null, nuevo: null, borrar: false,
   prestar: null, verPrestamos: false, perdida: null,
   pz: null,
-  modo: null };   // modo rápido: "receso" o "almuerzo"; cada toque manda/regresa a esa pausa   // modo rápido: cada toque manda/regresa de receso   // pz = { grupo: [índices], nombre } pieza del plano seleccionada en Editar plano   // prestar = { h, nuevo, w, q }   // nuevo = { tipo, p1 } mientras se dibuja un elemento
+  modo: null, mas: false };   // modo rápido: "receso" o "almuerzo"; cada toque manda/regresa a esa pausa   // modo rápido: cada toque manda/regresa de receso   // pz = { grupo: [índices], nombre } pieza del plano seleccionada en Editar plano   // prestar = { h, nuevo, w, q }   // nuevo = { tipo, p1 } mientras se dibuja un elemento
 let ultimas = {};
 let dibujo = { clave: "", svg: "" };
 const ICONO = {
@@ -136,49 +136,41 @@ function hojaEditarArea(a) {
 
 const chipsMaterial = (actual, attr) => `<div class="chips">${Object.entries(MATERIALES).map(([k, l]) =>
   `<button class="chip" ${attr}="${k}" aria-pressed="${(actual || "block") === k}">${l}</button>`).join("")}</div>`;
+// Hoja corta: lo de todos los días (estado y alargar) a la vista; lo demás en "Más opciones"
+const masOpciones = () => `<button class="linkbtn" data-mas>${ui.mas ? "Menos opciones ▴" : "Más opciones ▾"}</button>`;
 function hojaPared(e) {
-  return `<div class="hoja-h"><div class="grow"><p class="eyebrow" style="margin:0">Editar plano · pared</p><b>${esc(e.nombre || MATERIALES[e.material || "block"])}</b>
-      <small>Largo ${fmtM(largoPared(e))}${ui.punta ? " · toca en el plano a dónde llega la punta" : " · arrastra los puntos verdes para alargarla"}</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
+  return `<div class="hoja-h"><div class="grow"><b>${esc(e.nombre || "Pared")} · ${fmtM(largoPared(e))}</b>
+      <small>Arrastra los puntos verdes para alargarla o acortarla</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
     ${botonesEstado(e.estado, "data-estado-el")}
-    ${chipsMaterial(e.material, "data-mat")}
+    <div class="acts" style="margin-top:8px;align-items:center">${ui.borrar ? `<button class="btn small danger" data-borrar-si>Sí, borrar</button><button class="btn small" data-borrar-no>No</button>`
+      : `<button class="btn small danger" data-borrar>Borrar</button>`}${masOpciones()}</div>
+    ${ui.mas ? `<p class="note" style="margin:10px 0 6px">Material</p>${chipsMaterial(e.material, "data-mat")}
     <form class="addrow medidas" id="medPared"><label>Alto <input id="pAlto" type="number" step="0.1" min="0.2" value="${e.alto ?? ""}" placeholder="auto"> m</label>
       <label>Grueso <input id="pGrueso" type="number" step="0.01" min="0.05" value="${gruesoPared(e)}"> m</label><button class="btn">Aplicar</button></form>
-    <div class="acts" style="margin-top:8px"><button class="btn small ${ui.punta ? "activo-edit" : ""}" data-punta>${ui.punta ? "Cancelar mover punta" : "Mover punta (alargar / acortar)"}</button></div>
-    <form class="addrow" id="nomEl"><input id="elNombre" value="${esc(e.nombre || "")}" placeholder="Nombre (opcional)" aria-label="Nombre de la pared"><button class="btn">Guardar nombre</button></form>
-    <div class="acts" style="margin-top:10px">${ui.borrar ? `<button class="btn danger" data-borrar-si>Sí, borrar pared</button><button class="btn" data-borrar-no>No</button>`
-      : `<button class="btn danger" data-borrar>Borrar pared</button>`}</div>`;
+    <form class="addrow" id="nomEl"><input id="elNombre" value="${esc(e.nombre || "")}" placeholder="Nombre (opcional)" aria-label="Nombre de la pared"><button class="btn">Guardar nombre</button></form>` : ""}`;
 }
-function hojaElemento(e) {
-  if (e.trazo) return hojaPared(e);
-  return `<div class="hoja-h"><div class="grow"><p class="eyebrow" style="margin:0">Editar plano · elemento</p><b>${esc(e.nombre || TIPOS_ELEMENTO[e.tipo])}</b>
-      <small>${TIPOS_ELEMENTO[e.tipo]}</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
-    ${botonesEstado(e.estado, "data-estado-el")}
-    ${e.trazo ? "" : `<form class="addrow medidas" id="medEl"><label>Ancho <input id="elAncho" type="number" step="0.05" min="0.1" value="${metros(e.w, "x").toFixed(2)}"> m</label>
-      <label>Largo <input id="elLargo" type="number" step="0.05" min="0.1" value="${metros(e.h, "y").toFixed(2)}"> m</label><button class="btn">Aplicar medidas</button></form>`}
-    <form class="addrow" id="nomEl"><input id="elNombre" value="${esc(e.nombre || "")}" placeholder="Nombre (ej. Gradas sala Nissan)" aria-label="Nombre del elemento"><button class="btn">Guardar nombre</button></form>
-    <div class="acts" style="margin-top:10px">${ui.borrar ? `<button class="btn danger" data-borrar-si>Sí, borrar del plano</button><button class="btn" data-borrar-no>No</button>`
-      : `<button class="btn danger" data-borrar>Borrar elemento</button>`}</div>`;
-}
-
 function hojaPieza() {
   const g = ui.pz.grupo, estados = g.map((i) => estadoPieza(i, S.piezas));
-  const actual = estados.every((e) => e === estados[0]) ? estados[0] : null;
-  return `<div class="hoja-h"><div class="grow"><p class="eyebrow" style="margin:0">Editar plano</p><b>${esc(ui.pz.nombre)}</b>
-      <small>${actual ? "Ahora: " + NOMBRE_ESTADO[actual] : "Tiene partes en distinto estado"}${esPared(g) && actual !== "quitado" ? " · arrastra los puntos verdes para alargarla" : " · resaltado en verde en el plano"}</small></div>
+  const actual = estados.every((e) => e === estados[0]) ? estados[0] : null, pared = esPared(g) && actual !== "quitado";
+  return `<div class="hoja-h"><div class="grow"><b>${esc(ui.pz.nombre)}</b>
+      <small>${actual === "quitado" ? "Marcada como que no va" : pared ? "Arrastra los puntos verdes para alargarla o acortarla" : "Resaltado en verde en el plano"}</small></div>
       <button class="x" data-cerrar aria-label="Cerrar">×</button></div>
-    ${botonesEstado(actual, "data-estado-pz")}
-    ${actual !== "quitado" && ui.pz.grupo.some((i) => ["muro", "lamina", "fino", "borde"].includes(PIEZAS[i][0])) ? `<button class="btn small" data-a-pared style="margin:8px 8px 0 0">Editar esta pared (material, alto, grueso)</button>` : ""}
-    <button class="btn small ${actual === "quitado" ? "" : "danger"}" data-estado-pz="${actual === "quitado" ? (PIEZAS[ui.pz.tocada][4] ? "existe" : "falta") : "quitado"}" style="margin-top:8px">${actual === "quitado" ? "Sí va (regresarla)" : "No va (quitar del plano)"}</button>
-    ${g.length > 1 ? `<button class="linkbtn" data-solo-pieza style="margin-top:10px">Marcar solo la línea que toqué</button>` : ""}`;
+    ${actual === "quitado" ? "" : botonesEstado(actual, "data-estado-pz")}
+    <div class="acts" style="margin-top:8px;align-items:center">
+      <button class="btn small ${actual === "quitado" ? "" : "danger"}" data-estado-pz="${actual === "quitado" ? (PIEZAS[ui.pz.tocada][4] ? "existe" : "falta") : "quitado"}">${actual === "quitado" ? "Sí va (regresarla)" : "No va"}</button>
+      ${actual !== "quitado" ? masOpciones() : ""}</div>
+    ${ui.mas && actual !== "quitado" ? `<div class="acts" style="margin-top:8px">${pared ? `<button class="btn small" data-a-pared>Cambiar material, alto o grueso</button>` : ""}
+      ${g.length > 1 ? `<button class="btn small" data-solo-pieza>Solo la línea que toqué</button>` : ""}</div>` : ""}`;
 }
 
 function hojaNuevo() {
-  return `<div class="hoja-h"><div class="grow"><p class="eyebrow" style="margin:0">Agregar al plano</p><b>${ui.nuevo.tipo ? TIPOS_ELEMENTO[ui.nuevo.tipo] : "¿Qué vas a agregar?"}</b>
-      <small>${ui.nuevo.tipo === "muro" ? (ui.nuevo.p1 ? "Toca donde termina este tramo. Se pega a las paredes cercanas y se endereza." : "Toca donde empieza la pared.") : ui.nuevo.tipo ? (ui.nuevo.p1 ? "Ahora toca la esquina opuesta. Después puedes ajustar la medida exacta en metros." : "Toca una esquina en el plano.") : "Elige el tipo y luego marca dos esquinas en el plano."}</small></div>
-      <button class="x" data-cerrar aria-label="Cancelar">×</button></div>
-    <div class="chips">${Object.entries(TIPOS_ELEMENTO).map(([k, l]) => `<button class="chip" data-tipo="${k}" aria-pressed="${ui.nuevo.tipo === k}">${l}</button>`).join("")}</div>
-    ${ui.nuevo.tipo === "muro" ? `<p class="note" style="margin:10px 0 6px">Material</p>${chipsMaterial(ui.nuevo.material, "data-mat-nuevo")}
-      <p class="note" style="margin:8px 0 0">Sigue tocando para hacer más tramos pegados. Cierra (×) cuando termines.</p>` : ""}`;
+  const pared = ui.nuevo.tipo === "muro";
+  return `<div class="hoja-h"><div class="grow"><b>${pared ? "Dibujar pared" : ui.nuevo.tipo ? "Agregar " + TIPOS_ELEMENTO[ui.nuevo.tipo].toLowerCase() : "¿Qué vas a agregar?"}</b>
+      <small>${pared ? (ui.nuevo.p1 ? "Toca donde termina. Sigue tocando para más tramos; cierra (×) al terminar." : "Toca donde empieza la pared.") : ui.nuevo.tipo ? (ui.nuevo.p1 ? "Ahora toca la esquina opuesta." : "Toca una esquina en el plano.") : "Elige qué vas a agregar."}</small></div>
+      <button class="x" data-cerrar aria-label="Terminar">×</button></div>
+    ${pared ? chipsMaterial(ui.nuevo.material, "data-mat-nuevo") : ""}
+    <button class="linkbtn" data-mas style="margin-top:8px">${ui.mas ? "Ocultar otras cosas ▴" : "Agregar otra cosa (gradas, jardinera…) ▾"}</button>
+    ${ui.mas ? `<div class="chips" style="margin-top:6px">${Object.entries(TIPOS_ELEMENTO).map(([k, l]) => `<button class="chip" data-tipo="${k}" aria-pressed="${ui.nuevo.tipo === k}">${l}</button>`).join("")}</div>` : ""}`;
 }
 
 // Pieza(s) del plano vistas como una pared recta: de punta a punta por el lado largo
@@ -327,7 +319,7 @@ export function render(V, { hacer, redibujar }) {
     hacer(async () => { const n = await agregarElemento(el); ui.elSel = n.id; ui.areaSel = null; return `${TIPOS_ELEMENTO[tipo]} agregado al plano`; });
     return true;
   };
-  const tocarPieza = (i) => { const grupo = grupoDe(i); ui.pz = { tocada: i, grupo, nombre: queEs(grupo) }; ui.areaSel = null; ui.elSel = null; redibujar(); };
+  const tocarPieza = (i) => { const grupo = grupoDe(i); ui.mas = false; ui.pz = { tocada: i, grupo, nombre: queEs(grupo) }; ui.areaSel = null; ui.elSel = null; redibujar(); };
   const textoPieza = (grupo) => { const est = grupo.map((i) => estadoPieza(i, S.piezas));
     return `<b>${esc(queEs(grupo))}</b><span>${est.every((e) => e === est[0]) ? NOMBRE_ESTADO[est[0]] : "Partes en distinto estado"}</span>`; };
   const tocarArea = (aid) => {
@@ -349,7 +341,7 @@ export function render(V, { hacer, redibujar }) {
         asaMueve: (idx, x, y) => { const A = asasActuales(); return A ? moverAsa(A, idx, x, y) : null; },
         asaSuelta: (idx, x, y) => { const A = asasActuales(); if (A) soltarAsa(A, moverAsa(A, idx, x, y).ab); },
         persona: tocarPersona, pieza: tocarPieza, textoPieza,
-        pared: (x, y) => { const e = S.elementos.filter((q) => q.trazo).find((q) => distPared(x, y, q) < 8); if (!e) return false; ui.elSel = e.id; ui.pz = null; ui.areaSel = null; ui.borrar = false; redibujar(); return true; },
+        pared: (x, y) => { const e = S.elementos.filter((q) => q.trazo).find((q) => distPared(x, y, q) < 8); if (!e) return false; ui.mas = false; ui.elSel = e.id; ui.pz = null; ui.areaSel = null; ui.borrar = false; redibujar(); return true; },
         punto: (px, py) => { // el área más pequeña que contiene el punto tocado
           if (tocarPunto(px, py)) return;
           if (ui.editar) { const e = S.elementos.find((e) => px >= e.x && px <= +e.x + +e.w && py >= e.y && py <= +e.y + +e.h); if (e) { ui.elSel = e.id; ui.areaSel = null; return redibujar(); } }
@@ -436,8 +428,8 @@ export function render(V, { hacer, redibujar }) {
 
   // ---- Interacción ----
   const $$ = (s) => V.querySelectorAll(s);
-  function cerrarTodo() { ui.punta = null; ui.pz = null; ui.sel = null; ui.areaSel = null; ui.moviendo = false; ui.elSel = null; ui.nuevo = null; ui.borrar = false; ui.prestar = null; ui.verPrestamos = false; ui.perdida = null; }
-  const cerrar = () => { ui.punta = null; ui.pz = null; ui.sel = null; ui.areaSel = null; ui.moviendo = false; ui.elSel = null; ui.nuevo = null; ui.borrar = false; ui.prestar = null; ui.verPrestamos = false; ui.perdida = null; redibujar(); };
+  function cerrarTodo() { ui.mas = false; ui.punta = null; ui.pz = null; ui.sel = null; ui.areaSel = null; ui.moviendo = false; ui.elSel = null; ui.nuevo = null; ui.borrar = false; ui.prestar = null; ui.verPrestamos = false; ui.perdida = null; }
+  const cerrar = () => { ui.mas = false; ui.punta = null; ui.pz = null; ui.sel = null; ui.areaSel = null; ui.moviendo = false; ui.elSel = null; ui.nuevo = null; ui.borrar = false; ui.prestar = null; ui.verPrestamos = false; ui.perdida = null; redibujar(); };
   $$("[data-vista]").forEach((b) => (b.onclick = () => { ui.vista = b.dataset.vista; try { localStorage.setItem("sym-vista", ui.vista); } catch (e) {} redibujar(); }));
   $$("[data-w]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); tocarPersona(b.dataset.w); }));
   $$("[data-cerrar]").forEach((b) => (b.onclick = cerrar));
@@ -458,7 +450,8 @@ export function render(V, { hacer, redibujar }) {
     hacer(async () => { await moverTrabajador(id, a.id); return `${primerNombre(trabajador(id).nombre)} → ${a.nombre}`; }); }));
   const he = V.querySelector("#hudEditar");
   if (he) he.onclick = () => { ui.pz = null; ui.editar = !ui.editar; ui.nuevo = null; ui.elSel = null; ui.areaSel = null; ui.sel = null; ui.moviendo = false; redibujar(); };
-  const ha = V.querySelector("#hudAgregar"); if (ha) ha.onclick = () => { ui.nuevo = { tipo: null, p1: null }; ui.elSel = null; ui.areaSel = null; redibujar(); };
+  const mo = V.querySelector("[data-mas]"); if (mo) mo.onclick = () => { ui.mas = !ui.mas; redibujar(); };
+  const ha = V.querySelector("#hudAgregar"); if (ha) ha.onclick = () => { ui.nuevo = ui.nuevo ? null : { tipo: "muro", p1: null, material: "block" }; ui.elSel = null; ui.areaSel = null; redibujar(); };
   $$("[data-tipo]").forEach((b) => (b.onclick = () => { ui.nuevo = { tipo: b.dataset.tipo, p1: null, material: ui.nuevo?.material }; redibujar(); }));
   $$("[data-mat-nuevo]").forEach((b) => (b.onclick = () => { ui.nuevo.material = b.dataset.matNuevo; redibujar(); }));
   $$("[data-mat]").forEach((b) => (b.onclick = () => { const id = ui.elSel, material = b.dataset.mat;
@@ -469,7 +462,7 @@ export function render(V, { hacer, redibujar }) {
     hacer(async () => { await editarElemento(id, cambios); return `Alto ${alto > 0 ? fmtM(alto) : "automático"} · grueso ${grueso > 0 ? fmtM(grueso) : "normal"}`; }); };
   const pp = V.querySelector("[data-punta]"); if (pp) pp.onclick = () => { ui.punta = ui.punta ? null : ui.elSel; redibujar(); };
   const ap = V.querySelector("[data-a-pared]"); if (ap) ap.onclick = () => { const w = paredDePieza(ui.pz.grupo); soltarAsa(null, null, w); };
-  $$("[data-el]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); if (ui.punta) return; ui.elSel = b.dataset.el; ui.areaSel = null; ui.borrar = false; redibujar(); }));
+  $$("[data-el]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); if (ui.punta) return; ui.mas = false; ui.elSel = b.dataset.el; ui.areaSel = null; ui.borrar = false; redibujar(); }));
   $$("[data-estado-area]").forEach((b) => (b.onclick = () => { const a = area(ui.areaSel), est = b.dataset.estadoArea;
     const X0 = (a.x / 100) * ANCHO, Y0 = (a.y / 100) * ALTO, X1 = X0 + (a.w / 100) * ANCHO, Y1 = Y0 + (a.h / 100) * ALTO;
     const dentro = PIEZAS.map((p, i) => [p, i]).filter(([p, i]) => p[0] !== "jardin" && S.piezas[i] !== "quitado" && p[1] >= X0 && p[1] <= X1 && p[2] >= Y0 && p[2] <= Y1).map(([, i]) => i);
