@@ -213,7 +213,7 @@ export async function moverTrabajador(wid, areaId) {
 // ---------- Plano: estados y elementos ----------
 export const ESTADOS = { existe: "Hecho", en_proceso: "En construcción", falta: "Falta" };
 export const NOMBRE_ESTADO = { ...ESTADOS, quitado: "No va" };   // "quitado" = pieza del plano que no va (no se dibuja ni se levanta)
-export const TIPOS_ELEMENTO = { grada: "Gradas", jardinera: "Jardinera", bano: "Baño", muro: "Pared", puerta: "Puerta", columna: "Columna", bodega: "Bodega", otro: "Otro" };
+export const TIPOS_ELEMENTO = { grada: "Gradas", jardinera: "Jardinera", bano: "Baño", muro: "Pared", puerta: "Puerta", columna: "Columna", bodega: "Bodega", techo: "Techo", otro: "Otro" };
 export async function estadoArea(id, estado) {
   ok(await sb.from("areas").update({ estado }).eq("id", id));
 }

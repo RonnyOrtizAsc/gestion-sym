@@ -99,6 +99,10 @@ function elemento(e) {
       ${vid ? `<path stroke="#3d8fd1" stroke-width="${Math.max(1.5, w * 0.35)}" fill="none" d="${vid}"/>` : ""}${pue ? `<path stroke="#6c5a3d" stroke-width="1.2" fill="none" d="${pue}"/>` : ""}</g>`;
   }
   const { X, Y, W, H } = px(e), col = ELEM[e.tipo] || ELEM.otro;
+  if (e.tipo === "techo") {   // techo: solo su contorno punteado con la cruz de proyección
+    const c = e.estado === "existe" ? "#4d565e" : e.estado === "en_proceso" ? "#b26b00" : "#8ea3b8";
+    return `<g class="elem" stroke="${c}" stroke-width="2" stroke-dasharray="10 7" fill="none"><rect x="${X}" y="${Y}" width="${W}" height="${H}"/><path d="M${X} ${Y}L${X + W} ${Y + H}M${X + W} ${Y}L${X} ${Y + H}" stroke-opacity=".5"/></g>`;
+  }
   const falta = e.estado === "falta", proceso = e.estado === "en_proceso";
   const trazo = falta ? `stroke="${col}" stroke-width="2.5" stroke-dasharray="8 6" fill="${col}" fill-opacity=".08"`
     : proceso ? `stroke="${col}" stroke-width="3" fill="url(#rayado)"` : `stroke="${col}" stroke-width="3" fill="${col}" fill-opacity=".28"`;

@@ -451,6 +451,23 @@ function techoExistente() {
   return g;
 }
 
+// Techo agregado en el plano (p. ej. el de Entrega de vehículos): lámina sobre una armazón, a "alto" metros.
+// Falta: transparente. En construcción: solo la armazón. Hecho: armazón y lámina.
+function techoElemento(e) {
+  const X = (e.x / 100) * ANCHO, Y = (e.y / 100) * ALTO, W = (e.w / 100) * ANCHO, H = (e.h / 100) * ALTO;
+  const g = new THREE.Group(); g.userData.techo = true; g.userData.elemento = e.id;
+  const c = aEscena(X + W / 2, Y + H / 2), y = E.altura(X + W / 2, Y + H / 2) * M + (+e.alto || 4.5) * M, w = W * ESC, h = H * ESC;
+  const marco = e.estado === "falta" ? MAT.falta : e.estado === "en_proceso" ? MAT.en_proceso : new THREE.MeshStandardMaterial({ color: 0x8b949b, metalness: 0.4, roughness: 0.5 });
+  const viga = (lx, lz, px, pz) => { const v = new THREE.Mesh(new THREE.BoxGeometry(lx, 0.45, lz), marco); v.position.set(c.x + px, y - 0.3, c.z + pz); v.castShadow = e.estado !== "falta"; g.add(v); };
+  viga(w, 0.3, 0, -h / 2); viga(w, 0.3, 0, h / 2); viga(0.3, h, -w / 2, 0); viga(0.3, h, w / 2, 0);
+  const n = Math.max(1, Math.round(h / (3 * M))); for (let k = 1; k < n; k++) viga(w, 0.22, 0, -h / 2 + (h * k) / n);   // largueros cada ~3 m
+  if (e.estado !== "en_proceso") {
+    const lam = e.estado === "falta" ? MAT.falta : new THREE.MeshStandardMaterial({ color: 0xb9c0c6, metalness: 0.5, roughness: 0.45, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false });
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.12, h), lam); m.position.set(c.x, y + 0.1, c.z); g.add(m);
+  }
+  return g;
+}
+
 // La bodega (edificación de block existente) con la otra construcción encima
 function bodega(a, base) {
   const c = caja(a), w = (c.x1 - c.x0) * ESC, h = (c.y1 - c.y0) * ESC, ctr = aEscena((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2);
@@ -525,11 +542,12 @@ function ponerEdificios(areas, elementos = [], piezas = {}) {
   rotulosNivel();
   // Elementos agregados (gradas, jardineras, baños…)
   const ALTO_EL = { grada: 2.2, jardinera: 1.2, bano: 3, muro: 3.5, puerta: 3, columna: 6, bodega: 4, otro: 2 };
-  const COL_EL = { grada: 0x8a8f96, jardinera: 0x5f9a45, bano: 0x4f9fd0, muro: 0x3b4046, puerta: 0x6c5a3d, columna: 0x3b4046, bodega: 0xee8420, otro: 0x7d6bb3 };
+  const COL_EL = { grada: 0x8a8f96, jardinera: 0x5f9a45, bano: 0x4f9fd0, muro: 0x3b4046, puerta: 0x6c5a3d, columna: 0x8d8a80, bodega: 0xee8420, techo: 0x8b949b, otro: 0x7d6bb3 };
   for (const e of elementos) {
     if (e.trazo) { E.edificios.add(paredDibujada(e, areas)); continue; }
+    if (e.tipo === "techo") { E.edificios.add(techoElemento(e)); continue; }
     const X = (e.x / 100) * ANCHO, Y = (e.y / 100) * ALTO, W = Math.max(2, (e.w / 100) * ANCHO), H = Math.max(2, (e.h / 100) * ALTO);
-    const alto = (ALTO_EL[e.tipo] || 2) * (e.estado === "en_proceso" ? 0.5 : 1), c = aEscena(X + W / 2, Y + H / 2);
+    const alto = (+e.alto ? e.alto * M : ALTO_EL[e.tipo] || 2) * (e.estado === "en_proceso" ? 0.5 : 1), c = aEscena(X + W / 2, Y + H / 2);
     const m = new THREE.Mesh(new THREE.BoxGeometry(W * ESC, alto, H * ESC), new THREE.MeshStandardMaterial({
       color: e.estado === "en_proceso" ? 0xc98a2c : COL_EL[e.tipo] || 0x7d6bb3, transparent: e.estado === "falta", opacity: e.estado === "falta" ? 0.18 : 1 }));
     m.position.set(c.x, E.altura(X + W / 2, Y + H / 2) * M + alto / 2, c.z); m.castShadow = e.estado !== "falta"; m.receiveShadow = true; E.edificios.add(m);

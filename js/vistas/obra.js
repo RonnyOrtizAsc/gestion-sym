@@ -284,7 +284,7 @@ export function render(V, { hacer, redibujar }) {
           style="left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%" aria-label="${esc(nombre)}, ${n} asignados"></button>`; }).join("")}
       ${ui.sinGente ? "" : tokens.map(([p, x, y]) => token(p, x, y)).join("")}
       ${ui.editar && !ui.nuevo ? capaPiezas(S.piezas, ui.pz?.grupo) : ""}
-      ${ui.editar ? S.elementos.map((e) => `<button class="el-btn ${e.trazo ? "pared" : ""} ${ui.elSel === e.id ? "sel" : ""}" data-el="${e.id}" style="left:${e.x}%;top:${e.y}%;width:${e.w}%;height:${e.h}%" aria-label="${esc(e.nombre || TIPOS_ELEMENTO[e.tipo])}"></button>`).join("") : ""}
+      ${ui.editar ? S.elementos.map((e) => `<button class="el-btn ${e.trazo ? "pared" : ""} ${e.tipo === "techo" ? "techo" : ""} ${ui.elSel === e.id ? "sel" : ""}" data-el="${e.id}" style="left:${e.x}%;top:${e.y}%;width:${e.w}%;height:${e.h}%" aria-label="${esc(e.nombre || TIPOS_ELEMENTO[e.tipo])}"></button>`).join("") : ""}
       ${(() => { const A = asasActuales(); if (!A) return ""; const [a, b] = A.puntas, P = (q) => `left:${(q[0] / ANCHO) * 100}%;top:${(q[1] / ALTO) * 100}%`;
         return `<svg class="capa-edicion" viewBox="0 0 ${ANCHO} ${ALTO}" preserveAspectRatio="none"><path id="previa" d="M${a[0]} ${a[1]}L${b[0]} ${b[1]}"/></svg>
           <span class="asa" data-asa="0" style="${P(a)}" aria-label="Arrastra para alargar"></span><span class="asa" data-asa="1" style="${P(b)}" aria-label="Arrastra para alargar"></span>`; })()}
