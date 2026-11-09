@@ -308,3 +308,28 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
 /* Almuerzo: igual que receso pero en azul */
 .almuerzo{--break:#2f7fc4;--break-soft:#dbe9f7;--on-break:#fff}
 @media (prefers-color-scheme:dark){.almuerzo{--break:#5aa6e8;--break-soft:#17304a;--on-break:#0b1a28}}
+
+/* ---- Obra: tres botones grandes y controles encima del mapa ---- */
+.acciones{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.accion{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:96px;padding:12px 6px 10px;border-radius:18px;border:2px solid transparent;text-align:center}
+.accion svg{width:30px;height:30px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;margin-bottom:2px}
+.accion b{font-size:15px;font-weight:800;line-height:1.15}
+.accion small{font-size:12px;font-weight:600;opacity:.85;line-height:1.2}
+.accion.pausa{background:var(--break);color:var(--on-break)}
+.accion.pausa.on{background:var(--surface);color:var(--break);border-color:var(--break);box-shadow:0 0 0 3px color-mix(in srgb,var(--break) 35%,transparent)}
+.accion.herr{background:var(--surface);color:var(--ink);border-color:var(--line)}
+.accion .cuenta{position:absolute;top:7px;right:9px;min-width:22px;height:22px;border-radius:11px;background:#f08a24;color:#fff;font:800 12px/22px inherit;font-style:normal;padding:0 6px}
+.accion:active{transform:scale(.97)}
+.mapa-caja{position:relative}
+.flot{position:absolute;z-index:9;display:flex;gap:6px;pointer-events:none}
+.flot>*,.flot-grupo>*{pointer-events:auto}
+.flot-arriba{top:10px;left:10px;right:10px;justify-content:space-between;align-items:flex-start}
+.flot-grupo{display:flex;gap:6px;pointer-events:none}
+.flot-abajo{right:10px;bottom:10px;flex-direction:column}
+.flot-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:40px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:800;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,.18)}
+.flot-btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.flot-btn.icono{width:44px;height:44px;padding:0;font-size:22px}
+.flot-btn[disabled]{opacity:.4}
+.flot-btn.on{background:var(--lime);color:var(--lime-ink);border-color:var(--lime)}
+.flot-vista{box-shadow:0 2px 10px rgba(0,0,0,.18);background:var(--surface);min-width:104px}
+.flot-vista button{min-width:48px;font-weight:800}

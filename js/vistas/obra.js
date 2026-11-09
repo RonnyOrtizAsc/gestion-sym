@@ -20,6 +20,7 @@ const ui = { vista: vistaGuardada, zoom: 1, sel: null, areaSel: null, moviendo: 
 let ultimas = {};
 let dibujo = { clave: "", svg: "" };
 const ICONO = {
+  comida: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 21V3c-2 1-3 4-3 7h3"/></svg>`,
   reloj: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>`,
   centrar: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>`,
   lapiz: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg>`,
@@ -110,8 +111,9 @@ function hojaPrestamos() {
   prestamosActivos().forEach((p) => (por[p.trabajador_id] ||= []).push(p));
   const perd = S.prestamos.filter((p) => p.estado === "perdido");
   const total = prestamosActivos().reduce((a, p) => a + p.cantidad, 0);
-  return `<div class="hoja-h"><div class="grow"><p class="eyebrow" style="margin:0">Préstamos</p><b>Qué debe entregar cada uno</b>
+  return `<div class="hoja-h"><div class="grow"><p class="eyebrow" style="margin:0">Herramientas</p><b>Quién tiene qué</b>
       <small>${total ? `${total} herramienta${total > 1 ? "s" : ""} afuera` : "Todo está en bodega"}</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
+    <button class="btn primary big" id="hojaPrestar" style="width:100%;margin:4px 0 12px">＋ Prestar herramienta</button>
     <div class="list">${Object.keys(por).length ? Object.entries(por).map(([wid, ps]) => `<div class="person-h">${esc(trabajador(wid).nombre)}<span class="pill out">debe ${ps.reduce((a, p) => a + p.cantidad, 0)}</span></div>
       ${ps.map((p) => `<div class="li">${miniatura(herramienta(p.herramienta_id), "foto chica")}<div class="grow"><b>${p.cantidad} × ${esc(herramienta(p.herramienta_id).nombre)}</b><small>desde ${new Date(p.prestado_en).toLocaleDateString("es-SV", { day: "numeric", month: "short" })} · ${hhmm(p.prestado_en)}</small></div>
         ${ui.perdida === p.id ? `<span class="acts"><button class="btn small danger" data-perdida-si="${p.id}">Sí, se perdió</button><button class="btn small" data-perdida-no>No</button></span>`
@@ -240,33 +242,34 @@ export function render(V, { hacer, redibujar }) {
   const prev = V.querySelector("#mapaScroll"), scroll = prev ? [prev.scrollLeft, prev.scrollTop] : null;
   const es3d = ui.vista === "3d";
 
-  // Barra de mando: aquí van las acciones de la obra (receso y las que se agreguen después)
-  const HERRAMIENTAS = [
-    `<button class="hud-btn ${ui.modo === "receso" ? "activo-receso" : ""}" id="hudReceso" aria-pressed="${ui.modo === "receso"}">${ICONO.reloj}<span>${ui.modo === "receso"
-      ? `Receso de la ${turnoActual() === "manana" ? "mañana" : "tarde"}` : "Receso"}${nRec ? ` <b class="cuenta">${nRec}</b>` : ""}</span></button>`,
-    `<button class="hud-btn almuerzo ${alm ? "activo-receso" : ""}" id="hudAlmuerzo" aria-pressed="${alm}">${ICONO.reloj}<span>Almuerzo${nAlm ? ` <b class="cuenta">${nAlm}</b>` : ""}</span></button>`,
-  ];
+  // Tres botones grandes (lo de todos los días); los controles del mapa van encima del mapa
+  const nPrest = prestamosActivos().reduce((a, p) => a + p.cantidad, 0), recOn = ui.modo === "receso";
+  const ACCIONES = ui.editar ? "" : `<div class="acciones" role="toolbar" aria-label="Acciones de la obra">
+    <button class="accion pausa ${recOn ? "on" : ""}" id="hudReceso" aria-pressed="${recOn}">${ICONO.reloj}
+      <b>${recOn ? "Terminar receso" : "Receso"}</b><small>${recOn ? (nRec ? `${nRec} afuera` : "Toca a quien sale") : nRec ? `${nRec} en receso` : "15 minutos"}</small></button>
+    <button class="accion pausa almuerzo ${alm ? "on" : ""}" id="hudAlmuerzo" aria-pressed="${alm}">${ICONO.comida}
+      <b>${alm ? "Terminar almuerzo" : "Almuerzo"}</b><small>${alm ? (nAlm ? `${nAlm} afuera` : "Toca a quien sale") : nAlm ? `${nAlm} almorzando` : "1 hora"}</small></button>
+    <button class="accion herr" id="hudHerr">${ICONO.llave}<b>Herramientas</b><small>${nPrest ? `${nPrest} prestada${nPrest > 1 ? "s" : ""}` : "Todo en bodega"}</small>
+      ${nPrest ? `<i class="cuenta">${nPrest}</i>` : ""}</button>
+  </div>`;
+  const FLOTANTES = `<div class="flot flot-arriba">
+      <div class="flot-grupo">${receso ? "" : `<button class="flot-btn ${ui.editar ? "on" : ""}" id="hudEditar">${ui.editar ? "✓" : ICONO.lapiz}<span>${ui.editar ? "Listo" : "Editar"}</span></button>`}
+        ${ui.editar && !receso ? `<button class="flot-btn ${ui.nuevo ? "on" : ""}" id="hudAgregar"><b aria-hidden="true">＋</b><span>Pared</span></button>` : ""}</div>
+      <div class="seg mini flot-vista" role="group" aria-label="Vista"><button data-vista="2d" aria-pressed="${!es3d}">2D</button><button data-vista="3d" aria-pressed="${es3d}">3D</button></div>
+    </div>
+    <div class="flot flot-abajo">${es3d ? `<button class="flot-btn icono" id="centrar" aria-label="Volver a la vista inicial">${ICONO.centrar}</button>`
+      : `<button class="flot-btn icono" data-z="1" aria-label="Acercar" ${ui.zoom === ZOOMS.at(-1) ? "disabled" : ""}>+</button><button class="flot-btn icono" data-z="-1" aria-label="Alejar" ${ui.zoom === ZOOMS[0] ? "disabled" : ""}>−</button>`}</div>`;
 
   V.innerHTML = `<div class="titulo-obra"><div><p class="eyebrow">${esc(o.nombre)}${o.propietario ? " · " + esc(o.propietario) : ""}</p>
-    <h2>${alm ? "Modo almuerzo" : receso ? "Modo receso" : "Centro de mando"}</h2></div></div>
-  <div class="hud" role="toolbar" aria-label="Acciones de la obra">
-    ${HERRAMIENTAS.join("")}
-    ${receso || ui.editar ? "" : `<button class="hud-btn secundario" id="hudPrestar">${ICONO.llave}<span>Prestar</span></button>
-      <button class="hud-btn secundario" id="hudVerPrestamos">${ICONO.lista}<span>Ver préstamos${prestamosActivos().length ? ` <b class="cuenta">${prestamosActivos().reduce((a, p) => a + p.cantidad, 0)}</b>` : ""}</span></button>`}
-    ${receso ? "" : `<button class="hud-btn secundario ${ui.editar ? "activo-edit" : ""}" id="hudEditar">${ICONO.lapiz}<span>${ui.editar ? "Listo" : "Editar plano"}</span></button>`}
-    ${ui.editar && !receso ? `<button class="hud-btn secundario ${ui.nuevo ? "activo-edit" : ""}" id="hudAgregar"><b aria-hidden="true">＋</b><span>Agregar</span></button>` : ""}
-    <span class="hud-sep"></span>
-    <div class="seg mini hud-vista" role="group" aria-label="Vista">
-      <button data-vista="2d" aria-pressed="${!es3d}">2D</button><button data-vista="3d" aria-pressed="${es3d}">3D</button></div>
-    ${es3d ? `<button class="hud-icono" id="centrar" aria-label="Volver a la vista inicial">${ICONO.centrar}</button>`
-      : `<div class="zoom"><button data-z="-1" aria-label="Alejar" ${ui.zoom === ZOOMS[0] ? "disabled" : ""}>−</button><button data-z="1" aria-label="Acercar" ${ui.zoom === ZOOMS.at(-1) ? "disabled" : ""}>+</button></div>`}
-  </div>
-  ${receso ? `<p class="pista receso ${alm ? "almuerzo" : ""}">Toca a quien sale ${alm ? "a almorzar (se pone azul, cuenta su hora)" : "a receso (se pone naranja)"}. Tócalo otra vez cuando regrese. Toca <b>${alm ? "Almuerzo" : "Receso"}</b> otra vez para terminar: todos regresan a trabajar.</p>`
+    <h2>${ui.editar ? "Editando el plano" : alm ? "Modo almuerzo" : receso ? "Modo receso" : "Centro de mando"}</h2></div></div>
+  ${ACCIONES}
+  ${receso ? `<p class="pista receso ${alm ? "almuerzo" : ""}">Toca a quien sale ${alm ? "a almorzar" : "a receso"} y otra vez cuando regrese. Para terminar, toca <b>${alm ? "Terminar almuerzo" : "Terminar receso"}</b>.</p>`
     : ui.moviendo && w ? `<p class="pista mover">Toca el área a donde va <b>${esc(primerNombre(w.nombre))}</b> <button class="btn small" data-cancelar-mover>Cancelar</button></p>`
-    : ui.punta ? `<p class="pista mover">Toca a dónde llega la pared: se mueve la punta más cercana (se pega y se endereza).</p>`
-    : ui.nuevo?.tipo ? `<p class="pista mover">${ui.nuevo.tipo === "muro" ? (ui.nuevo.p1 ? "Toca donde termina la" : "Toca donde empieza la") : ui.nuevo.p1 ? "Toca la esquina opuesta de:" : "Toca una esquina de:"} <b>${TIPOS_ELEMENTO[ui.nuevo.tipo]}</b></p>`
-    : ui.editar ? `<p class="pista mover">Editando: pasa el mouse o toca una pared, puerta o grada (se pone verde) y márcala <b>Hecho</b>, <b>En construcción</b> o <b>Falta</b>.${es3d ? " Los techos se esconden mientras editas." : ""}</p>`
-    : `<p class="pista">Toca un área para ver quién está ahí, o toca a una persona para moverla.${es3d ? " Arrastra para moverte, dos dedos o clic derecho para girar, pellizca o rueda para acercar." : ""}</p>`}
+    : ui.punta ? `<p class="pista mover">Toca a dónde llega la pared.</p>`
+    : ui.nuevo?.tipo ? `<p class="pista mover">${ui.nuevo.tipo === "muro" ? (ui.nuevo.p1 ? "Ahora toca donde termina la pared." : "Toca donde empieza la pared.") : ui.nuevo.p1 ? "Toca la esquina opuesta." : "Toca una esquina."}</p>`
+    : ui.editar ? `<p class="pista mover">Toca una pared, puerta o grada y márcala. Para alargar una pared, arrastra sus puntos verdes.</p>`
+    : `<p class="pista">Toca un área o a una persona.${es3d ? " Arrastra para moverte; con dos dedos giras." : ""}</p>`}
+  <div class="mapa-caja">
   ${es3d ? `<div class="escena" id="escena"><p class="cargando">Levantando la obra en 3D…</p></div>`
   : `<div class="mapa-scroll ${ui.zoom > 1 ? "acercado" : ""}" id="mapaScroll">
     <div class="mapa z${ZOOMS.indexOf(ui.zoom)} ${ui.moviendo ? "moviendo" : ""} ${receso ? "en-receso" : ""} ${ui.editar ? "editando" : ""}" style="width:${ui.zoom * 100}%;aspect-ratio:${prop}">
@@ -285,6 +288,7 @@ export function render(V, { hacer, redibujar }) {
       ${ui.nuevo?.tipo || ui.punta || ui.hueco ? `<div class="captura" id="captura"></div>` : ""}
     </div>
   </div>`}
+  ${FLOTANTES}</div>
   <div class="section" style="margin-top:12px">${resumen()}</div>
   ${sinArea.length ? `<div class="bandeja"><p class="eyebrow">Sin área asignada (${sinArea.length})</p><div class="chips">${sinArea.map(chipPersona).join("")}</div>
     ${receso ? "" : `<p class="note">Toca a alguien y luego “Mover de área”, o toca un área del mapa para asignar gente.</p>`}</div>` : ""}
@@ -522,8 +526,8 @@ export function render(V, { hacer, redibujar }) {
   const sp = V.querySelector("[data-solo-pieza]"); if (sp) sp.onclick = () => { ui.pz.grupo = [ui.pz.tocada]; ui.pz.nombre = queEs(ui.pz.grupo); redibujar(); };
 
   // Prestar / Ver préstamos
-  const hp = V.querySelector("#hudPrestar"); if (hp) hp.onclick = () => { cerrarTodo(); ui.prestar = { h: null, nuevo: "", w: null, q: 1 }; redibujar(); };
-  const hv = V.querySelector("#hudVerPrestamos"); if (hv) hv.onclick = () => { cerrarTodo(); ui.verPrestamos = true; redibujar(); };
+  const hh = V.querySelector("#hudHerr"); if (hh) hh.onclick = () => { cerrarTodo(); ui.verPrestamos = true; redibujar(); };
+  const hp = V.querySelector("#hojaPrestar"); if (hp) hp.onclick = () => { cerrarTodo(); ui.prestar = { h: null, nuevo: "", w: null, q: 1 }; redibujar(); };
   if (ui.prestar) {
     $$("[data-ph]").forEach((b) => (b.onclick = () => { ui.prestar.h = b.dataset.ph; ui.prestar.nuevo = ""; ui.prestar.q = 1; redibujar(); }));
     $$("[data-pw]").forEach((b) => (b.onclick = () => { ui.prestar.w = b.dataset.pw; redibujar(); }));
