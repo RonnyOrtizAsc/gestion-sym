@@ -12,7 +12,8 @@ import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, CAJAS, grupoDe, queEs, pe
 
 const ZOOMS = [1, 1.6, 2.4, 3.4];
 let vistaGuardada = "2d"; try { vistaGuardada = localStorage.getItem("sym-vista") || "2d"; } catch (e) {}
-const ui = { vista: vistaGuardada, zoom: 1, sel: null, areaSel: null, moviendo: false,
+let sinGenteGuardado = false; try { sinGenteGuardado = localStorage.getItem("sym-sin-gente") === "1"; } catch (e) {}
+const ui = { vista: vistaGuardada, sinGente: sinGenteGuardado, zoom: 1, sel: null, areaSel: null, moviendo: false,
   editar: false, elSel: null, nuevo: null, borrar: false,
   prestar: null, verPrestamos: false, perdida: null,
   pz: null,
@@ -20,6 +21,8 @@ const ui = { vista: vistaGuardada, zoom: 1, sel: null, areaSel: null, moviendo: 
 let ultimas = {};
 let dibujo = { clave: "", svg: "" };
 const ICONO = {
+  ojo: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>`,
+  ojoNo: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A10.6 10.6 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6C3.8 8.4 2 12 2 12s3.5 7 10 7c1.8 0 3.4-.5 4.8-1.3M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>`,
   comida: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 21V3c-2 1-3 4-3 7h3"/></svg>`,
   reloj: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>`,
   centrar: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>`,
@@ -255,7 +258,8 @@ export function render(V, { hacer, redibujar }) {
   const FLOTANTES = `<div class="flot flot-arriba">
       <div class="flot-grupo">${receso ? "" : `<button class="flot-btn ${ui.editar ? "on" : ""}" id="hudEditar">${ui.editar ? "✓" : ICONO.lapiz}<span>${ui.editar ? "Listo" : "Editar"}</span></button>`}
         ${ui.editar && !receso ? `<button class="flot-btn ${ui.nuevo ? "on" : ""}" id="hudAgregar"><b aria-hidden="true">＋</b><span>Pared</span></button>` : ""}</div>
-      <div class="seg mini flot-vista" role="group" aria-label="Vista"><button data-vista="2d" aria-pressed="${!es3d}">2D</button><button data-vista="3d" aria-pressed="${es3d}">3D</button></div>
+      <div class="flot-grupo"><button class="flot-btn icono ${ui.sinGente ? "on" : ""}" id="verGente" aria-pressed="${ui.sinGente}" aria-label="${ui.sinGente ? "Mostrar a los trabajadores" : "Ocultar a los trabajadores y ver solo el plano"}" title="${ui.sinGente ? "Mostrar trabajadores" : "Solo el plano"}">${ui.sinGente ? ICONO.ojoNo : ICONO.ojo}</button>
+      <div class="seg mini flot-vista" role="group" aria-label="Vista"><button data-vista="2d" aria-pressed="${!es3d}">2D</button><button data-vista="3d" aria-pressed="${es3d}">3D</button></div></div>
     </div>
     <div class="flot flot-abajo">${es3d ? `<button class="flot-btn icono" id="centrar" aria-label="Volver a la vista inicial">${ICONO.centrar}</button>`
       : `<button class="flot-btn icono" data-z="1" aria-label="Acercar" ${ui.zoom === ZOOMS.at(-1) ? "disabled" : ""}>+</button><button class="flot-btn icono" data-z="-1" aria-label="Alejar" ${ui.zoom === ZOOMS[0] ? "disabled" : ""}>−</button>`}</div>`;
@@ -278,7 +282,7 @@ export function render(V, { hacer, redibujar }) {
         const nombre = a.es_receso ? a.uso_actual || "Zona de receso" : a.nombre;
         return `<button class="area ${n ? "ocupada" : ""} ${a.es_receso ? "zr" : ""} ${ui.areaSel === a.id ? "sel" : ""}" data-area="${a.id}"
           style="left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%" aria-label="${esc(nombre)}, ${n} asignados"></button>`; }).join("")}
-      ${tokens.map(([p, x, y]) => token(p, x, y)).join("")}
+      ${ui.sinGente ? "" : tokens.map(([p, x, y]) => token(p, x, y)).join("")}
       ${ui.editar && !ui.nuevo ? capaPiezas(S.piezas, ui.pz?.grupo) : ""}
       ${ui.editar ? S.elementos.map((e) => `<button class="el-btn ${e.trazo ? "pared" : ""} ${ui.elSel === e.id ? "sel" : ""}" data-el="${e.id}" style="left:${e.x}%;top:${e.y}%;width:${e.w}%;height:${e.h}%" aria-label="${esc(e.nombre || TIPOS_ELEMENTO[e.tipo])}"></button>`).join("") : ""}
       ${(() => { const A = asasActuales(); if (!A) return ""; const [a, b] = A.puntas, P = (q) => `left:${(q[0] / ANCHO) * 100}%;top:${(q[1] / ALTO) * 100}%`;
@@ -358,7 +362,7 @@ export function render(V, { hacer, redibujar }) {
   };
 
   if (es3d) {
-    const personas = tokens.map(([p, x, y]) => ({ id: p.id, nombre: primerNombre(p.nombre) + (p.actividad && !recesoAbierto(p.id) ? " · " + p.actividad : ""), x: (x / 100) * ANCHO, y: (y / 100) * ALTO, receso: !!recesoAbierto(p.id), almuerzo: esAlmuerzo(recesoAbierto(p.id)), sel: ui.sel === p.id }));
+    const personas = ui.sinGente ? [] : tokens.map(([p, x, y]) => ({ id: p.id, nombre: primerNombre(p.nombre) + (p.actividad && !recesoAbierto(p.id) ? " · " + p.actividad : ""), x: (x / 100) * ANCHO, y: (y / 100) * ALTO, receso: !!recesoAbierto(p.id), almuerzo: esAlmuerzo(recesoAbierto(p.id)), sel: ui.sel === p.id }));
     import("./escena3d.js").then((m) => {
       const cont = V.querySelector("#escena"); if (!cont) return;
       cont.querySelector(".cargando")?.remove();
@@ -526,6 +530,7 @@ export function render(V, { hacer, redibujar }) {
   const sp = V.querySelector("[data-solo-pieza]"); if (sp) sp.onclick = () => { ui.pz.grupo = [ui.pz.tocada]; ui.pz.nombre = queEs(ui.pz.grupo); redibujar(); };
 
   // Prestar / Ver préstamos
+  const vg = V.querySelector("#verGente"); if (vg) vg.onclick = () => { ui.sinGente = !ui.sinGente; try { localStorage.setItem("sym-sin-gente", ui.sinGente ? "1" : "0"); } catch (e) {} redibujar(); };
   const hh = V.querySelector("#hudHerr"); if (hh) hh.onclick = () => { cerrarTodo(); ui.verPrestamos = true; redibujar(); };
   const hp = V.querySelector("#hojaPrestar"); if (hp) hp.onclick = () => { cerrarTodo(); ui.prestar = { h: null, nuevo: "", w: null, q: 1 }; redibujar(); };
   if (ui.prestar) {
@@ -556,6 +561,7 @@ export function render(V, { hacer, redibujar }) {
   const modoPausa = (tipo) => {
     cerrarTodo(); const antes = ui.modo, nombre = { receso: "Receso", almuerzo: "Almuerzo" };
     ui.modo = antes === tipo ? null : tipo;
+    if (ui.modo) ui.sinGente = false;   // para mandar a receso hay que ver a la gente
     const abiertos = (t) => enReceso().some((r) => (r.tipo || "receso") === t);
     if (antes && abiertos(antes)) return hacer(async () => { await terminarReceso(antes); return `${nombre[antes]} terminado, todos a trabajar`; });
     redibujar();
