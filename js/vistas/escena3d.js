@@ -276,6 +276,7 @@ function ponerParedes(areas, piezas) {
     const est = estadoPieza(i, piezas), c = CAJAS[i], cx = (c.x0 + c.x1) / 2, cy = (c.y0 + c.y1) / 2;
     if (!lista[est]) return;   // "no va"
     const tipo = tipoEn(areas, cx, cy), base = E.altura(cx, cy) * M;
+    if (enSupervisor(cx, cy)) return;   // la oficina del supervisor se dibuja completa aparte (ver supervisor)
     if (clase === "columna") {
       if (enTaller(cx, cy)) return;   // las del taller son de acero y van con su estructura (ver estructuraTaller)
       const alto = (ALTO_MURO[tipo] || 4.5) * M * (est === "en_proceso" ? 0.5 : 1), lado = Math.max(0.7, Math.min(2.5, c.largo * ESC));
@@ -539,6 +540,40 @@ function ponerJardineras() {
   }
 }
 
+// ---------- Oficina del supervisor de taller (como en obra) ----------
+// Caseta de paneles blancos con franja naranja, fila de ventanas oscuras y dos puertas al frente (sur, hacia el rebalse técnico).
+// Encima, techo de lámina sobre cerchas que sale hacia el frente apoyado en un poste. Sin la fascia de publicidad.
+const SUPERVISOR = { x0: 829, x1: 931, y0: 175, y1: 260 }, TECHO_SUP = { x0: 822, x1: 933, y0: 168, y1: 300 };
+const enSupervisor = (x, y) => x > SUPERVISOR.x0 - 3 && x < SUPERVISOR.x1 + 3 && y > SUPERVISOR.y0 - 3 && y < SUPERVISOR.y1 + 3;
+function supervisor(base) {
+  const g = new THREE.Group(), q = SUPERVISOR, w = (q.x1 - q.x0) * ESC, h = (q.y1 - q.y0) * ESC, c = aEscena((q.x0 + q.x1) / 2, (q.y0 + q.y1) / 2);
+  const alto = 3 * M, blanco = new THREE.MeshStandardMaterial({ color: 0xe8e6e1, roughness: 0.8 });
+  const naranja = new THREE.MeshStandardMaterial({ color: 0xe0662e, roughness: 0.8 }), vidrio = new THREE.MeshStandardMaterial({ color: 0x23282d, roughness: 0.3, metalness: 0.4 });
+  const alum = new THREE.MeshStandardMaterial({ color: 0xc8ccd0, metalness: 0.6, roughness: 0.4 }), acero = new THREE.MeshStandardMaterial({ color: 0x9aa0a6, metalness: 0.5, roughness: 0.5 });
+  const caseta = new THREE.Mesh(new THREE.BoxGeometry(w, alto, h), blanco); caseta.position.set(c.x, base + alto / 2, c.z); caseta.castShadow = caseta.receiveShadow = true; g.add(caseta);
+  const franja = (desde, alto2, mat) => { const f = new THREE.Mesh(new THREE.BoxGeometry(w + 0.06, alto2 * M, h + 0.06), mat); f.position.set(c.x, base + (desde + alto2 / 2) * M, c.z); g.add(f); };
+  franja(0, 0.45, naranja); franja(0.45, 0.12, blanco); franja(0.57, 0.38, naranja);   // franja naranja con raya blanca, como en la foto
+  // frente (sur): ventanas corridas y dos puertas de vidrio con marco de aluminio
+  const zf = c.z + h / 2 + 0.05, pieza = (x0, x1, desde, alto2, mat, salir = 0) => { const m = new THREE.Mesh(new THREE.BoxGeometry((x1 - x0) * ESC, alto2 * M, 0.1), mat); m.position.set(aEscena((x0 + x1) / 2, 0).x, base + (desde + alto2 / 2) * M, zf + salir); g.add(m); };
+  const puertas = [[833, 848], [878, 893]];
+  for (const [x0, x1] of puertas) { pieza(x0 - 0.8, x1 + 0.8, 0, 2.2, alum); pieza(x0, x1, 0.02, 2.1, vidrio, 0.02); }
+  const tramos = [[848, 878], [893, 929]];
+  for (const [x0, x1] of tramos) { pieza(x0 + 1, x1 - 1, 0.95, 0.75, vidrio, 0.01); for (let x = x0 + 1; x <= x1 - 1; x += 7) pieza(x - 0.3, x + 0.3, 0.95, 0.75, alum, 0.02); }
+  // costado oeste: también ventanas corridas
+  { const v = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.75 * M, h * 0.8), vidrio); v.position.set(c.x - w / 2 - 0.05, base + (0.95 + 0.375) * M, c.z); g.add(v); }
+  // techo encima (plano, lámina sobre cerchas) que sale al frente apoyado en un poste
+  const t = TECHO_SUP, tw = (t.x1 - t.x0) * ESC, th = (t.y1 - t.y0) * ESC, tc = aEscena((t.x0 + t.x1) / 2, (t.y0 + t.y1) / 2), yt = base + 4.6 * M;
+  const lam = new THREE.Mesh(new THREE.BoxGeometry(tw, 0.15, th), new THREE.MeshStandardMaterial({ color: 0xb9c0c6, metalness: 0.5, roughness: 0.45, side: THREE.DoubleSide }));
+  lam.position.set(tc.x, yt, tc.z); lam.castShadow = true; g.add(lam);
+  const n = 5; for (let k = 0; k <= n; k++) { const cer = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.9, th), acero); cer.position.set(tc.x - tw / 2 + (tw * k) / n, yt - 0.55, tc.z); g.add(cer); }
+  const borde = new THREE.Mesh(new THREE.BoxGeometry(tw, 0.9, 0.25), acero); borde.position.set(tc.x, yt - 0.55, tc.z + th / 2); g.add(borde);
+  const pv = aEscena(880, t.y1 - 4), ap = yt - 0.9 - base;   // poste del frente
+  const poste = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, ap, 12), new THREE.MeshStandardMaterial({ color: 0xf2f2f0, roughness: 0.6 }));
+  poste.position.set(pv.x, base + ap / 2, pv.z); poste.castShadow = true; g.add(poste);
+  const pie = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.9 * M, 12), new THREE.MeshStandardMaterial({ color: 0xe8a21b })); pie.position.set(pv.x, base + 0.45 * M, pv.z); g.add(pie);
+  return g;
+}
+
 // La bodega (edificación de block existente) con la otra construcción encima
 function bodega(a, base) {
   const c = caja(a), w = (c.x1 - c.x0) * ESC, h = (c.y1 - c.y0) * ESC, ctr = aEscena((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2);
@@ -624,6 +659,7 @@ function ponerEdificios(areas, elementos = [], piezas = {}) {
     const c = caja(a), base = E.altura((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2) * M;
     if (a.es_receso) { E.edificios.add(bodega(a, base)); continue; }
     if (/^taller$/i.test(a.nombre || "")) { E.edificios.add(estructuraTaller(base)); continue; }
+    if (/supervisor/i.test(a.nombre || "")) { E.edificios.add(supervisor(base)); continue; }
     const bajoTechoExistente = TECHO_EXISTENTE.some((t) => { const cx = (c.x0 + c.x1) / 2, cy = (c.y0 + c.y1) / 2; return cx > t.x0 && cx < t.x1 && cy > t.y0 && cy < t.y1; });
     if (ALTO_MURO[a.tipo] && !bajoTechoExistente) { const t = techo(a, base, ALTO_MURO[a.tipo] * M * (a.estado === "en_proceso" ? 0.5 : 1)); t.userData.techo = true; E.edificios.add(t); }
   }
