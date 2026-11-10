@@ -2,7 +2,7 @@
 // y cada trabajador como un muñequito con casco que camina a su área (o a la bodega en el receso).
 import * as THREE from "three";
 import { MapControls } from "three/addons/controls/MapControls.js";
-import { ANCHO, ALTO, PIEZAS, CAJAS, estadoPieza, piezaEn, grupoDe, segmentos, puntas, gruesoPared, tramosPared } from "./mapa-svg.js";
+import { ANCHO, ALTO, PIEZAS, CAJAS, estadoPieza, piezaEn, grupoDe, segmentos, puntas, gruesoPared, tramosPared, CHICAS, RAMPAS, rampaDe } from "./mapa-svg.js";
 
 const ESC = 0.1;                                   // unidades del plano → metros de la escena
 const VERDE = 0x2b9a57, NARANJA = 0xee8420, LIMA = 0xc4ee4a;
@@ -66,7 +66,8 @@ function crear() {
     const visible = (o) => { for (; o; o = o.parent) if (!o.visible || o.userData.techo) return false; return true; };
     const golpe = ray.intersectObjects([piso, ...edificios.children], true).find((h) => !h.object.isSprite && visible(h.object));
     if (!golpe) return -1;
-    return piezaEn(golpe.point.x / ESC + ANCHO / 2, golpe.point.z / ESC + ALTO / 2, 10);
+    const i = piezaEn(golpe.point.x / ESC + ANCHO / 2, golpe.point.z / ESC + ALTO / 2, 10);
+    return CHICAS.has(i) ? -1 : i;   // los cuadritos sueltos del plano no se tocan en 3D
   };
   // Agarraderas: se arrastran para alargar la pared (la cámara no se mueve mientras tanto)
   let arrastre = null; const plano = new THREE.Plane(), golpeP = new THREE.Vector3();
@@ -184,8 +185,24 @@ const LADO_BOULEVARD = [
   { c: { x0: 85, y0: 1310, x1: 282, y1: 1446 }, eje: "y", n: [-0.64, -0.64] },
   { c: { x0: 282, y0: 1322, x1: 455, y1: 1446 }, eje: "x", n: [-0.64, 0.99] },
 ];
+// Estado de una rampa del plano: el de la mayoría de sus rayas (se marcan juntas)
+const rayasDe = (r) => RAMPAS.find((q) => q.c.x0 < r.c.x1 && q.c.x1 > r.c.x0 && q.c.y0 < r.c.y1 && q.c.y1 > r.c.y0);
+function estadoRampa(r, piezas) {
+  const q = rayasDe(r); if (!q) return "existe";
+  const n = {}; for (const i of q.piezas) { const e = estadoPieza(i, piezas); n[e] = (n[e] || 0) + 1; }
+  return Object.entries(n).sort((a, b) => b[1] - a[1])[0][0];
+}
+// Losa inclinada de una rampa (para la que falta o va a medias, y para resaltarla)
+function losaRampa(r, mat, alza = 0.04) {
+  const n0 = r.n[0] * EXAGERA * M, n1 = r.n[1] * EXAGERA * M, a = aEscena(r.c.x0, r.c.y0), b = aEscena(r.c.x1, r.c.y1);
+  const geo = new THREE.BufferGeometry(), x = r.eje === "x";
+  const h = (sx, sz) => (x ? (sx === a.x ? n0 : n1) : (sz === a.z ? n0 : n1)) + alza;
+  const v = [[a.x, a.z], [b.x, a.z], [b.x, b.z], [a.x, b.z]].flatMap(([sx, sz]) => [sx, h(sx, sz), sz]);
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(v, 3)); geo.setIndex([0, 2, 1, 0, 3, 2]); geo.computeVertexNormals();
+  const m = new THREE.Mesh(geo, mat); m.material.side = THREE.DoubleSide; return m;
+}
 // Prepara la función de altura del terreno: cada área a su nivel; las rampas suben de un nivel al otro
-function prepararNiveles(areas) {
+function prepararNiveles(areas, piezas = {}) {
   const planas = areas.filter((a) => !esRampa(a)).map((a) => ({ a, c: caja(a), n: nivelFijo(a) }));
   const fuera = (x, y) => x < 0.06 * ANCHO || y > 0.955 * ALTO;   // calle y acera
   const plano = (x, y) => {
@@ -205,7 +222,8 @@ function prepararNiveles(areas) {
     const eje = Math.abs(dx - dy) < 0.3 ? (c.x1 - c.x0 >= c.y1 - c.y0 ? "x" : "y") : dx > dy ? "x" : "y";
     return { a, c, eje, n: eje === "x" ? ex : ey };
   });
-  rampas.unshift(RAMPA_ESTE, ...LADO_BOULEVARD);   // RAMPA_CHERY aún no existe en obra: esa franja queda plana como el resto de lo techado
+  rampas.unshift(RAMPA_ESTE, ...LADO_BOULEVARD);
+  if (estadoRampa(RAMPA_CHERY, piezas) === "existe") rampas.unshift(RAMPA_CHERY);   // mientras no esté hecha, esa franja queda plana
   E.altura = (x, y) => EXAGERA * alturaReal(x, y);
   const alturaReal = (x, y) => {
     for (const r of rampas) if (x >= r.c.x0 && x <= r.c.x1 && y >= r.c.y0 && y <= r.c.y1) {
@@ -273,6 +291,7 @@ function ponerParedes(areas, piezas) {
   const lista = { existe: [], en_proceso: [], falta: [] };
   PIEZAS.forEach(([clase, , , d], i) => {
     if (clase !== "muro" && clase !== "columna") return;
+    if (CHICAS.has(i)) return;   // cuadritos sueltos del plano (bases, postes): no son paredes
     const est = estadoPieza(i, piezas), c = CAJAS[i], cx = (c.x0 + c.x1) / 2, cy = (c.y0 + c.y1) / 2;
     if (!lista[est]) return;   // "no va"
     const tipo = tipoEn(areas, cx, cy), base = E.altura(cx, cy) * M;
@@ -540,37 +559,70 @@ function ponerJardineras() {
   }
 }
 
-// ---------- Oficina del supervisor de taller (como en obra) ----------
-// Caseta de paneles blancos con franja naranja, fila de ventanas oscuras y dos puertas al frente (sur, hacia el rebalse técnico).
-// Encima, techo de lámina sobre cerchas que sale hacia el frente apoyado en un poste. Sin la fascia de publicidad.
-const SUPERVISOR = { x0: 829, x1: 931, y0: 175, y1: 260 }, TECHO_SUP = { x0: 822, x1: 933, y0: 168, y1: 300 };
-const enSupervisor = (x, y) => x > SUPERVISOR.x0 - 3 && x < SUPERVISOR.x1 + 3 && y > SUPERVISOR.y0 - 3 && y < SUPERVISOR.y1 + 3;
+// ---------- Oficina del supervisor y la casita del comedor (como están en obra, según las fotos) ----------
+// Supervisor: paneles blancos con franja naranja y raya blanca. Cara sur (hacia donde termina la pared de lámina): fila de ventanas.
+// Cara oeste (hacia el rebalse técnico): puerta, ventana, puerta y ventanas. Techo delgado sobre cerchas que cubre la caseta y el lado
+// de las puertas y baja hacia la pared de lámina; un poste cerca de la cara sur. Sin la fascia de publicidad.
+const SUPERVISOR = { x0: 829, x1: 931, y0: 175, y1: 260 }, TECHO_SUP = { x0: 808, x1: 933, y0: 168, y1: 284 };
+// Casita del comedor (atrás y a la izquierda): crema con franjas naranjas, techo inclinado hacia el frente (sur) con orilla amarilla.
+const CASITA = { x0: 718, x1: 808, y0: 10, y1: 103 };
+const enSupervisor = (x, y) => [SUPERVISOR, CASITA].some((q) => x > q.x0 - 3 && x < q.x1 + 3 && y > q.y0 - 3 && y < q.y1 + 3);
+const MATS_CASETA = () => ({
+  blanco: new THREE.MeshStandardMaterial({ color: 0xe8e6e1, roughness: 0.8 }), crema: new THREE.MeshStandardMaterial({ color: 0xece3cf, roughness: 0.85 }),
+  naranja: new THREE.MeshStandardMaterial({ color: 0xe0662e, roughness: 0.8 }), vidrio: new THREE.MeshStandardMaterial({ color: 0x23282d, roughness: 0.3, metalness: 0.4 }),
+  alum: new THREE.MeshStandardMaterial({ color: 0xc8ccd0, metalness: 0.6, roughness: 0.4 }), acero: new THREE.MeshStandardMaterial({ color: 0x9aa0a6, metalness: 0.5, roughness: 0.5 }),
+  lamina: new THREE.MeshStandardMaterial({ color: 0xb9c0c6, metalness: 0.5, roughness: 0.45, side: THREE.DoubleSide }),
+  amarillo: new THREE.MeshStandardMaterial({ color: 0xe8b81f, roughness: 0.6 }), rojo: new THREE.MeshStandardMaterial({ color: 0xc8202a, roughness: 0.7 }),
+});
+// Caja de paredes con franja naranja (0–0.45 naranja, raya blanca, 0.57–0.95 naranja) y piezas pegadas a sus caras
+function caseta(g, q, base, alto, pared, m) {
+  const w = (q.x1 - q.x0) * ESC, h = (q.y1 - q.y0) * ESC, c = aEscena((q.x0 + q.x1) / 2, (q.y0 + q.y1) / 2);
+  const b = new THREE.Mesh(new THREE.BoxGeometry(w, alto * M, h), pared); b.position.set(c.x, base + (alto * M) / 2, c.z); b.castShadow = b.receiveShadow = true; g.add(b);
+  for (const [d, a, mat] of [[0, 0.45, m.naranja], [0.45, 0.12, m.blanco], [0.57, 0.38, m.naranja]]) {
+    const f = new THREE.Mesh(new THREE.BoxGeometry(w + 0.06, a * M, h + 0.06), mat); f.position.set(c.x, base + (d + a / 2) * M, c.z); g.add(f);
+  }
+  // pieza en una cara: lado "s" (sur), "n", "o" (oeste), "e"; de t0 a t1 a lo largo (unidades del mapa), de "desde" con "a" de alto (m)
+  return (lado, t0, t1, desde, a, mat, salir = 0.05) => {
+    const L = Math.abs(t1 - t0) * ESC, mid = (t0 + t1) / 2, y = base + (desde + a / 2) * M;
+    const v = lado === "s" || lado === "n" ? aEscena(mid, lado === "s" ? q.y1 : q.y0) : aEscena(lado === "o" ? q.x0 : q.x1, mid);
+    const geo = lado === "s" || lado === "n" ? new THREE.BoxGeometry(L, a * M, 0.1) : new THREE.BoxGeometry(0.1, a * M, L);
+    const p = new THREE.Mesh(geo, mat); p.position.set(v.x + (lado === "o" ? -salir : lado === "e" ? salir : 0), y, v.z + (lado === "s" ? salir : lado === "n" ? -salir : 0)); g.add(p);
+  };
+}
+const puertaV = (cara, lado, t0, t1, m) => { cara(lado, t0 - 0.8, t1 + 0.8, 0, 2.2, m.alum); cara(lado, t0, t1, 0.02, 2.1, m.vidrio, 0.07); };
+const ventanas = (cara, lado, t0, t1, n, desde, a, m) => { cara(lado, t0, t1, desde, a, m.vidrio); for (let k = 0; k <= n; k++) { const t = t0 + ((t1 - t0) * k) / n; cara(lado, t - 0.3, t + 0.3, desde, a, m.alum, 0.07); } };
 function supervisor(base) {
-  const g = new THREE.Group(), q = SUPERVISOR, w = (q.x1 - q.x0) * ESC, h = (q.y1 - q.y0) * ESC, c = aEscena((q.x0 + q.x1) / 2, (q.y0 + q.y1) / 2);
-  const alto = 3 * M, blanco = new THREE.MeshStandardMaterial({ color: 0xe8e6e1, roughness: 0.8 });
-  const naranja = new THREE.MeshStandardMaterial({ color: 0xe0662e, roughness: 0.8 }), vidrio = new THREE.MeshStandardMaterial({ color: 0x23282d, roughness: 0.3, metalness: 0.4 });
-  const alum = new THREE.MeshStandardMaterial({ color: 0xc8ccd0, metalness: 0.6, roughness: 0.4 }), acero = new THREE.MeshStandardMaterial({ color: 0x9aa0a6, metalness: 0.5, roughness: 0.5 });
-  const caseta = new THREE.Mesh(new THREE.BoxGeometry(w, alto, h), blanco); caseta.position.set(c.x, base + alto / 2, c.z); caseta.castShadow = caseta.receiveShadow = true; g.add(caseta);
-  const franja = (desde, alto2, mat) => { const f = new THREE.Mesh(new THREE.BoxGeometry(w + 0.06, alto2 * M, h + 0.06), mat); f.position.set(c.x, base + (desde + alto2 / 2) * M, c.z); g.add(f); };
-  franja(0, 0.45, naranja); franja(0.45, 0.12, blanco); franja(0.57, 0.38, naranja);   // franja naranja con raya blanca, como en la foto
-  // frente (sur): ventanas corridas y dos puertas de vidrio con marco de aluminio
-  const zf = c.z + h / 2 + 0.05, pieza = (x0, x1, desde, alto2, mat, salir = 0) => { const m = new THREE.Mesh(new THREE.BoxGeometry((x1 - x0) * ESC, alto2 * M, 0.1), mat); m.position.set(aEscena((x0 + x1) / 2, 0).x, base + (desde + alto2 / 2) * M, zf + salir); g.add(m); };
-  const puertas = [[833, 848], [878, 893]];
-  for (const [x0, x1] of puertas) { pieza(x0 - 0.8, x1 + 0.8, 0, 2.2, alum); pieza(x0, x1, 0.02, 2.1, vidrio, 0.02); }
-  const tramos = [[848, 878], [893, 929]];
-  for (const [x0, x1] of tramos) { pieza(x0 + 1, x1 - 1, 0.95, 0.75, vidrio, 0.01); for (let x = x0 + 1; x <= x1 - 1; x += 7) pieza(x - 0.3, x + 0.3, 0.95, 0.75, alum, 0.02); }
-  // costado oeste: también ventanas corridas
-  { const v = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.75 * M, h * 0.8), vidrio); v.position.set(c.x - w / 2 - 0.05, base + (0.95 + 0.375) * M, c.z); g.add(v); }
-  // techo encima (plano, lámina sobre cerchas) que sale al frente apoyado en un poste
-  const t = TECHO_SUP, tw = (t.x1 - t.x0) * ESC, th = (t.y1 - t.y0) * ESC, tc = aEscena((t.x0 + t.x1) / 2, (t.y0 + t.y1) / 2), yt = base + 4.6 * M;
-  const lam = new THREE.Mesh(new THREE.BoxGeometry(tw, 0.15, th), new THREE.MeshStandardMaterial({ color: 0xb9c0c6, metalness: 0.5, roughness: 0.45, side: THREE.DoubleSide }));
-  lam.position.set(tc.x, yt, tc.z); lam.castShadow = true; g.add(lam);
-  const n = 5; for (let k = 0; k <= n; k++) { const cer = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.9, th), acero); cer.position.set(tc.x - tw / 2 + (tw * k) / n, yt - 0.55, tc.z); g.add(cer); }
-  const borde = new THREE.Mesh(new THREE.BoxGeometry(tw, 0.9, 0.25), acero); borde.position.set(tc.x, yt - 0.55, tc.z + th / 2); g.add(borde);
-  const pv = aEscena(880, t.y1 - 4), ap = yt - 0.9 - base;   // poste del frente
-  const poste = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, ap, 12), new THREE.MeshStandardMaterial({ color: 0xf2f2f0, roughness: 0.6 }));
+  const g = new THREE.Group(), m = MATS_CASETA();
+  const cara = caseta(g, SUPERVISOR, base, 3, m.blanco, m);
+  ventanas(cara, "s", 836, 928, 5, 1.0, 0.75, m);   // cara sur: fila de ventanas
+  puertaV(cara, "o", 177, 193, m); ventanas(cara, "o", 195, 205, 1, 1.0, 0.75, m); puertaV(cara, "o", 207, 223, m); ventanas(cara, "o", 226, 258, 4, 1.0, 0.75, m);
+  // techo delgado de lámina sobre cerchas, baja hacia la pared de lámina (este)
+  const t = TECHO_SUP, tw = (t.x1 - t.x0) * ESC, th = (t.y1 - t.y0) * ESC, tc = aEscena((t.x0 + t.x1) / 2, (t.y0 + t.y1) / 2);
+  const yO = base + 5.0 * M, yE = base + 4.4 * M, inc = Math.atan2(yO - yE, tw), ym = (yO + yE) / 2;
+  const lam = new THREE.Mesh(new THREE.BoxGeometry(Math.hypot(tw, yO - yE), 0.1, th), m.lamina); lam.position.set(tc.x, ym, tc.z); lam.rotation.z = -inc; lam.castShadow = true; g.add(lam);
+  for (let k = 0; k <= 4; k++) {   // cerchas de oeste a este
+    const z = tc.z - th / 2 + (th * k) / 4, ce = new THREE.Mesh(new THREE.BoxGeometry(Math.hypot(tw, yO - yE), 0.5, 0.15), m.acero);
+    ce.position.set(tc.x, ym - 0.35, z); ce.rotation.z = -inc; g.add(ce);
+  }
+  const pv = aEscena(860, 276), ap = (yO - (860 - t.x0) / (t.x1 - t.x0) * (yO - yE)) - 0.6 - base;   // poste cerca de la cara sur
+  const poste = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, ap, 12), new THREE.MeshStandardMaterial({ color: 0xf2f2f0, roughness: 0.6 }));
   poste.position.set(pv.x, base + ap / 2, pv.z); poste.castShadow = true; g.add(poste);
-  const pie = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.9 * M, 12), new THREE.MeshStandardMaterial({ color: 0xe8a21b })); pie.position.set(pv.x, base + 0.45 * M, pv.z); g.add(pie);
+  const pie = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.6 * M, 12), m.amarillo); pie.position.set(pv.x, base + 0.3 * M, pv.z); g.add(pie);
+  g.add(casita());
+  return g;
+}
+function casita() {
+  const g = new THREE.Group(), m = MATS_CASETA(), q = CASITA, base = E.altura((q.x0 + q.x1) / 2, (q.y0 + q.y1) / 2) * M;
+  const cara = caseta(g, q, base, 3, m.crema, m);
+  ventanas(cara, "s", 724, 750, 2, 1.0, 1.0, m); puertaV(cara, "s", 760, 776, m); ventanas(cara, "s", 784, 803, 2, 1.0, 1.0, m);   // frente: ventana, puerta, ventana
+  // techo inclinado hacia el frente, con alero y orilla amarilla
+  const w = (q.x1 - q.x0 + 6) * ESC, fondo = aEscena(0, q.y0 - 2).z, frente = aEscena(0, q.y1 + 16).z, d = frente - fondo, cx = aEscena((q.x0 + q.x1) / 2, 0).x;
+  const yA = base + 3.9 * M, yB = base + 3.2 * M, inc = Math.atan2(yA - yB, d);
+  const lam = new THREE.Mesh(new THREE.BoxGeometry(w, 0.1, Math.hypot(d, yA - yB)), m.lamina); lam.position.set(cx, (yA + yB) / 2, (fondo + frente) / 2); lam.rotation.x = inc; lam.castShadow = true; g.add(lam);
+  const orilla = new THREE.Mesh(new THREE.BoxGeometry(w, 0.35, 0.12), m.amarillo); orilla.position.set(cx, yB - 0.1, frente); g.add(orilla);
+  // mostrador de rayas rojas y blancas al frente, a la izquierda
+  const mv = aEscena(733, q.y1 + 6), mw = 24 * ESC;
+  for (let k = 0; k < 6; k++) { const r = new THREE.Mesh(new THREE.BoxGeometry(mw / 6, 1.1 * M, 0.6 * M), k % 2 ? m.blanco : m.rojo); r.position.set(mv.x - mw / 2 + (mw * (k + 0.5)) / 6, base + 0.55 * M, mv.z); g.add(r); }
   return g;
 }
 
@@ -655,6 +707,8 @@ function ponerEdificios(areas, elementos = [], piezas = {}) {
   E.edificios.clear(); E.areas = areas;
   ponerParedes(areas, piezas);
   ponerGradas(piezas);
+  const eRampa = estadoRampa(RAMPA_CHERY, piezas);
+  if (eRampa === "falta" || eRampa === "en_proceso") E.edificios.add(losaRampa(RAMPA_CHERY, MAT[eRampa].clone()));
   for (const a of areas) {
     const c = caja(a), base = E.altura((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2) * M;
     if (a.es_receso) { E.edificios.add(bodega(a, base)); continue; }
@@ -670,7 +724,7 @@ function ponerEdificios(areas, elementos = [], piezas = {}) {
   const ALTO_EL = { grada: 2.2, jardinera: 1.2, bano: 3, muro: 3.5, puerta: 3, columna: 6, bodega: 4, otro: 2 };
   const COL_EL = { grada: 0x8a8f96, jardinera: 0x5f9a45, bano: 0x4f9fd0, muro: 0x3b4046, puerta: 0x6c5a3d, columna: 0x8d8a80, bodega: 0xee8420, techo: 0x8b949b, otro: 0x7d6bb3 };
   for (const e of elementos) {
-    if (e.trazo) { E.edificios.add(paredDibujada(e, areas)); continue; }
+    if (e.trazo) { const [[ax, ay], [bx, by]] = puntas(e.trazo); if (!enSupervisor((ax + bx) / 2, (ay + by) / 2)) E.edificios.add(paredDibujada(e, areas)); continue; }
     if (e.tipo === "techo") { E.edificios.add(techoElemento(e)); continue; }
     const X = (e.x / 100) * ANCHO, Y = (e.y / 100) * ALTO, W = Math.max(2, (e.w / 100) * ANCHO), H = Math.max(2, (e.h / 100) * ALTO);
     const alto = (+e.alto ? e.alto * M : ALTO_EL[e.tipo] || 2) * (e.estado === "en_proceso" ? 0.5 : 1), c = aEscena(X + W / 2, Y + H / 2);
@@ -706,9 +760,15 @@ function resaltar(capa, grupo, llave, color = 0x9fd400, opacidad = 0.8) {
   if (E[llave] === k) return; E[llave] = k;
   capa.children.forEach((m) => m.geometry?.dispose()); capa.clear();
   if (!grupo) return;
+  const r = rampaDe(grupo[0]);
+  if (r) {   // la rampa se resalta entera, como una losa inclinada
+    const nivel = r.c.x0 < RAMPA_CHERY.c.x1 && r.c.x1 > RAMPA_CHERY.c.x0 && r.c.y0 < RAMPA_CHERY.c.y1 && r.c.y1 > RAMPA_CHERY.c.y0 ? RAMPA_CHERY.n : [E.altura(r.c.x0, r.c.y0) / EXAGERA, E.altura(r.c.x1, r.c.y1) / EXAGERA];
+    const m = losaRampa({ c: r.c, eje: r.eje, n: nivel }, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: opacidad * 0.7, depthWrite: false }), 0.12);
+    m.renderOrder = 5; capa.add(m); return;
+  }
   const items = [];
   for (const i of grupo) {
-    const clase = PIEZAS[i][0], c = CAJAS[i], pared = clase === "muro" || clase === "columna" || clase === "lamina";
+    const clase = PIEZAS[i][0], c = CAJAS[i], pared = ((clase === "muro" || clase === "columna") && !CHICAS.has(i)) || clase === "lamina";
     const alto = clase === "lamina" ? ALTO_LAMINA * M : pared ? (ALTO_MURO[tipoEn(E.areas || [], (c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2)] || (clase === "columna" ? 4.5 : 1.1)) * M : 0.35;
     for (const [[x0, y0], [x1, y1]] of segmentos(i)) {
       const L = Math.hypot(x1 - x0, y1 - y0); if (L < 0.5) continue;
@@ -804,7 +864,7 @@ export function montar(contenedor, { svg, clave, areas, elementos, piezas, perso
   E.handlers = handlers;
   contenedor.appendChild(E.renderer.domElement); contenedor.appendChild(E.tip); E.tip.hidden = true;
   ajustar();
-  if (E.clave !== clave) { E.clave = clave; E.hovKey = E.selKey = "-"; prepararNiveles(areas); ponerTerreno(); ponerPiso(svg); ponerEdificios(areas, elementos, piezas); }
+  if (E.clave !== clave) { E.clave = clave; E.hovKey = E.selKey = "-"; prepararNiveles(areas, piezas); ponerTerreno(); ponerPiso(svg); ponerEdificios(areas, elementos, piezas); }
   // Editando: sin techos (para ver las paredes) y con la pieza elegida resaltada
   E.editar = editar; E.gente.visible = !editar; E.renderer.domElement.style.cursor = "";
   E.edificios.children.forEach((o) => { if (o.userData.techo) o.visible = !editar; });

@@ -144,9 +144,48 @@ export const CAJAS = TRAZO.map(([, , , d]) => {
 // Objeto completo a partir de una pieza tocada: piezas pegadas (a menos de 8 unidades ≈ 45 cm)
 // que no sean mucho más largas que la tocada. Así una grada toma todos sus escalones,
 // pero tocar un escalón no arrastra la pared de al lado.
+// Rayas de rampa: líneas finas sueltas, rectas, paralelas y del mismo largo, cada vez más juntas (así se dibuja una rampa).
+// Todas las rayas de una rampa son un solo objeto: se marcan juntas y se llama "Rampa", no "Gradas".
+export const RAMPAS = (() => {
+  const L = [];
+  TRAZO.forEach(([c, , , d], i) => {
+    const m = c === "fino" && d.match(/^M(-?[\d.]+) (-?[\d.]+)L(-?[\d.]+) (-?[\d.]+)$/); if (!m) return;
+    const [a, b, e, f] = m.slice(1).map(Number), v = Math.abs(a - e) < 0.6, h = Math.abs(b - f) < 0.6; if (!v && !h) return;
+    if ((v ? Math.abs(b - f) : Math.abs(a - e)) < 20) return;
+    L.push({ i, v, pos: v ? (a + e) / 2 : (b + f) / 2, lo: v ? Math.min(b, f) : Math.min(a, e), hi: v ? Math.max(b, f) : Math.max(a, e) });
+  });
+  const usadas = new Set(), out = [];
+  for (const s of L) {
+    if (usadas.has(s.i)) continue;
+    const g = [s]; let otra = true;
+    while (otra) { otra = false; for (const t of L) if (!usadas.has(t.i) && !g.includes(t) && t.v === s.v && Math.abs(t.lo - s.lo) < 2 && Math.abs(t.hi - s.hi) < 2 && g.some((u) => Math.abs(u.pos - t.pos) < 35)) { g.push(t); otra = true; } }
+    const ps = g.map((u) => u.pos).sort((a, b) => a - b), gaps = ps.slice(1).map((p, k) => p - ps[k]);
+    if (g.length < 6 || Math.min(...gaps) < 0.5) continue;
+    g.forEach((u) => usadas.add(u.i));
+    const lo = Math.min(...g.map((u) => u.lo)), hi = Math.max(...g.map((u) => u.hi));
+    out.push({ piezas: g.map((u) => u.i), eje: s.v ? "x" : "y", c: s.v ? { x0: ps[0], x1: ps.at(-1), y0: lo, y1: hi } : { x0: lo, x1: hi, y0: ps[0], y1: ps.at(-1) } });
+  }
+  return out;
+})();
+export const rampaDe = (i) => RAMPAS.find((r) => r.piezas.includes(i));
+// Cuadritos sueltos marcados como pared en el plano (bases, postes, detalles) y puntitos marcados como columna: no son ni paredes ni columnas.
+// Una pieza de pared es "chica" si todo lo que va pegado a ella (paredes, sin límite) cabe en 1.7 m.
+export const CHICAS = (() => {
+  const ms = TRAZO.map(([c], i) => (c === "muro" ? i : -1)).filter((i) => i >= 0), padre = new Map(ms.map((i) => [i, i]));
+  const raiz = (i) => { while (padre.get(i) !== i) i = padre.get(i); return i; };
+  for (let a = 0; a < ms.length; a++) for (let b = a + 1; b < ms.length; b++) {
+    const p = CAJAS[ms[a]], q = CAJAS[ms[b]];
+    if (p.x0 <= q.x1 + 3 && p.x1 >= q.x0 - 3 && p.y0 <= q.y1 + 3 && p.y1 >= q.y0 - 3) padre.set(raiz(ms[a]), raiz(ms[b]));
+  }
+  const caja = new Map();
+  for (const i of ms) { const r = raiz(i), c = CAJAS[i], k = caja.get(r) || { x0: c.x0, y0: c.y0, x1: c.x1, y1: c.y1 }; caja.set(r, { x0: Math.min(k.x0, c.x0), y0: Math.min(k.y0, c.y0), x1: Math.max(k.x1, c.x1), y1: Math.max(k.y1, c.y1) }); }
+  const chicas = new Set(ms.filter((i) => { const k = caja.get(raiz(i)); return Math.max(k.x1 - k.x0, k.y1 - k.y0) < 30; }));
+  TRAZO.forEach(([c], i) => { if (c === "columna" && CAJAS[i].largo < 4.5) chicas.add(i); });   // puntitos y marcas de menos de 25 cm: no son columnas
+  return chicas;
+})();
 const GRUPOS = new Map();
 export function grupoDe(i) {
-  if (!GRUPOS.has(i)) GRUPOS.set(i, calcularGrupo(i));
+  if (!GRUPOS.has(i)) GRUPOS.set(i, rampaDe(i)?.piezas || calcularGrupo(i));
   return GRUPOS.get(i);
 }
 function calcularGrupo(i) {
@@ -206,6 +245,8 @@ export function pegar(x, y, radio = 9, extra = []) {
 // Qué es (para el título de la hoja)
 export function queEs(grupo) {
   const clases = grupo.map((i) => TRAZO[i][0]);
+  if (rampaDe(grupo[0])) return "Rampa";
+  if (grupo.some((i) => CHICAS.has(i)) && grupo.every((i) => CHICAS.has(i) || !["muro", "columna"].includes(TRAZO[i][0]))) return "Detalle del plano";
   if (TRAZO[grupo[0]][0] === "grada" || clases.includes("grada")) return "Gradas";
   if (TRAZO[grupo[0]][0] === "lamina") return "Pared de murito y lámina";
   if (TRAZO[grupo[0]][0] === "muro") return "Pared";

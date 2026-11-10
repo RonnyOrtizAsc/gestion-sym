@@ -8,7 +8,7 @@ import { S, recesoAbierto, enReceso, recesoTurno, turnoDe, turnoActual, limiteRe
   ponerActividad, prestarRapido, cerrarPrestamo, disponibles, METROS_POR_UNIDAD, usarComoBodega, estadoPiezas } from "../datos.js";
 import { esc, iniciales, primerNombre, ms, hhmm } from "../util.js";
 import { miniatura, tarjeta, avatares, cara } from "./fotos.js";
-import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, CAJAS, grupoDe, queEs, pegar, ANCHO, ALTO, MATERIALES, puntas, pared, largoPared, gruesoPared, enderezar, distPared, enLinea, sobrePared, ANCHO_HUECO } from "./mapa-svg.js";
+import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, CAJAS, grupoDe, queEs, pegar, ANCHO, ALTO, MATERIALES, puntas, pared, largoPared, gruesoPared, enderezar, distPared, enLinea, sobrePared, ANCHO_HUECO, CHICAS, rampaDe } from "./mapa-svg.js";
 
 const ZOOMS = [1, 1.6, 2.4, 3.4];
 let vistaGuardada = "2d"; try { vistaGuardada = localStorage.getItem("sym-vista") || "2d"; } catch (e) {}
@@ -201,7 +201,8 @@ function paredDePieza(g) {
   const clases = g.map((i) => PIEZAS[i][0]), material = clases.includes("lamina") ? "lamina" : clases.includes("muro") ? "block" : "ventanal";
   return { a, b, grueso, material, grupo: g };
 }
-const esPared = (g) => g.some((i) => ["muro", "lamina", "fino", "borde"].includes(PIEZAS[i][0]));
+const detalle = (g) => g.some((i) => CHICAS.has(i)) && g.every((i) => CHICAS.has(i) || !["muro", "columna"].includes(PIEZAS[i][0]));   // cuadrito suelto, no es pared
+const esPared = (g) => !rampaDe(g[0]) && !detalle(g) && g.some((i) => ["muro", "lamina", "fino", "borde"].includes(PIEZAS[i][0]));
 // Las dos agarraderas de lo que está seleccionado (pared dibujada o pared del plano), o null
 function asasActuales() {
   if (!ui.editar || ui.nuevo || ui.punta || ui.hueco) return null;
