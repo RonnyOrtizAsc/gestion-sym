@@ -295,7 +295,7 @@ function ponerParedes(areas, piezas) {
     const est = estadoPieza(i, piezas), c = CAJAS[i], cx = (c.x0 + c.x1) / 2, cy = (c.y0 + c.y1) / 2;
     if (!lista[est]) return;   // "no va"
     const tipo = tipoEn(areas, cx, cy), base = E.altura(cx, cy) * M;
-    if (enSupervisor(cx, cy)) return;   // la oficina del supervisor se dibuja completa aparte (ver supervisor)
+    if (enSupervisor(cx, cy) || enFilaNorte(cx, cy)) return;   // supervisor y fila norte del taller se dibujan aparte
     if (clase === "columna") {
       if (enTaller(cx, cy) || enGalera(cx, cy)) return;   // las del taller son de acero y van con su estructura (ver estructuraTaller)
       const alto = (ALTO_MURO[tipo] || 4.5) * M * (est === "en_proceso" ? 0.5 : 1), lado = Math.max(0.7, Math.min(2.5, c.largo * ESC));
@@ -503,8 +503,8 @@ const COLUMNAS_TALLER = [
 const ALTO_TALLER = 6, SUBE_CENTRO = 1.6;   // metros: aleros de los techos y cumbrera de las cerchas
 function estructuraTaller(base) {
   const g = new THREE.Group();
-  const perla = new THREE.MeshStandardMaterial({ color: 0xeceee9, metalness: 0.3, roughness: 0.5 });   // acero pintado blanco (foto)
-  const lamina = new THREE.MeshStandardMaterial({ color: 0xeef0f1, metalness: 0.3, roughness: 0.5, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false });   // lámina blanca (foto)
+  const perla = new THREE.MeshStandardMaterial({ color: 0xe0b022, metalness: 0.3, roughness: 0.55 });   // columnas y vigas amarillas (foto)
+  const lamina = new THREE.MeshStandardMaterial({ color: 0xb4babf, metalness: 0.45, roughness: 0.5, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false });
   const y = base + ALTO_TALLER * M, z0 = aEscena(0, TALLER.y0 + 5).z, z1 = aEscena(0, TALLER.y1 - 5).z, largo = z1 - z0, zc = (z0 + z1) / 2;
   const X = (x) => aEscena(x, 0).x;
   for (const [cx, cy] of COLUMNAS_TALLER) {   // columnas delgadas de acero
@@ -524,7 +524,9 @@ function estructuraTaller(base) {
   const m2 = (u) => u * 0.056, H = ALTO_TALLER, CLARO = 1.4, CUMBRE = 0.21 * m2(1138 - 1085);
   const hO = H - 0.02 * m2(1085 - 941), hE = H - 0.03 * m2(1331 - 1192), hC = H + CLARO;
   panel([941, hO], [1085, H], lamina); panel([1192, H], [1331, hE], lamina);                       // franjas de los lados
-  // el centro todavía no tiene lámina (foto): solo las cerchas levantadas
+  panel([1085, hC], [1138, hC + CUMBRE], lamina); panel([1138, hC + CUMBRE], [1192, hC], lamina);   // centro levantado y techado (foto)
+  const claro = new THREE.MeshStandardMaterial({ color: 0xdfe6ea, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false });
+  panel([1085, H], [1085, hC], claro); panel([1192, H], [1192, hC], claro);   // paredes cortas de la parte levantada (entra luz)
   const paso = 5 * M, n = Math.max(2, Math.round((zb - za) / paso));
   for (let k = 0; k <= n; k++) {   // marcos cada ~5 m
     const z = za + ((zb - za) * k) / n;
@@ -534,14 +536,52 @@ function estructuraTaller(base) {
     barra(Pt(1085, H - 0.3, z), Pt(1192, H - 0.3, z), 0.25);                                                   // cuerda de abajo
   }
   for (const [x, h] of [[941, hO], [1085, H], [1085, hC], [1138, hC + CUMBRE], [1192, hC], [1192, H], [1331, hE]]) barra(Pt(x, h - 0.2, za), Pt(x, h - 0.2, zb), 0.22);   // largueros a lo largo
-  for (const x of [1085, 1192]) { barra(Pt(x, H + 1.0, za), Pt(x, H + 1.0, zb), 0.08); for (let k = 0; k <= 4 * n; k++) { const z = za + ((zb - za) * k) / (4 * n); barra(Pt(x, H, z), Pt(x, H + 1.0, z), 0.07); } }   // barandal en la orilla de los techos de los lados
-  // paredes (foto): bloque abajo (1.5 m) y lámina arriba hasta el techo, al oeste, al norte y al este; al sur abre a la galera del rebalse
-  const blq = new THREE.MeshStandardMaterial({ color: 0xbdbab2, roughness: 0.95, side: THREE.DoubleSide }), lmP = new THREE.MeshStandardMaterial({ color: 0xc2c7cb, metalness: 0.45, roughness: 0.5, side: THREE.DoubleSide });
-  const muro = (x0, y0, x1, y1, h0, h1, mat) => { const a = aEscena(x0, y0), b = aEscena(x1, y1), L = Math.hypot(b.x - a.x, b.z - a.z), m = new THREE.Mesh(new THREE.BoxGeometry(L, (h1 - h0) * M, 0.15), mat);
-    m.position.set((a.x + b.x) / 2, base + ((h0 + h1) / 2) * M, (a.z + b.z) / 2); m.rotation.y = -Math.atan2(b.z - a.z, b.x - a.x); m.castShadow = m.receiveShadow = true; E.edificios.add(m); };
-  for (const [x0, y0, x1, y1, h] of [[941, 64, 941, 640, hO], [941, 64, 1331, 64, H], [1331, 64, 1331, 712, hE]]) { muro(x0, y0, x1, y1, 0, 1.5, blq); muro(x0, y0, x1, y1, 1.5, h - 0.1, lmP); }
+  filaNorteTaller(base, H);
   g.userData.techo = true;   // al editar el plano se esconde, igual que los techos
   return g;
+}
+
+// Azulejo a cuadros (foto del taller): textura de dos colores
+function cuadros(c1, c2, rep = [40, 4]) {
+  const cv = document.createElement("canvas"); cv.width = cv.height = 32; const x = cv.getContext("2d");
+  x.fillStyle = c1; x.fillRect(0, 0, 32, 32); x.fillStyle = c2; x.fillRect(0, 0, 16, 16); x.fillRect(16, 16, 16, 16);
+  const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(...rep); t.magFilter = THREE.NearestFilter;
+  return new THREE.MeshStandardMaterial({ map: t, roughness: 0.6 });
+}
+// Paredes del taller y la fila del norte (Model.pdf para las medidas, fotos para materiales):
+//  oeste: azulejo amarillo y blanco abajo, lámina arriba; este: azulejo naranja y blanco abajo, lámina arriba; norte: lámina.
+//  Fila norte (y 5–62): bodega de repuestos (x 1028–1143) con estantería azul abierta; lockers (1144–1251) y baños (1252–1336)
+//  con pared blanca y naranja abajo, ventanas y puertas como el Model.pdf.
+const FILA_NORTE = { x0: 1025, x1: 1338, y0: 3, y1: 66 };
+const enFilaNorte = (x, y) => x > FILA_NORTE.x0 && x < FILA_NORTE.x1 && y > FILA_NORTE.y0 && y < FILA_NORTE.y1;
+function filaNorteTaller(base, H) {
+  const g = E.edificios;
+  const caja = (x0, y0, x1, y1, h0, h1, mat) => { const a = aEscena(x0, y0), b = aEscena(x1, y1), m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.15, Math.abs(b.x - a.x)), (h1 - h0) * M, Math.max(0.15, Math.abs(b.z - a.z))), mat);
+    m.position.set((a.x + b.x) / 2, base + ((h0 + h1) / 2) * M, (a.z + b.z) / 2); m.castShadow = m.receiveShadow = true; g.add(m); return m; };
+  const lam = new THREE.MeshStandardMaterial({ color: 0x8f969c, metalness: 0.45, roughness: 0.55 });
+  const blanco = new THREE.MeshStandardMaterial({ color: 0xf1efe9, roughness: 0.85 }), naranja = new THREE.MeshStandardMaterial({ color: 0xe8792a, roughness: 0.8 });
+  const oscuro = new THREE.MeshStandardMaterial({ color: 0x24282c, roughness: 0.4 }), azul = new THREE.MeshStandardMaterial({ color: 0x2f6fc2, metalness: 0.3, roughness: 0.5 });
+  // paredes perimetrales
+  caja(939, 66, 943, 700, 0, 1.5, cuadros("#f2f0e8", "#e8c33a", [1, 120])); caja(939, 66, 943, 700, 1.5, H - 0.1, lam);
+  caja(1329, 66, 1333, 712, 0, 2.0, cuadros("#f4f2ec", "#e8792a", [1, 120])); caja(1329, 66, 1333, 712, 2.0, H - 0.1, lam);
+  caja(925, 3, 1336, 6, 0, H, lam);
+  // pared sur de la fila (de x 1144 a 1336) con huecos: [desde, hasta] en x, tipo
+  const ALTO = 3.0, yS = 61, pared = (x0, x1) => { if (x1 - x0 < 0.5) return; caja(x0, yS - 1, x1, yS + 1, 0, 1.2, naranja); caja(x0, yS - 1, x1, yS + 1, 1.2, ALTO, blanco); };
+  const huecos = [[1171, 1219, "puerta"], [1300, 1316, "puerta"]], ventanas = [[1150, 1166, 1.3, 1.0], [1262, 1276, 2.0, 0.5]];
+  let x = 1144; for (const [a, b] of huecos) { pared(x, a); caja(a, yS - 1, b, yS + 1, 2.4, ALTO, blanco); x = b; } pared(x, 1336);
+  for (const [a, b, desde, alto] of ventanas) caja(a, yS - 1.4, b, yS + 1.4, desde, desde + alto, oscuro);
+  // divisiones entre bodega, lockers y baños, y el fondo
+  for (const xd of [1143.5, 1251.5]) { caja(xd - 1, 6, xd + 1, yS, 0, 1.2, naranja); caja(xd - 1, 6, xd + 1, yS, 1.2, ALTO, blanco); }
+  // baños: cubículos (Model.pdf) y el mueble del lavamanos frente a la puerta
+  for (const xc of [1282, 1303]) caja(xc - 0.6, 6, xc + 0.6, 26, 0, 2.1, blanco);
+  caja(1262, 52, 1310, 59, 0, 0.85, new THREE.MeshStandardMaterial({ color: 0xd9d6cf, roughness: 0.4 }));
+  // lockers: dos filas de casilleros y una banca al centro
+  const metal = new THREE.MeshStandardMaterial({ color: 0x9aa3ab, metalness: 0.5, roughness: 0.45 });
+  caja(1146, 7, 1198, 13, 0, 1.9, metal); caja(1146, 52, 1198, 58, 0, 1.9, metal); caja(1150, 31, 1185, 35, 0, 0.45, new THREE.MeshStandardMaterial({ color: 0x8a6a45, roughness: 0.8 }));
+  // bodega de repuestos: estantería azul de dos niveles, abierta al taller
+  for (const xb of [1032, 1060, 1088, 1116, 1140]) for (const yb of [8, 58]) caja(xb - 0.5, yb - 0.5, xb + 0.5, yb + 0.5, 0, 4.6, azul);
+  for (const h of [0.15, 2.2, 4.4]) { caja(1031, 7, 1141, 9, h, h + 0.15, azul); caja(1031, 57, 1141, 59, h, h + 0.15, azul); }
+  caja(1031, 8, 1141, 58, 2.3, 2.38, new THREE.MeshStandardMaterial({ color: 0x5b636b, metalness: 0.4, roughness: 0.5 }));   // entrepiso de la estantería
 }
 
 // Jardineras del plano (piezas "jardin"): cajón bajo de concreto con plantas, como en el render
