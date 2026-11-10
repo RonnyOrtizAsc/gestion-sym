@@ -504,10 +504,19 @@ const MAT_VIDRIO = new THREE.MeshStandardMaterial({ color: 0x9fd0ee, transparent
 function paredDibujada(e, areas) {
   const { a, b, L, solidos, huecos } = tramosPared(e), mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
   const g = new THREE.Group(); g.userData.elemento = e.id; if (L < 1) return g;
-  const mat = e.material || "block", altoM = +e.alto || (mat === "lamina" ? ALTO_LAMINA : ALTO_MURO[tipoEn(areas, mx, my)] || 3);
-  const grueso = gruesoPared(e) * M, base = E.altura(mx, my) * M, falta = e.estado === "falta", proceso = e.estado === "en_proceso";
+  // El piso puede cambiar a lo largo de la pared (rampa, escalón): arranca desde lo más bajo para no flotar, y el alto se mide desde lo más alto
+  const pisos = [0, 0.25, 0.5, 0.75, 1].map((t) => E.altura(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t) * M);
+  const base = Math.min(...pisos), alto0 = Math.max(...pisos) - base;
+  // pegada a la bodega y con alto automático: sube hasta la losa de la bodega
+  const bod = areas.find((q) => q.es_receso), cb = bod && caja(bod), cerca = 5;
+  const enBodega = cb && mx > cb.x0 - cerca && mx < cb.x1 + cerca && my > cb.y0 - cerca && my < cb.y1 + cerca;
+  const mat = e.material || "block";
+  const altoM = +e.alto ? alto0 / M + +e.alto
+    : enBodega ? Math.max(3 * M, ARRIBA * EXAGERA * M - E.altura((cb.x0 + cb.x1) / 2, (cb.y0 + cb.y1) / 2) * M) / M + (E.altura((cb.x0 + cb.x1) / 2, (cb.y0 + cb.y1) / 2) * M - base) / M
+    : alto0 / M + (mat === "lamina" ? ALTO_LAMINA : ALTO_MURO[tipoEn(areas, mx, my)] || 3);
+  const grueso = gruesoPared(e) * M, falta = e.estado === "falta", proceso = e.estado === "en_proceso";
   // un pedazo de pared entre s0 y s1 (unidades del mapa desde la punta a), de "desde" a "desde + alto" (metros)
-  const caja = (s0, s1, desde, alto, material, gr = grueso) => {
+  const trozo = (s0, s1, desde, alto, material, gr = grueso) => {
     if (s1 - s0 < 0.2 || alto <= 0) return;
     const m = new THREE.Mesh(new THREE.BoxGeometry((s1 - s0) * ESC + (s0 <= 0 || s1 >= L ? grueso / 2 : 0), alto * M, gr), material);
     m.position.set(((s0 + s1) / 2 - L / 2) * ESC, (desde + alto / 2) * M, 0);
@@ -515,15 +524,15 @@ function paredDibujada(e, areas) {
   };
   const tope = proceso ? altoM * 0.5 : altoM, macizo = falta ? MAT.falta : proceso ? MAT.en_proceso : MAT.existe;
   for (const [s0, s1] of solidos) {
-    if (falta || proceso || mat === "block") caja(s0, s1, 0, tope, macizo);
-    else if (mat === "lamina") { caja(s0, s1, 0, MURITO, MAT_MURITO, grueso * 1.4); caja(s0, s1, MURITO, altoM - MURITO, MAT_LAMINA, grueso * 0.6); }
-    else { const ant = Math.min(0.9, altoM / 2); caja(s0, s1, 0, ant, MAT.existe); caja(s0, s1, ant, altoM - ant, MAT_VIDRIO, grueso * 0.5); }
+    if (falta || proceso || mat === "block") trozo(s0, s1, 0, tope, macizo);
+    else if (mat === "lamina") { trozo(s0, s1, 0, MURITO, MAT_MURITO, grueso * 1.4); trozo(s0, s1, MURITO, altoM - MURITO, MAT_LAMINA, grueso * 0.6); }
+    else { const ant = Math.min(0.9, altoM / 2); trozo(s0, s1, 0, ant, MAT.existe); trozo(s0, s1, ant, altoM - ant, MAT_VIDRIO, grueso * 0.5); }
   }
   // huecos: la puerta deja el paso libre hasta 2.1 m; la ventana lleva antepecho de 0.9 m, vidrio y dintel
   const dintel = Math.min(2.1, tope - 0.1);
   for (const h of huecos) {
-    caja(h.s0, h.s1, dintel, tope - dintel, macizo);
-    if (h.t === "ventana") { caja(h.s0, h.s1, 0, Math.min(0.9, dintel), macizo); if (!falta) caja(h.s0, h.s1, 0.9, dintel - 0.9, MAT_VIDRIO, grueso * 0.3); }
+    trozo(h.s0, h.s1, dintel, tope - dintel, macizo);
+    if (h.t === "ventana") { trozo(h.s0, h.s1, 0, Math.min(0.9, dintel), macizo); if (!falta) trozo(h.s0, h.s1, 0.9, dintel - 0.9, MAT_VIDRIO, grueso * 0.3); }
   }
   const p = aEscena(mx, my); g.position.set(p.x, base, p.z); g.rotation.y = -Math.atan2(b[1] - a[1], b[0] - a[0]);
   return g;
