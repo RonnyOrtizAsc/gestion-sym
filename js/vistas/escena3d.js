@@ -567,27 +567,37 @@ function zonaBoulevard() {
 // y fascia amarilla (pintura vieja) en la orilla oeste y sur, cargada por dos columnas azul marino en la esquina del pórtico.
 const OFI_NISSAN = { x0: 555, x1: 727, y0: 1243, y1: 1447 };
 function oficinaExistente() {
-  const g = new THREE.Group(), q = OFI_NISSAN, base = MEDIO * EXAGERA * M, PL = 0.6 * M, H = 3.3 * M, YP = 1335, XV = 590;
-  const caja = (x0, y0, x1, y1, b, t, mat) => { const a = aEscena(x0, y0), c = aEscena(x1, y1), m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.1, Math.abs(c.x - a.x)), t - b, Math.max(0.1, Math.abs(c.z - a.z))), mat);
+  // Fotos 14:10 (cara oeste, desde el techo grande): todo a una misma altura. Mitad norte: cuerpo azul marino cerrado, con una
+  // ventanita arriba y un ventanal grande con persiana clara. Mitad sur: pórtico: zócalo de mosaico levantado con 4 gradas en su
+  // extremo norte, UNA columna gris-azul al centro, cielo blanco con lucecitas, fascia amarilla despintada al frente (oeste) que
+  // sobresale, y atrás (metido ~1.5 m) un local de vidrio transparente (se ve la valla a través) con su puerta de vidrio al sur.
+  const g = new THREE.Group(), q = OFI_NISSAN, base = MEDIO * EXAGERA * M, PL = 0.55 * M, TOP = base + PL + 3.6 * M, FAS = 0.95 * M;
+  const FX = q.x0 + 3, YP = 1342, XG = FX + 26;   // cara oeste, inicio del pórtico, línea del vidrio
+  const caja = (x0, y0, x1, y1, b, t, mat) => { const a = aEscena(x0, y0), c = aEscena(x1, y1), m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.06, Math.abs(c.x - a.x)), Math.max(0.02, t - b), Math.max(0.06, Math.abs(c.z - a.z))), mat);
     m.position.set((a.x + c.x) / 2, (b + t) / 2, (a.z + c.z) / 2); m.castShadow = m.receiveShadow = true; g.add(m); return m; };
-  const marino = matE(0x3b3f57, { metalness: 0 }), vidrio = new THREE.MeshStandardMaterial({ color: 0x2a3640, metalness: 0.7, roughness: 0.08 }), mosaico = cuadros("#d9cdb6", "#c4b393", [24, 2]);
-  const blanco = matE(0xf3f2ee, { metalness: 0 }), amarillo = matE(0xd6b43e, { metalness: 0 }), piso = matE(0xe9e6df, { metalness: 0 });
-  // cuerpo norte (y 1245–YP): navy, con dos ventanales al oeste
-  caja(q.x0 + 7, q.y0, q.x1, YP, base, base + PL + H, marino);
-  caja(q.x0 + 6.2, 1283, q.x0 + 7, 1332, base + 0.6 * M, base + 3.0 * M, matE(0x4a4f63)); caja(q.x0 + 6, 1285, q.x0 + 6.5, 1330, base + 0.7 * M, base + 2.9 * M, vidrio);   // un ventanal grande con marco (foto)
-  // pórtico (y YP–1447): piso levantado con zócalo de mosaico y gradas, vitrina metida en x XV
-  caja(q.x0, YP, q.x1, q.y1, base, base + PL, mosaico); caja(q.x0, YP, q.x1, q.y1, base + PL - 0.02, base + PL, piso);
-  for (let k = 0; k < 3; k++) caja(q.x0 - 5 - k * 5, YP, q.x0 - k * 5, YP + 22, base, base + PL * (3 - k) / 4, piso);
-  caja(XV, YP, q.x1, q.y1, base + PL, base + PL + H, marino);
-  for (let y0 = YP + 4; y0 < q.y1 - 10; y0 += 36) caja(XV - 0.6, y0, XV, y0 + 32, base + PL + 0.05 * M, base + PL + H - 0.3 * M, vidrio);
-  // losa del pórtico (cielo blanco) y fascia amarilla al oeste y al sur
-  // la losa solo cubre el pórtico; arriba queda al ras del cuerpo azul (foto: la fascia amarilla sigue la línea del muro)
-  const tope = base + PL + H;
-  caja(q.x0, YP, XV, q.y1, tope - 0.35 * M, tope - 0.05 * M, blanco);
-  caja(q.x0 - 1, YP, q.x0 + 1, q.y1 + 1, tope - 0.9 * M, tope, amarillo);
-  caja(q.x0 - 1, q.y1 - 1, XV, q.y1 + 1, tope - 0.9 * M, tope, amarillo);
-  // dos columnas azul marino en el frente del pórtico
-  for (const yc of [YP + 2, YP + 55]) caja(q.x0 + 1, yc, q.x0 + 6, yc + 5, base + PL, base + PL + H - 0.9 * M, marino);
+  const marino = matE(0x434a63, { metalness: 0 }), columna = matE(0x8d93a6, { metalness: 0 }), blanco = matE(0xf4f3ef, { metalness: 0 }), amarillo = matE(0xd9b746, { metalness: 0 });
+  const mosaico = cuadros("#ddd2bf", "#cbbca2", [26, 2]), piso = matE(0xe7e2d8, { metalness: 0 }), persiana = matE(0xdfe6d2, { metalness: 0 });
+  const vidrio = new THREE.MeshStandardMaterial({ color: 0xa9c2cc, metalness: 0.3, roughness: 0.05, transparent: true, opacity: 0.22, depthWrite: false });
+  const oscuro = new THREE.MeshStandardMaterial({ color: 0x1d2328, metalness: 0.6, roughness: 0.1 });
+  // mitad norte: cuerpo cerrado
+  caja(FX, q.y0, q.x1, YP, base, TOP, marino);
+  caja(FX - 0.5, 1252, FX, 1262, base + 2.4 * M, base + 2.9 * M, oscuro);                     // ventanita
+  caja(FX - 0.6, 1290, FX, 1340, base + 0.75 * M, base + 3.0 * M, marino);                      // marco del ventanal
+  caja(FX - 0.8, 1292, FX - 0.5, 1338, base + 0.85 * M, base + 2.9 * M, oscuro);                // vidrio
+  caja(FX - 0.9, 1300, FX - 0.7, 1338, base + 0.95 * M, base + 2.85 * M, persiana);            // persiana clara
+  // mitad sur: pórtico
+  caja(FX, YP, q.x1, q.y1, base, base + PL, mosaico); caja(FX, YP, q.x1, q.y1, base + PL - 0.01, base + PL, piso);
+  for (let k = 0; k < 4; k++) caja(FX - 4 * (k + 1), YP, FX - 4 * k, YP + 13, base, base + PL * (4 - k) / 4.4, piso);   // gradas (extremo norte)
+  caja(FX, YP - 1, q.x1, q.y1, TOP - FAS, TOP, blanco);                                           // losa
+  caja(FX, YP, XG, q.y1 - 1, TOP - FAS - 0.02, TOP - FAS, blanco);                                // cielo
+  caja(FX - 1.5, YP - 1, FX, q.y1 + 1, TOP - FAS, TOP + 0.1 * M, amarillo);                       // fascia amarilla al frente (sobresale)
+  caja(FX - 1.5, q.y1 - 0.5, q.x1, q.y1 + 1, TOP - FAS, TOP, amarillo);                           // y al sur
+  const ym = (YP + q.y1) / 2; caja(FX + 1, ym - 3, FX + 6, ym + 3, base + PL, TOP - FAS, columna);    // una columna al centro
+  // local de vidrio (transparente) metido atrás, con marcos oscuros y puerta al sur
+  caja(XG, YP, XG + 0.4, q.y1 - 2, base + PL, TOP - FAS, vidrio); caja(XG, q.y1 - 2.4, q.x1, q.y1 - 2, base + PL, TOP - FAS, vidrio);
+  for (let y = YP; y <= q.y1 - 2; y += 26) caja(XG - 0.3, y - 0.4, XG + 0.5, y + 0.4, base + PL, TOP - FAS, marino);
+  caja(XG - 0.3, YP, XG + 0.5, q.y1 - 2, base + PL + 2.4 * M, base + PL + 2.5 * M, marino);
+  caja(XG + 0.4, YP + 0.2, q.x1 - 0.2, q.y1 - 2.4, base + PL, base + PL + 0.01, piso);
   return g;
 }
 
