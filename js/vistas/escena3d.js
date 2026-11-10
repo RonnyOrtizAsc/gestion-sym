@@ -511,7 +511,7 @@ function techoElemento(e) {
 
 // ---------- Taller: estructura de acero gris perla (como en obra) ----------
 // Columnas en 4 filas de norte a sur (AR-01): pared oeste x 941, dos por dentro x 1083 y x 1190, pared este x 1331.
-// Las franjas de los lados ya tienen techo; la del centro solo tiene las cerchas a dos aguas, sin lámina.
+// Techos del G-01 (ver abajo): lados casi planos y el centro levantado a dos aguas.
 const TALLER = { x0: 933, x1: 1337, y0: 60, y1: 715 };
 const enTaller = (x, y) => x > TALLER.x0 - 8 && x < TALLER.x1 + 8 && y > TALLER.y0 - 8 && y < TALLER.y1 + 8;
 const COLUMNAS_TALLER = [
@@ -531,26 +531,29 @@ function estructuraTaller(base) {
     const v = aEscena(cx, cy), b = E.altura(cx, cy) * M, alto = y - b;
     const col = new THREE.Mesh(new THREE.BoxGeometry(0.45, alto, 0.45), perla); col.position.set(v.x, b + alto / 2, v.z); col.castShadow = true; E.edificios.add(col);   // las columnas se ven también al editar
   }
-  const viga = (x0, x1, yv, z, alto = 0.6) => { const v = new THREE.Mesh(new THREE.BoxGeometry(Math.abs(x1 - x0), alto, 0.25), perla); v.position.set((x0 + x1) / 2, yv, z); v.castShadow = true; g.add(v); };
-  const paso = 5 * M, n = Math.max(2, Math.round(largo / paso));
-  // franjas de los lados: techo de lámina sobre vigas, con poca caída
-  for (const [a, b] of [[941, 1083], [1190, 1331]]) {
-    const xa = X(a), xb = X(b), w = xb - xa;
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.12, largo), lamina); m.position.set((xa + xb) / 2, y + 0.3, zc); m.receiveShadow = true; g.add(m);
-    for (let k = 0; k <= n; k++) viga(xa, xb, y, z0 + (largo * k) / n);
-    for (const xx of [xa, xb]) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.6, largo), perla); l.position.set(xx, y, zc); g.add(l); }
+  // Techos según G-01: franja oeste (941–1085) cae al 2% hacia el oeste; franja este (1192–1331) al 3% hacia el este;
+  // el centro (1085–1192) va levantado: paredes cortas abiertas (entra luz y aire) y encima dos aguas al 21% con cumbrera en x 1138.
+  const za = aEscena(0, TALLER.y0 + 5).z, zb = aEscena(0, TALLER.y1 - 5).z;
+  const Pt = (x, h, z) => new THREE.Vector3(X(x), base + h * M, z);
+  const panel = (p0, p1, mat) => {   // franja de lámina de p0 a p1 (en el corte), a todo lo largo
+    const geo = new THREE.BufferGeometry(), v = [Pt(p0[0], p0[1], za), Pt(p1[0], p1[1], za), Pt(p1[0], p1[1], zb), Pt(p0[0], p0[1], zb)];
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(v.flatMap((q) => [q.x, q.y, q.z]), 3)); geo.setIndex([0, 1, 2, 0, 2, 3]); geo.computeVertexNormals();
+    const m = new THREE.Mesh(geo, mat); m.receiveShadow = true; g.add(m);
+  };
+  const barra = (a, b, s) => { const v = new THREE.Vector3().subVectors(b, a), m = new THREE.Mesh(new THREE.BoxGeometry(s, s, v.length()), perla); m.position.copy(a).addScaledVector(v, 0.5); m.lookAt(b); m.castShadow = true; g.add(m); };
+  const m2 = (u) => u * 0.056, H = ALTO_TALLER, CLARO = 1.4, CUMBRE = 0.21 * m2(1138 - 1085);
+  const hO = H - 0.02 * m2(1085 - 941), hE = H - 0.03 * m2(1331 - 1192), hC = H + CLARO;
+  panel([941, hO], [1085, H], lamina); panel([1192, H], [1331, hE], lamina);                       // franjas de los lados
+  panel([1085, hC], [1138, hC + CUMBRE], lamina); panel([1138, hC + CUMBRE], [1192, hC], lamina);   // dos aguas del centro
+  const paso = 5 * M, n = Math.max(2, Math.round((zb - za) / paso));
+  for (let k = 0; k <= n; k++) {   // marcos cada ~5 m
+    const z = za + ((zb - za) * k) / n;
+    barra(Pt(941, hO - 0.3, z), Pt(1085, H - 0.3, z), 0.4); barra(Pt(1192, H - 0.3, z), Pt(1331, hE - 0.3, z), 0.4);
+    barra(Pt(1085, H - 0.3, z), Pt(1085, hC, z), 0.3); barra(Pt(1192, H - 0.3, z), Pt(1192, hC, z), 0.3);       // paralelos de la parte levantada
+    barra(Pt(1085, hC - 0.25, z), Pt(1138, hC + CUMBRE - 0.25, z), 0.4); barra(Pt(1138, hC + CUMBRE - 0.25, z), Pt(1192, hC - 0.25, z), 0.4);
+    barra(Pt(1085, H - 0.3, z), Pt(1192, H - 0.3, z), 0.25);                                                   // cuerda de abajo
   }
-  // franja del centro: solo cerchas a dos aguas (sin lámina) y largueros
-  const xa = X(1083), xb = X(1190), w = xb - xa, sube = SUBE_CENTRO * M, lado = Math.hypot(w / 2, sube), inc = Math.atan2(sube, w / 2);
-  for (let k = 0; k <= n; k++) {
-    const z = z0 + (largo * k) / n;
-    for (const s of [-1, 1]) { const v = new THREE.Mesh(new THREE.BoxGeometry(lado, 0.5, 0.22), perla); v.position.set((xa + xb) / 2 + (s * w) / 4, y + sube / 2, z); v.rotation.z = -s * inc; v.castShadow = true; g.add(v); }
-    viga(xa, xb, y - 0.1, z, 0.25);   // cuerda de abajo
-  }
-  for (const t of [0, 0.25, 0.5, 0.75, 1]) {   // largueros a lo largo
-    const l = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, largo), perla);
-    l.position.set(xa + w * t, y + sube * (1 - Math.abs(t - 0.5) * 2) + 0.2, zc); g.add(l);
-  }
+  for (const [x, h] of [[941, hO], [1085, H], [1085, hC], [1138, hC + CUMBRE], [1192, hC], [1192, H], [1331, hE]]) barra(Pt(x, h - 0.2, za), Pt(x, h - 0.2, zb), 0.22);   // largueros a lo largo
   g.userData.techo = true;   // al editar el plano se esconde, igual que los techos
   return g;
 }
