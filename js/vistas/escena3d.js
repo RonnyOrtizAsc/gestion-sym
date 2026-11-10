@@ -479,6 +479,44 @@ function techoExistente() {
   return g;
 }
 
+// ---------- Techos existentes del lado de GWM y Marca 4 (G-01; siguen en obra, sobre las columnas del plano) ----------
+// agua: una caída (n = lado bajo: "n","s","e","o"); dos: dos aguas con cumbrera a lo largo de x en "y"; pira: cuatro aguas.
+const TECHOS_OESTE = [
+  { c: { x0: 181, y0: 6, x1: 715, y1: 184 }, t: "agua", baja: "n", pend: 0.09 },        // exhibición GWM
+  { c: { x0: 246, y0: 264, x1: 605, y1: 487 }, t: "dos", cumbre: 376, pend: 0.19 },     // entrega y carros demo GWM
+  { c: { x0: 182, y0: 579, x1: 711, y1: 712 }, t: "agua", baja: "s", pend: 0.21 },      // exhibición Marca 4
+  { c: { x0: 95, y0: 487, x1: 255, y1: 593 }, t: "pira", pend: 0.3 },                   // caseta de Marca 4
+  { c: { x0: 283, y0: 1321, x1: 456, y1: 1445 }, t: "pira", pend: 0.3 },                // caseta de exhibición Nissan
+];
+function techosOeste() {
+  const g = new THREE.Group(); g.userData.techo = true;
+  const lam = new THREE.MeshStandardMaterial({ color: 0xb4bbc1, metalness: 0.45, roughness: 0.5, side: THREE.DoubleSide, transparent: true, opacity: 0.85, depthWrite: false });
+  const acero = new THREE.MeshStandardMaterial({ color: 0xd9dcd8, metalness: 0.35, roughness: 0.5 });
+  const m2 = (u) => u * 0.056, ALERO = 4.5;
+  for (const r of TECHOS_OESTE) {
+    const c = r.c, base = E.altura((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2) * M, P = (x, y, h) => { const v = aEscena(x, y); v.y = base + h * M; return v; };
+    const tri = (pts) => { const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(pts.flatMap((p) => [p.x, p.y, p.z]), 3)); geo.computeVertexNormals(); g.add(new THREE.Mesh(geo, lam)); };
+    const quad = (a, b, cc, d) => { tri([a, b, cc]); tri([a, cc, d]); };
+    if (r.t === "agua") {
+      const ancho = r.baja === "n" || r.baja === "s" ? c.y1 - c.y0 : c.x1 - c.x0, alto = ALERO + r.pend * m2(ancho);
+      const h = (x, y) => r.baja === "n" ? ALERO + (alto - ALERO) * (y - c.y0) / (c.y1 - c.y0) : r.baja === "s" ? alto - (alto - ALERO) * (y - c.y0) / (c.y1 - c.y0)
+        : r.baja === "o" ? ALERO + (alto - ALERO) * (x - c.x0) / (c.x1 - c.x0) : alto - (alto - ALERO) * (x - c.x0) / (c.x1 - c.x0);
+      quad(P(c.x0, c.y0, h(c.x0, c.y0)), P(c.x1, c.y0, h(c.x1, c.y0)), P(c.x1, c.y1, h(c.x1, c.y1)), P(c.x0, c.y1, h(c.x0, c.y1)));
+      for (let k = 0; k <= 6; k++) { const x = c.x0 + (c.x1 - c.x0) * k / 6; celosia(g, P(x, c.y0, h(x, c.y0) - 0.05), P(x, c.y1, h(x, c.y1) - 0.05), 0.4 * M, acero, 0.08); }
+    } else if (r.t === "dos") {
+      const hc = ALERO + r.pend * m2(Math.max(r.cumbre - c.y0, c.y1 - r.cumbre));
+      quad(P(c.x0, c.y0, ALERO), P(c.x1, c.y0, ALERO), P(c.x1, r.cumbre, hc), P(c.x0, r.cumbre, hc));
+      quad(P(c.x0, r.cumbre, hc), P(c.x1, r.cumbre, hc), P(c.x1, c.y1, ALERO), P(c.x0, c.y1, ALERO));
+      for (let k = 0; k <= 5; k++) { const x = c.x0 + (c.x1 - c.x0) * k / 5; celosia(g, P(x, c.y0, ALERO - 0.05), P(x, r.cumbre, hc - 0.05), 0.4 * M, acero, 0.08); celosia(g, P(x, r.cumbre, hc - 0.05), P(x, c.y1, ALERO - 0.05), 0.4 * M, acero, 0.08); }
+    } else {
+      const cx = (c.x0 + c.x1) / 2, cy = (c.y0 + c.y1) / 2, hc = ALERO + r.pend * m2(Math.min(c.x1 - c.x0, c.y1 - c.y0) / 2), ap = P(cx, cy, hc);
+      const esq = [P(c.x0, c.y0, ALERO), P(c.x1, c.y0, ALERO), P(c.x1, c.y1, ALERO), P(c.x0, c.y1, ALERO)];
+      for (let k = 0; k < 4; k++) tri([esq[k], esq[(k + 1) % 4], ap]);
+    }
+  }
+  return g;
+}
+
 // Techo agregado en el plano (p. ej. el de Entrega de vehículos): lámina sobre una armazón, a "alto" metros.
 // Falta: transparente. En construcción: solo la armazón. Hecho: armazón y lámina.
 function techoElemento(e) {
@@ -883,6 +921,7 @@ function ponerEdificios(areas, elementos = [], piezas = {}) {
     if (ALTO_MURO[a.tipo] && !bajoTechoExistente) { const t = techo(a, base, ALTO_MURO[a.tipo] * M * (a.estado === "en_proceso" ? 0.5 : 1)); t.userData.techo = true; E.edificios.add(t); }
   }
   E.edificios.add(techoExistente());
+  E.edificios.add(techosOeste());
   E.edificios.add(galeras(E.altura(1100, 850) * M));
   ponerJardineras(piezas);
   rotulosNivel();
