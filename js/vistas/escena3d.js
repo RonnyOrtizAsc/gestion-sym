@@ -696,8 +696,7 @@ function galeras(base) {
   for (const x of X) for (const y of [q.y0 + 1, q.y1 - 1]) barra(g, P(x, y, 0), P(x, y, hq(y) - 0.3), 0.4, oscuro);
   for (let k = 0; k <= 8; k++) { const y = q.y0 + ((q.y1 - q.y0) * k) / 8; barra(tg, P(q.x0, y, hq(y) - 0.12), P(q.x1, y, hq(y) - 0.12), 0.16, amarillo); }   // polines
   panel(g, [P(q.x0, q.y0, 0), P(q.x1, q.y0, 0), P(q.x1, q.y0, NORTE), P(q.x0, q.y0, NORTE)], lam);   // fondo norte de lámina
-  panel(g, [P(q.x1, q.y0, 0), P(q.x1, q.y1, 0), P(q.x1, q.y1, 1.2), P(q.x1, q.y0, 1.2)], bloque);    // junto a la rampa: bloque abajo, lámina arriba
-  panel(g, [P(q.x1, q.y0, 1.2), P(q.x1, q.y1, 1.2), P(q.x1, q.y1, SUR), P(q.x1, q.y0, NORTE)], lam);
+  // la pared junto a la rampa es la que dibujaste en el plano (x 1247.7)
   const yf = q.y1 + 5; panel(tg, [P(q.x0 - 1, yf, SUR - 1.4), P(q.x1 + 1, yf, SUR - 1.4), P(q.x1 + 1, yf, SUR + 1.2), P(q.x0 - 1, yf, SUR + 1.2)], fascia);   // fascia alta al frente
   // --- pequeña: alta al oeste (frente a entrega), baja al este (8%) ---
   const c = GALERA_CHICA, OESTE = 5.0, ESTE = OESTE - 0.08 * metros(c.x1 - c.x0), hc = (x) => OESTE + ((ESTE - OESTE) * (x - c.x0)) / (c.x1 - c.x0);
@@ -709,8 +708,9 @@ function galeras(base) {
   }
   barra(tg, P(c.x0, c.y0, OESTE - 0.1), P(c.x0, c.y1, OESTE - 0.1), 0.3, fascia);   // orilla del frente
   barra(tg, P(c.x1 + 2, c.y0, ESTE - 0.2), P(c.x1 + 2, c.y1, ESTE - 0.2), 0.35, fascia);   // canal del lado bajo
-  panel(g, [P(c.x1, c.y0, 0), P(c.x1, c.y1, 0), P(c.x1, c.y1, 1.2), P(c.x1, c.y0, 1.2)], bloque);
-  panel(g, [P(c.x1, c.y0, 1.2), P(c.x1, c.y1, 1.2), P(c.x1, c.y1, ESTE), P(c.x1, c.y0, ESTE)], lam);
+  const xw = 1247.7, hw = hc(xw), y0w = 965;   // sigue la pared dibujada (x 1247.7) hasta el final de la galera pequeña
+  panel(g, [P(xw, y0w, 0), P(xw, c.y1, 0), P(xw, c.y1, 1.2), P(xw, y0w, 1.2)], bloque);
+  panel(g, [P(xw, y0w, 1.2), P(xw, c.y1, 1.2), P(xw, c.y1, hw), P(xw, y0w, hw)], lam);
   return g;
 }
 const MATS_CASETA = () => ({
@@ -861,6 +861,7 @@ function ponerEdificios(areas, elementos = [], piezas = {}) {
     if (/^taller$/i.test(a.nombre || "")) { E.edificios.add(estructuraTaller(base)); continue; }
     if (/supervisor/i.test(a.nombre || "")) { E.edificios.add(supervisor(base)); continue; }
     if (/lavado/i.test(a.nombre || "")) { E.edificios.add(lavado(base)); continue; }
+    if (/comedor/i.test(a.nombre || "")) continue;   // la fila norte (casita, bodega de repuestos, lockers, baños) se dibuja aparte
     const bajoTechoExistente = TECHO_EXISTENTE.some((t) => { const cx = (c.x0 + c.x1) / 2, cy = (c.y0 + c.y1) / 2; return cx > t.x0 && cx < t.x1 && cy > t.y0 && cy < t.y1; });
     if (ALTO_MURO[a.tipo] && !bajoTechoExistente) { const t = techo(a, base, ALTO_MURO[a.tipo] * M * (a.estado === "en_proceso" ? 0.5 : 1)); t.userData.techo = true; E.edificios.add(t); }
   }
