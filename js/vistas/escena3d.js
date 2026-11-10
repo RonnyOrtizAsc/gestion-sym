@@ -246,7 +246,9 @@ function ponerTerreno() {
 }
 
 // ---------- Paredes y columnas del plano (cada pieza con su estado: hecho, en construcción o falta) ----------
-const ALTO_MURO = { sala: 6, taller: 7, oficinas: 3.2, servicio: 3.2, receso: 4.74 };   // receso = ARRIBA × EXAGERA (la bodega llega al nivel de arriba)   // metros
+// Alturas del AR-08: salas 6.45 (ventanería 3.00 + franja 1.25 + 2.20 a la fascia, fachada y sección A-A),
+// oficinas 3.72 (sección B-B), lavado 4.51 con techo al 8% (sección B-B). Taller: estructura propia (ver estructuraTaller).
+const ALTO_MURO = { sala: 6.45, taller: 6, oficinas: 3.72, servicio: 3.72, lavado: 4.51, receso: 4.74 };   // receso = ARRIBA × EXAGERA (la bodega llega al nivel de arriba)   // metros
 function tipoEn(areas, x, y) {
   const a = areas.filter((a) => { const c = caja(a); return x >= c.x0 && x <= c.x1 && y >= c.y0 && y <= c.y1; }).sort((p, q) => p.w * p.h - q.w * q.h)[0];
   return a ? (a.es_receso ? "receso" : a.tipo) : null;
@@ -598,7 +600,8 @@ function ponerEdificios(areas, elementos = [], piezas = {}) {
     const c = caja(a), base = E.altura((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2) * M;
     if (a.es_receso) { E.edificios.add(bodega(a, base)); continue; }
     if (/^taller$/i.test(a.nombre || "")) { E.edificios.add(estructuraTaller(base)); continue; }
-    if (ALTO_MURO[a.tipo]) { const t = techo(a, base, ALTO_MURO[a.tipo] * M * (a.estado === "en_proceso" ? 0.5 : 1)); t.userData.techo = true; E.edificios.add(t); }
+    const bajoTechoExistente = TECHO_EXISTENTE.some((t) => { const cx = (c.x0 + c.x1) / 2, cy = (c.y0 + c.y1) / 2; return cx > t.x0 && cx < t.x1 && cy > t.y0 && cy < t.y1; });
+    if (ALTO_MURO[a.tipo] && !bajoTechoExistente) { const t = techo(a, base, ALTO_MURO[a.tipo] * M * (a.estado === "en_proceso" ? 0.5 : 1)); t.userData.techo = true; E.edificios.add(t); }
   }
   E.edificios.add(techoExistente());
   rotulosNivel();
