@@ -165,3 +165,13 @@ window.addEventListener("hashchange", () => { redibujar(); window.scrollTo(0, 0)
 
 // App instalable (funciona como app en el celular)
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+
+// Compu con pantalla baja (laptop con escala de Windows o zoom del navegador): achica toda la app para que quepa más.
+// En celular y tablet (dedo) no se toca.
+function ajustarEscala() {
+  const compu = matchMedia("(pointer:fine)").matches && innerWidth >= 700;
+  const z = compu ? Math.max(0.7, Math.min(1, innerHeight / 900)) : 1;
+  document.documentElement.style.zoom = z === 1 ? "" : String(z);
+}
+ajustarEscala();
+addEventListener("resize", ajustarEscala);
