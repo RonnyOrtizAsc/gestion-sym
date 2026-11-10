@@ -767,9 +767,10 @@ function ponerJardineras(piezas = {}) {
 // de las puertas y baja hacia la pared de lámina; un poste cerca de la cara sur. Sin la fascia de publicidad.
 const SUPERVISOR = { x0: 829, x1: 931, y0: 175, y1: 260 }, TECHO_SUP = { x0: 797, x1: 932, y0: 168, y1: 362 }   // techo del G-01; poste en el "PEDESTAL" del G-02;
 // Casita del comedor (atrás y a la izquierda): crema con franjas naranjas, techo inclinado hacia el frente (sur) con orilla amarilla.
-const CASITA = { x0: 718, x1: 808, y0: 10, y1: 103 };
+const CASITA = { x0: 711, x1: 848, y0: 3, y1: 100 };   // G-02: "OFICINA, toda esta edificación es de block", cielo a 2.72 m
+const SUBEST = { x0: 848, x1: 930, y0: 3, y1: 82 };   // G-02: "ELÉCTRICO, edificación de block" (la subestación)
 const BODEGA_B = { x0: 720, x1: 809, y0: 713, y1: 912 };   // la bodega se dibuja completa (fotos); sus piezas del plano no
-const enSupervisor = (x, y) => [SUPERVISOR, CASITA, LAVADO, OFI_NISSAN, BODEGA_B].some((q) => x > q.x0 - 3 && x < q.x1 + 3 && y > q.y0 - 3 && y < q.y1 + 3);
+const enSupervisor = (x, y) => [SUPERVISOR, CASITA, SUBEST, { x0: 930, x1: 952, y0: 3, y1: 75 }, LAVADO, OFI_NISSAN, BODEGA_B].some((q) => x > q.x0 - 3 && x < q.x1 + 3 && y > q.y0 - 3 && y < q.y1 + 3);
 const centro = (i) => [(CAJAS[i].x0 + CAJAS[i].x1) / 2, (CAJAS[i].y0 + CAJAS[i].y1) / 2];
 // ---------- Lavado de vehículos (foto): galera abierta hacia el patio de maniobras ----------
 // Techo de lámina de una caída (18% hacia la calle, G-01) sobre largueros de celosía blancos; viga de celosía al frente con fascia oxidada.
@@ -914,18 +915,60 @@ function supervisor(base) {
   return g;
 }
 function casita() {
+  // G-02 + foto: block crema con franjas naranjas; al frente (sur) ventana, puerta, ventana (ventanas de 1.60 m sobre 0.62 m);
+  // ventana también al oeste. Techo de lámina que vuela poco al frente, con viga de celosía blanca y orilla roja,
+  // cargado por la columna roja de perfil I del "PEDESTAL" (x 853, y 103) junto a la esquina, con su bajada de agua blanca.
   const g = new THREE.Group(), m = MATS_CASETA(), q = CASITA, base = E.altura((q.x0 + q.x1) / 2, (q.y0 + q.y1) / 2) * M;
-  const cara = caseta(g, q, base, 3, m.crema, m);
-  ventanas(cara, "s", 724, 750, 2, 1.0, 1.0, m); puertaV(cara, "s", 760, 776, m); ventanas(cara, "s", 784, 803, 2, 1.0, 1.0, m);   // frente: ventana, puerta, ventana
-  // techo (G-01): una sola lámina de x 715 a 932 y de y 5 a 168, cae al 7% hacia el norte (atrás); vuela adelante
-  // de la casita hasta topar con el techo del supervisor. Viga de celosía en la orilla de enfrente, sobre dos postes.
-  const T = { x0: 715, x1: 932, y0: 5, y1: 168 }, FRENTE = 4.0, ATRAS = FRENTE - 0.07 * (T.y1 - T.y0) * 0.056;
+  const cara = caseta(g, q, base, 2.9, m.crema, m);
+  cara("s", q.x0, q.x1, 1.25, 0.2, m.naranja, 0.04); cara("o", q.y0, q.y1, 1.25, 0.2, m.naranja, 0.04); cara("e", q.y0, q.y1, 1.25, 0.2, m.naranja, 0.04);   // tercera franja
+  ventanas(cara, "s", 727, 757, 1, 0.62, 1.6, m); puertaV(cara, "s", 775, 791, m); ventanas(cara, "s", 815, 845, 1, 0.62, 1.6, m);
+  ventanas(cara, "o", 38, 68, 1, 0.62, 1.6, m);
+  const rojo = new THREE.MeshStandardMaterial({ color: 0xb1281f, roughness: 0.55, metalness: 0.3 }), blanco = new THREE.MeshStandardMaterial({ color: 0xeeeeea, roughness: 0.6, metalness: 0.2 });
+  const T = { x0: 705, x1: 932, y0: 0, y1: 112 }, FRENTE = 4.0, ATRAS = FRENTE - 0.07 * (T.y1 - T.y0) * 0.056;
   const P = (x, y, h) => { const v = aEscena(x, y); v.y = base + h * M; return v; };
   const geo = new THREE.BufferGeometry(), pts = [P(T.x0, T.y0, ATRAS), P(T.x1, T.y0, ATRAS), P(T.x1, T.y1, FRENTE), P(T.x0, T.y1, FRENTE)];
   geo.setAttribute("position", new THREE.Float32BufferAttribute(pts.flatMap((p) => [p.x, p.y, p.z]), 3)); geo.setIndex([0, 1, 2, 0, 2, 3]); geo.computeVertexNormals();
   const lam = new THREE.Mesh(geo, m.lamina); lam.castShadow = lam.receiveShadow = true; g.add(lam);
-  celosia(g, P(T.x0, T.y1 - 1, FRENTE - 0.05), P(T.x1, T.y1 - 1, FRENTE - 0.05), 0.4 * M, m.acero, 0.07);
-  for (const x of [T.x0 + 2, 806]) { const v = P(x, T.y1 - 1, 0), h = (FRENTE - 0.45) * M, t = new THREE.Mesh(new THREE.BoxGeometry(0.2, h, 0.2), m.acero); t.position.set(v.x, base + h / 2, v.z); t.castShadow = true; g.add(t); }
+  const amarillo = new THREE.MeshStandardMaterial({ color: 0xd9a821, roughness: 0.6 });
+  for (let x = T.x0; x <= T.x1; x += 27) barraE(g, P(x, T.y0, ATRAS - 0.12), P(x, T.y1, FRENTE - 0.12), 0.12, amarillo, 0.22);   // polines amarillos
+  celosia(g, P(T.x0, T.y1 - 1, FRENTE - 0.05), P(T.x1, T.y1 - 1, FRENTE - 0.05), 0.7 * M, blanco, 0.08);   // viga de celosía blanca al frente
+  barraE(g, P(T.x0, T.y1, FRENTE), P(T.x1, T.y1, FRENTE), 0.1, rojo, 0.35 * M);   // orilla roja
+  // columna roja de perfil I con placa, y bajada de agua blanca
+  const v = P(856, 102, 0), hc = (FRENTE - 0.7) * M;
+  for (const [sx, sz, dx] of [[0.32, 0.06, 0], [0.06, 0.3, 0.13], [0.06, 0.3, -0.13]]) { const p = new THREE.Mesh(new THREE.BoxGeometry(sx, hc, sz), rojo); p.position.set(v.x, base + hc / 2, v.z + dx); p.castShadow = true; g.add(p); }
+  const placa = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.05, 0.5), rojo); placa.position.set(v.x, base + 0.03, v.z); g.add(placa);
+  const tubo = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, FRENTE * M, 10), blanco); const vt = P(849, 102, 0); tubo.position.set(vt.x, base + (FRENTE * M) / 2, vt.z); g.add(tubo);
+  g.add(subestacion(base));
+  return g;
+}
+
+// Subestación (G-02 "ELÉCTRICO" + foto): recinto de block sin techo. Frente (sur): murito celeste oxidado (1.2 m) con malla
+// naranja hasta ~3.2 m en marco naranja, portón de barrotes gris claro a la derecha, pilastras celestes en las esquinas.
+// Adentro dos transformadores sobre su base. Al lado (este) el cuartito celeste con su puerta.
+function subestacion(base) {
+  const g = new THREE.Group(), q = SUBEST;
+  const caja = (x0, y0, x1, y1, b, t, mat) => { const a = aEscena(x0, y0), c = aEscena(x1, y1), m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.08, Math.abs(c.x - a.x)), (t - b) * M, Math.max(0.08, Math.abs(c.z - a.z))), mat);
+    m.position.set((a.x + c.x) / 2, base + ((b + t) / 2) * M, (a.z + c.z) / 2); m.castShadow = m.receiveShadow = true; g.add(m); return m; };
+  const celeste = new THREE.MeshStandardMaterial({ color: 0x9fc6d6, roughness: 0.9 }), block = cuadros("#a99f95", "#9f958b", [20, 8]);
+  const naranja = new THREE.MeshStandardMaterial({ color: 0xec6a1e, roughness: 0.6, metalness: 0.3 }), gris = new THREE.MeshStandardMaterial({ color: 0xc9cbc8, roughness: 0.6, metalness: 0.3 });
+  const malla = new THREE.MeshStandardMaterial({ color: 0xf07a2a, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false });
+  const yF = q.y1, xP = 905;
+  caja(q.x0, q.y0, q.x0 + 2, q.y1, 0, 3.3, celeste); caja(q.x1 - 3, q.y0, q.x1, q.y1, 0, 3.3, celeste);   // pilastras / paredes laterales
+  caja(q.x0, q.y0, q.x1, q.y0 + 2, 0, 3.3, block);                                                         // fondo
+  caja(q.x0 + 2, yF - 2, xP, yF, 0, 1.2, celeste);                                                          // murito con óxido
+  caja(q.x0 + 2, yF - 1.2, xP, yF - 0.8, 1.2, 3.2, malla);                                                  // malla
+  for (const x of [q.x0 + 3, 866, 884, xP]) caja(x - 0.5, yF - 1.5, x + 0.5, yF - 0.5, 1.2, 3.2, naranja);
+  for (const h of [1.2, 2.2, 3.2]) caja(q.x0 + 2, yF - 1.5, xP, yF - 0.5, h - 0.05, h + 0.05, naranja);
+  // portón de barrotes
+  for (let x = xP + 1; x <= q.x1 - 4; x += 2.5) caja(x - 0.3, yF - 1.4, x + 0.3, yF - 0.6, 0, 2.6, gris);
+  for (const h of [0.1, 1.1, 2.0, 2.55]) caja(xP + 1, yF - 1.4, q.x1 - 4, yF - 0.6, h, h + 0.08, gris);
+  caja(xP, yF - 1.2, q.x1 - 3, yF - 0.8, 2.6, 3.2, malla);
+  // transformadores
+  const tr = new THREE.MeshStandardMaterial({ color: 0xdfe3e4, metalness: 0.5, roughness: 0.35 });
+  caja(868, 30, 920, 55, 0, 0.3, new THREE.MeshStandardMaterial({ color: 0x9a9a95 }));
+  for (const x of [880, 905]) { const v = aEscena(x, 42), t = new THREE.Mesh(new THREE.CylinderGeometry(0.55 * M, 0.55 * M, 1.4 * M, 14), tr); t.position.set(v.x, base + (0.3 + 0.7) * M, v.z); t.castShadow = true; g.add(t); }
+  // cuartito celeste al este con su puerta
+  caja(930, 3, 952, 75, 0, 3.6, celeste); caja(931, 75, 945, 75.6, 0, 2.1, new THREE.MeshStandardMaterial({ color: 0x7f9fae }));
   return g;
 }
 
@@ -951,7 +994,7 @@ function bodega(a, base) {
   const ap = 2.7 * M, cx = xe - 0.6 * M - ap / 2;
   box(ap, 2.4 * M, 0.08, cx, base + 1.2 * M, zN - 0.03, oscuro);
   for (let k = 0; k <= 8; k++) box(0.05, 0.35 * M, 0.06, cx - ap / 2 + (ap * k) / 8, base + 2.25 * M, zN - 0.07, new THREE.MeshStandardMaterial({ color: 0xf2f2ee }));
-  const alero = box(ap * 1.6, 0.06, 0.7 * M, cx - 0.3 * M, base + 2.75 * M, zN - 0.35 * M, new THREE.MeshStandardMaterial({ color: 0x9da4aa, metalness: 0.5 })); alero.rotation.x = 0.12;
+  const alero = box(ap * 1.15, 0.06, 0.6 * M, cx, base + 2.75 * M, zN - 0.3 * M, new THREE.MeshStandardMaterial({ color: 0x9da4aa, metalness: 0.5 })); alero.rotation.x = 0.12;
   // piso de arriba (block café)
   box(w, piso2, h, xc, yb + piso2 / 2, ctr.z, block);
   box(w + 0.05, 0.12, h + 0.05, xc, yb + piso2 + 0.06, ctr.z, new THREE.MeshStandardMaterial({ color: 0x7a6656, roughness: 0.95 }));
