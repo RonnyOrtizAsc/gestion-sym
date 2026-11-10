@@ -278,3 +278,28 @@ export async function borrarElemento(id) {
 export async function editarPerfil(id, cambios) {
   ok(await sb.from("perfiles").update(cambios).eq("id", id));
 }
+
+// ---------- Categorías de herramientas ----------
+// Se ponen solas por el nombre; se pueden cambiar en Inventario (queda guardada).
+export const CATEGORIAS = [
+  ["electricas", "Eléctricas", /taladr|pulidor|esmeril|rotomart|martillo dem|sierra|caladora|router|lijador|atornillad|compresor|planta|extension|extensión/],
+  ["soldadura", "Soldadura y corte", /sold|careta|electrod|guillotin|oxicorte|plasma|cortadora/],
+  ["accesorios", "Brocas, discos y puntas", /broca|disco|diacamer|punta|adaptador|cubo magn|copa|sierra copa|lija|hoja/],
+  ["manuales", "Manuales", /tenaza|llave|stilson|martill|desarmador|destornill|alicate|pinza|sargento|prensa|cincel|serrucho|cuchilla|navaja|tijera|cubo|remachad/],
+  ["medicion", "Medir y marcar", /cinta|metro|nivel|escuadra|plum[oó]n|l[aá]piz|marcador|l[aá]ser|plomada|tiralinea|crayon|cray[oó]n/],
+  ["obra", "Albañilería y excavación", /pala|piocha|carretill|cuchara|llana|barra|mezclador|cubeta|balde|azad|rastrillo|manguera|vibrador|codal/],
+  ["seguridad", "Seguridad", /guante|lente|casco|chaleco|arn[eé]s|tap[oó]n|bota|mascarilla|respirador|tapaboca|faja|conos?\b|cinta de seg/],
+  ["otros", "Otros", /$^/],
+];
+const sinTilde = (t) => (t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+export const textoBusqueda = sinTilde;
+export function categoriaDe(h) {
+  if (h.categoria && CATEGORIAS.some(([k]) => k === h.categoria)) return h.categoria;
+  const n = (h.nombre || "").toLowerCase();
+  return (CATEGORIAS.find(([, , re]) => re.test(n) || re.test(sinTilde(n))) || ["otros"])[0];
+}
+export const nombreCategoria = (k) => (CATEGORIAS.find(([c]) => c === k) || [, "Otros"])[1];
+export async function cambiarCategoria(hid, categoria) {
+  ok(await sb.from("herramientas").update({ categoria }).eq("id", hid));
+  const h = S.herramientas.find((x) => x.id === hid); if (h) h.categoria = categoria;
+}

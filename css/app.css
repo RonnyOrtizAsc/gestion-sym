@@ -355,3 +355,13 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
   h2{font-size:22px}
   .lead{font-size:14px;margin-bottom:10px}
 }
+.buscador{margin:0 0 12px}
+.buscador input{width:100%;box-sizing:border-box;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:12px;padding:11px 14px;font:inherit;font-size:15px;margin-bottom:8px}
+.buscador .chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.buscador .chips::-webkit-scrollbar{display:none}
+.chip{white-space:nowrap;color:var(--ink)}
+.chip span{opacity:.55;font-weight:700;margin-left:2px}
+.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.cat-h{margin:14px 0 6px}
+.li .chips.mover{margin-top:6px}
+.list .cat-h{margin:0;padding:12px 14px 4px;background:var(--sunk)}
