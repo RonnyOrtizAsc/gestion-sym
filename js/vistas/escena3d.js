@@ -442,22 +442,40 @@ function techoExistente() {
   const y = (MEDIO * EXAGERA + ALTO_TECHO_EXISTENTE) * M;
   const lamina = new THREE.MeshStandardMaterial({ color: 0xb9c0c6, metalness: 0.5, roughness: 0.45, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false });
   const amarillo = new THREE.MeshStandardMaterial({ color: 0xe8b81f, roughness: 0.6, metalness: 0.3 });
-  // dos aguas: las vigas (amarillas) van de lado a lado, de la fila de columnas del oeste a la del este, con la cumbrera al centro
+  // dos aguas con linterna en la cumbrera (foto): las aguas suben hasta la linterna; ahí dos paredes cortas abiertas
+  // (para que entre aire y luz) y encima un techito de dos aguas que vuela un poco. Cerchas amarillas cada ~6 m.
+  const LINTERNA = 4, PARAL = 1.1, PICO = 0.6, VUELO = 0.5;   // metros: ancho, alto de la parte abierta, subida del techito, vuelo
+  const viga = (x0, y0, x1, y1, z, alto = 0.6, largo) => {   // viga de (x0,y0) a (x1,y1) en el corte, a la profundidad z (o a lo largo si "largo")
+    const L = Math.hypot(x1 - x0, y1 - y0), v = new THREE.Mesh(new THREE.BoxGeometry(L, alto, largo || 0.3), amarillo);
+    v.position.set((x0 + x1) / 2, (y0 + y1) / 2 - alto / 2, z); v.rotation.z = Math.atan2(y1 - y0, x1 - x0); v.castShadow = !largo; return v;
+  };
+  const agua = (x0, y0, x1, y1, z, h) => {
+    const L = Math.hypot(x1 - x0, y1 - y0), m = new THREE.Mesh(new THREE.BoxGeometry(L, 0.12, h), lamina);
+    m.position.set((x0 + x1) / 2, (y0 + y1) / 2, z); m.rotation.z = Math.atan2(y1 - y0, x1 - x0); m.receiveShadow = true; return m;
+  };
   for (const c of TECHO_EXISTENTE) {
     const w = (c.x1 - c.x0) * ESC, h = (c.y1 - c.y0) * ESC, p = aEscena((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2);
-    const sube = 1.8 * M, medio = w / 2, inc = Math.atan2(sube, medio), lado = Math.hypot(medio, sube);
-    for (const s of [-1, 1]) {   // las dos aguas
-      const m = new THREE.Mesh(new THREE.BoxGeometry(lado, 0.12, h), lamina);
-      m.position.set(p.x + (s * medio) / 2, y + sube / 2, p.z); m.rotation.z = -s * inc; m.receiveShadow = true; g.add(m);
+    const medio = w / 2, l = (LINTERNA / 2) * M, yL = y + 1.8 * M, yP = yL + PARAL * M, yC = yP + PICO * M, vu = VUELO * M;
+    for (const s of [-1, 1]) {
+      g.add(agua(p.x + s * medio, y, p.x + s * l, yL, p.z, h));                    // agua grande
+      g.add(agua(p.x + s * (l + vu), yP - (PICO * M * vu) / l, p.x, yC, p.z, h));   // techito de la linterna
     }
     const paso = 6 * M, n = Math.max(1, Math.round(h / paso));
-    for (let k = 0; k <= n; k++) {   // cerchas cada ~6 m
+    for (let k = 0; k <= n; k++) {   // cerchas
       const z = p.z - h / 2 + (h * k) / n;
-      for (const s of [-1, 1]) { const v = new THREE.Mesh(new THREE.BoxGeometry(lado, 0.7, 0.3), amarillo);
-        v.position.set(p.x + (s * medio) / 2, y + sube / 2 - 0.45, z); v.rotation.z = -s * inc; v.castShadow = true; g.add(v); }
-      const t = new THREE.Mesh(new THREE.BoxGeometry(w, 0.25, 0.25), amarillo); t.position.set(p.x, y - 0.6, z); g.add(t);   // tirante
+      for (const s of [-1, 1]) {
+        g.add(viga(p.x + s * medio, y, p.x + s * l, yL, z));          // cuerda de arriba del agua
+        g.add(viga(p.x + s * l, yL, p.x + s * l, yP, z, 0.25));       // paral de la linterna
+        g.add(viga(p.x + s * l, yP, p.x, yC, z, 0.4));                // techito
+      }
+      g.add(viga(p.x - medio, y - 0.6, p.x + medio, y - 0.6, z, 0.25));   // cuerda de abajo (tirante)
+      g.add(viga(p.x - l, yL - 0.6, p.x - l, yL, z, 0.2)); g.add(viga(p.x + l, yL - 0.6, p.x + l, yL, z, 0.2));
     }
-    for (const s of [-1, 1]) { const v = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.7, h), amarillo); v.position.set(p.x + (s * w) / 2, y - 0.35, p.z); g.add(v); }
+    for (const s of [-1, 1]) {   // vigas a lo largo: orillas, base y tope de la linterna
+      g.add(viga(p.x + s * w / 2, y, p.x + s * w / 2 + 0.01, y, p.z, 0.7, h));
+      g.add(viga(p.x + s * l, yL, p.x + s * l + 0.01, yL, p.z, 0.3, h));
+      g.add(viga(p.x + s * l, yP, p.x + s * l + 0.01, yP, p.z, 0.3, h));
+    }
   }
   // alero sobre la parte baja: sale del borde del techo y baja un poco hacia el boulevard
   for (const c of ALEROS) {
