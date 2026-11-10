@@ -660,16 +660,19 @@ function supervisor(base) {
   const g = new THREE.Group(), m = MATS_CASETA();
   const cara = caseta(g, SUPERVISOR, base, 3, m.blanco, m);
   ventanas(cara, "s", 836, 928, 5, 1.0, 0.75, m);   // cara sur: fila de ventanas
-  puertaV(cara, "o", 177, 193, m); ventanas(cara, "o", 195, 205, 1, 1.0, 0.75, m); puertaV(cara, "o", 207, 223, m); ventanas(cara, "o", 226, 258, 4, 1.0, 0.75, m);
-  // techo delgado de lámina sobre cerchas, baja hacia la pared de lámina (este)
-  const t = TECHO_SUP, tw = (t.x1 - t.x0) * ESC, th = (t.y1 - t.y0) * ESC, tc = aEscena((t.x0 + t.x1) / 2, (t.y0 + t.y1) / 2);
-  const yO = base + 5.0 * M, yE = base + 4.4 * M, inc = Math.atan2(yO - yE, tw), ym = (yO + yE) / 2;
-  const lam = new THREE.Mesh(new THREE.BoxGeometry(Math.hypot(tw, yO - yE), 0.1, th), m.lamina); lam.position.set(tc.x, ym, tc.z); lam.rotation.z = -inc; lam.castShadow = true; g.add(lam);
-  for (let k = 0; k <= 4; k++) {   // cerchas de oeste a este
-    const z = tc.z - th / 2 + (th * k) / 4, ce = new THREE.Mesh(new THREE.BoxGeometry(Math.hypot(tw, yO - yE), 0.5, 0.15), m.acero);
-    ce.position.set(tc.x, ym - 0.35, z); ce.rotation.z = -inc; g.add(ce);
+  puertaV(cara, "o", 176, 192, m); ventanas(cara, "o", 194, 214, 1, 1.0, 0.75, m); ventanas(cara, "o", 216, 236, 1, 1.0, 0.75, m); puertaV(cara, "o", 238, 254, m);   // cara oeste: puerta, dos ventanas, puerta
+  // techo (fotos): una losa plana de lámina, horizontal, más grande que la cabina; vuela al frente (sur, sobre el poste)
+  // y hacia la pared de lámina (este). Orilla blanca delgada y por debajo vigas de celosía en los dos sentidos.
+  const t = TECHO_SUP, tw = (t.x1 - t.x0) * ESC, th = (t.y1 - t.y0) * ESC, tc = aEscena((t.x0 + t.x1) / 2, (t.y0 + t.y1) / 2), yT = base + 4.6 * M;
+  const losa = new THREE.Mesh(new THREE.BoxGeometry(tw, 0.12, th), m.lamina); losa.position.set(tc.x, yT, tc.z); losa.castShadow = true; g.add(losa);
+  const ORILLA = 0.45 * M;
+  for (const [w, d, x, z] of [[tw, 0.1, 0, -th / 2], [tw, 0.1, 0, th / 2], [0.1, th, -tw / 2, 0], [0.1, th, tw / 2, 0]]) {
+    const o = new THREE.Mesh(new THREE.BoxGeometry(w + 0.1, ORILLA, d + 0.1), m.blanco); o.position.set(tc.x + x, yT - ORILLA / 2 + 0.1, tc.z + z); o.castShadow = true; g.add(o);
   }
-  const pv = aEscena(860, 276), ap = (yO - (860 - t.x0) / (t.x1 - t.x0) * (yO - yE)) - 0.6 - base;   // poste cerca de la cara sur
+  const P = (x, y) => { const v = aEscena(x, y); v.y = yT - 0.08; return v; };
+  for (let k = 0; k <= 4; k++) { const x = t.x0 + 3 + ((t.x1 - t.x0 - 6) * k) / 4; celosia(g, P(x, t.y0 + 2), P(x, t.y1 - 2), 0.35 * M, m.acero, 0.07); }
+  for (const y of [t.y0 + 3, (t.y0 + t.y1) / 2, t.y1 - 3]) celosia(g, P(t.x0 + 2, y), P(t.x1 - 2, y), 0.35 * M, m.acero, 0.07);
+  const pv = aEscena(860, 276), ap = yT - base - 0.1;   // poste blanco con pie amarillo, al frente de la cara sur
   const poste = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, ap, 12), new THREE.MeshStandardMaterial({ color: 0xf2f2f0, roughness: 0.6 }));
   poste.position.set(pv.x, base + ap / 2, pv.z); poste.castShadow = true; g.add(poste);
   const pie = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.6 * M, 12), m.amarillo); pie.position.set(pv.x, base + 0.3 * M, pv.z); g.add(pie);
