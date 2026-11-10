@@ -167,7 +167,7 @@ function ponerPiso(svg) {
 
 // ---------- Niveles (según secciones AR-08 / G-05) ----------
 // Metros sobre el nivel de abajo (N 868.96). Calle ≈ 867.32.
-const BASE_N = 868.96, CALLE = -1.64, EXAGERA = 1.6;   // los desniveles se exageran un poco para que se noten
+const BASE_N = 868.96, CALLE = -1.64, EXAGERA = 1;   // alturas reales (antes se exageraban y los edificios quedaban más altos que en obra)
 const esRampa = (a) => a.tipo === "rampa";
 const caja = (a) => ({ x0: (a.x / 100) * ANCHO, y0: (a.y / 100) * ALTO, x1: ((+a.x + +a.w) / 100) * ANCHO, y1: ((+a.y + +a.h) / 100) * ALTO });
 // Tres plataformas (confirmadas en obra):
@@ -193,8 +193,8 @@ const RAMPA_CHERY = { c: { x0: 140, y0: 748, x1: 325, y1: 813 }, eje: "x", n: [A
 //  Exhibición exterior (3) a N 868.32; "Rampa existente" de Carros demo Nissan sube de N 868.32 a Entrega de vehículos (N 869.95)
 const LADO_BOULEVARD = [
   { c: { x0: 85, y0: 715, x1: 330, y1: 1310 }, eje: "y", n: [0.01, -0.64], sinRotulo: true },   // baja parejo, sin hundirse en medio (no es rampa)
-  { c: { x0: 85, y0: 1310, x1: 282, y1: 1446 }, eje: "y", n: [-0.64, -0.64], sinRotulo: true },
-  { c: { x0: 282, y0: 1322, x1: 455, y1: 1446 }, eje: "x", n: [-0.64, 0.99] },
+  { c: { x0: 85, y0: 1310, x1: 352, y1: 1446 }, eje: "y", n: [-0.64, -0.64], sinRotulo: true },
+  { c: { x0: 352, y0: 1322, x1: 556, y1: 1446 }, eje: "x", n: [-0.64, 1.04] },   // G-02: rampa de la calle a la oficina
 ];
 // Estado de una rampa del plano: el de la mayoría de sus rayas (se marcan juntas)
 const rayasDe = (r) => RAMPAS.find((q) => q.c.x0 < r.c.x1 && q.c.x1 > r.c.x0 && q.c.y0 < r.c.y1 && q.c.y1 > r.c.y0);
@@ -233,8 +233,11 @@ function prepararNiveles(areas, piezas = {}) {
     const eje = Math.abs(dx - dy) < 0.3 ? (c.x1 - c.x0 >= c.y1 - c.y0 ? "x" : "y") : dx > dy ? "x" : "y";
     // los lados de la rampa llegan hasta la pared de al lado (la de la bodega): sin zanja entre la rampa y la pared
     const L = 5, cc = eje === "y" ? { ...c, x0: c.x0 - L, x1: c.x1 } : { ...c, y0: c.y0 - L, y1: c.y1 + L };
+    if (/circulaci[oó]n central/i.test(a.nombre || "")) return { a, c: { ...cc, y0: 713, y1: 912 }, eje: "y", n: [ABAJO, ARRIBA] };   // fotos: sube junto a la bodega
     return { a, c: cc, eje, n: eje === "x" ? ex : ey };
   });
+  const rc = areas.find((a) => /circulaci[oó]n central/i.test(a.nombre || ""));
+  if (rc) { const c = caja(rc); rampas.push({ c: { x0: c.x0 - 5, x1: c.x1, y0: 912, y1: c.y1 }, eje: "y", n: [ARRIBA, ARRIBA], sinRotulo: true }); }   // arriba de la rampa: plano
   rampas.unshift(RAMPA_ESTE, ...LADO_BOULEVARD);
   if (estadoRampa(RAMPA_CHERY, piezas) === "existe") rampas.unshift(RAMPA_CHERY);   // mientras no esté hecha, esa franja queda plana
   E.altura = (x, y) => EXAGERA * alturaReal(x, y);
@@ -546,8 +549,8 @@ function zonaBoulevard() {
   const cur = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16, 1, false, 0, Math.PI), matE(0xd9dad4)), ca = aEscena(X0, Y0), cb = aEscena(X1, Y1);
   cur.scale.set((cb.x - ca.x) / 2 + 0.05, cb.z - ca.z, 0.12 * M); cur.rotation.set(Math.PI / 2, 0, 0); cur.position.set((ca.x + cb.x) / 2, pc + 2.4 * M, (ca.z + cb.z) / 2); cur.castShadow = true; g.add(cur);
   caja(X1 - 0.2, Y0 + 6, X1 + 0.3, Y1 - 6, pc + 0.12 * M, pc + 2.3 * M, matE(0x24282c));   // puerta de dos hojas (este)
-  // gradas de concreto (foto): pegadas al final del muro con mural, al borde oeste de la rampa, suben hacia el norte hasta la plataforma
-  for (let k = 0; k < 6; k++) { const y1 = 1318 + 40 - k * 8, b = suelo(450, y1); caja(440, y1 - 8, 462, y1, b, b + Math.max(0.05, (plat - b) * (k + 1) / 6), concreto); }
+  // gradas de concreto (foto): pegadas al muro del mural, al lado norte de la rampa; suben hacia el este hasta la plataforma
+  for (let k = 0; k < 6; k++) { const x0 = 400 + k * 9, b = suelo(x0 + 4, 1324); caja(x0, 1318, x0 + 9, 1332, b, b + Math.max(0.05, (plat - b) * (k + 1) / 6), concreto); }
   // rótulo: columna alta amarilla con base azul y marco blanco arriba (fotos 5 y 7), junto a la calle
   for (const [x, yy] of [[255, 1432]]) {
     const b = suelo(x, yy), v = aEscena(x, yy), h = 9 * M;
@@ -565,39 +568,40 @@ function zonaBoulevard() {
 // Oficina existente de block (G-02 x 555–727 / y 1245–1447; fotos 13:36). Cuerpo azul marino con dos ventanales grandes al oeste.
 // Al sur, el pórtico: piso levantado con zócalo de mosaico y gradas al oeste, vitrina de vidrio metida, losa con cielo blanco
 // y fascia amarilla (pintura vieja) en la orilla oeste y sur, cargada por dos columnas azul marino en la esquina del pórtico.
-const OFI_NISSAN = { x0: 555, x1: 727, y0: 1243, y1: 1447 };
+const OFI_NISSAN = { x0: 538, x1: 722, y0: 1243, y1: 1449 };
 function oficinaExistente() {
-  // Fotos 14:10 (cara oeste, desde el techo grande): todo a una misma altura. Mitad norte: cuerpo azul marino cerrado, con una
-  // ventanita arriba y un ventanal grande con persiana clara. Mitad sur: pórtico: zócalo de mosaico levantado con 4 gradas en su
-  // extremo norte, UNA columna gris-azul al centro, cielo blanco con lucecitas, fascia amarilla despintada al frente (oeste) que
-  // sobresale, y atrás (metido ~1.5 m) un local de vidrio transparente (se ve la valla a través) con su puerta de vidrio al sur.
-  const g = new THREE.Group(), q = OFI_NISSAN, base = MEDIO * EXAGERA * M, PL = 0.55 * M, TOP = base + PL + 3.6 * M, FAS = 0.95 * M;
-  const FX = q.x0 + 3, YP = 1342, XG = FX + 26;   // cara oeste, inicio del pórtico, línea del vidrio
-  const caja = (x0, y0, x1, y1, b, t, mat) => { const a = aEscena(x0, y0), c = aEscena(x1, y1), m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.06, Math.abs(c.x - a.x)), Math.max(0.02, t - b), Math.max(0.06, Math.abs(c.z - a.z))), mat);
+  // G-02 (cotas) + fotos 14:10. Edificio de block x 573–720 / y 1245–1447, dos oficinas (muro en y 1345) y baños al noreste.
+  // Cara norte: azul marino con el ventanal grande ("VIDRIO" del plano, con persiana clara) y una ventanita.
+  // Cara oeste: frente de vidrio (x 573) con dos puertas de 2.50 (y 1318–1338 y 1425–1445); delante el pasillo (x 555–573)
+  // levantado con zócalo de mosaico, sus gradas en la esquina noroeste (G-02), una columna, losa con cielo blanco y la fascia
+  // amarilla despintada a todo lo largo del frente. Arriba todo termina a la misma altura.
+  const g = new THREE.Group(), base = MEDIO * EXAGERA * M, PL = 0.55 * M, TOP = base + PL + 3.4 * M, FAS = 0.95 * M;
+  const X0 = 555, XV = 573, X1 = 720, Y0 = 1245, Y1 = 1447;
+  const caja = (x0, y0, x1, y1, b, t, mat) => { const a = aEscena(x0, y0), c = aEscena(x1, y1), m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.05, Math.abs(c.x - a.x)), Math.max(0.02, t - b), Math.max(0.05, Math.abs(c.z - a.z))), mat);
     m.position.set((a.x + c.x) / 2, (b + t) / 2, (a.z + c.z) / 2); m.castShadow = m.receiveShadow = true; g.add(m); return m; };
   const marino = matE(0x434a63, { metalness: 0 }), columna = matE(0x8d93a6, { metalness: 0 }), blanco = matE(0xf4f3ef, { metalness: 0 }), amarillo = matE(0xd9b746, { metalness: 0 });
-  const mosaico = cuadros("#ddd2bf", "#cbbca2", [26, 2]), piso = matE(0xe7e2d8, { metalness: 0 }), persiana = matE(0xdfe6d2, { metalness: 0 });
-  const vidrio = new THREE.MeshStandardMaterial({ color: 0xa9c2cc, metalness: 0.3, roughness: 0.05, transparent: true, opacity: 0.22, depthWrite: false });
-  const oscuro = new THREE.MeshStandardMaterial({ color: 0x1d2328, metalness: 0.6, roughness: 0.1 });
-  // mitad norte: cuerpo cerrado
-  caja(FX, q.y0, q.x1, YP, base, TOP, marino);
-  caja(FX - 0.5, 1252, FX, 1262, base + 2.4 * M, base + 2.9 * M, oscuro);                     // ventanita
-  caja(FX - 0.6, 1290, FX, 1340, base + 0.75 * M, base + 3.0 * M, marino);                      // marco del ventanal
-  caja(FX - 0.8, 1292, FX - 0.5, 1338, base + 0.85 * M, base + 2.9 * M, oscuro);                // vidrio
-  caja(FX - 0.9, 1300, FX - 0.7, 1338, base + 0.95 * M, base + 2.85 * M, persiana);            // persiana clara
-  // mitad sur: pórtico
-  caja(FX, YP, q.x1, q.y1, base, base + PL, mosaico); caja(FX, YP, q.x1, q.y1, base + PL - 0.01, base + PL, piso);
-  for (let k = 0; k < 4; k++) caja(FX - 4 * (k + 1), YP, FX - 4 * k, YP + 13, base, base + PL * (4 - k) / 4.4, piso);   // gradas (extremo norte)
-  caja(FX, YP - 1, q.x1, q.y1, TOP - FAS, TOP, blanco);                                           // losa
-  caja(FX, YP, XG, q.y1 - 1, TOP - FAS - 0.02, TOP - FAS, blanco);                                // cielo
-  caja(FX - 1.5, YP - 1, FX, q.y1 + 1, TOP - FAS, TOP + 0.1 * M, amarillo);                       // fascia amarilla al frente (sobresale)
-  caja(FX - 1.5, q.y1 - 0.5, q.x1, q.y1 + 1, TOP - FAS, TOP, amarillo);                           // y al sur
-  const ym = (YP + q.y1) / 2; caja(FX + 1, ym - 3, FX + 6, ym + 3, base + PL, TOP - FAS, columna);    // una columna al centro
-  // local de vidrio (transparente) metido atrás, con marcos oscuros y puerta al sur
-  caja(XG, YP, XG + 0.4, q.y1 - 2, base + PL, TOP - FAS, vidrio); caja(XG, q.y1 - 2.4, q.x1, q.y1 - 2, base + PL, TOP - FAS, vidrio);
-  for (let y = YP; y <= q.y1 - 2; y += 26) caja(XG - 0.3, y - 0.4, XG + 0.5, y + 0.4, base + PL, TOP - FAS, marino);
-  caja(XG - 0.3, YP, XG + 0.5, q.y1 - 2, base + PL + 2.4 * M, base + PL + 2.5 * M, marino);
-  caja(XG + 0.4, YP + 0.2, q.x1 - 0.2, q.y1 - 2.4, base + PL, base + PL + 0.01, piso);
+  const mosaico = cuadros("#ddd2bf", "#cbbca2", [2, 30]), piso = matE(0xe7e2d8, { metalness: 0 }), persiana = matE(0xdfe6d2, { metalness: 0 });
+  const vidrio = new THREE.MeshStandardMaterial({ color: 0xa9c2cc, metalness: 0.3, roughness: 0.05, transparent: true, opacity: 0.25, depthWrite: false });
+  const oscuro = new THREE.MeshStandardMaterial({ color: 0x1d2328, metalness: 0.6, roughness: 0.1 }), F = base + PL;
+  // piso del edificio y pasillo (zócalo de mosaico)
+  caja(X0, Y0, X1, Y1, base, F, mosaico); caja(X0, Y0, X1, Y1, F - 0.01, F, piso);
+  // muros: norte, este, sur (azul marino) y el divisorio entre las dos oficinas
+  caja(XV, Y0, X1, Y0 + 1.2, F, TOP, marino); caja(X1 - 1.2, Y0, X1, Y1, F, TOP, marino); caja(XV, Y1 - 1.2, X1, Y1, F, TOP, marino);
+  caja(XV, 1344, 690, 1346, F, TOP - FAS, blanco);
+  caja(XV, Y0, X1, Y1, TOP - FAS, TOP, marino);                                                  // tapa (losa)
+  caja(590, Y0 - 0.6, 640, Y0, F + 0.7 * M, F + 2.7 * M, oscuro);                                // ventanal norte
+  caja(592, Y0 - 0.9, 638, Y0 - 0.6, F + 0.8 * M, F + 2.6 * M, persiana);
+  caja(700, Y0 - 0.6, 708, Y0, F + 1.9 * M, F + 2.6 * M, oscuro);                                 // ventanita
+  // frente de vidrio (oeste) con parales y las dos puertas
+  caja(XV, Y0 + 1, XV + 0.4, Y1 - 1, F, TOP - FAS, vidrio);
+  for (let y = Y0 + 1; y <= Y1 - 1; y += 25) caja(XV - 0.3, y - 0.4, XV + 0.5, y + 0.4, F, TOP - FAS, marino);
+  for (const [a, b] of [[1318, 1338], [1425, 1445]]) { caja(XV - 0.3, a, XV + 0.5, a + 0.8, F, F + 2.5 * M, marino); caja(XV - 0.3, b - 0.8, XV + 0.5, b, F, F + 2.5 * M, marino); }
+  // pasillo: losa con cielo blanco, fascia amarilla, una columna
+  caja(X0, Y0, XV, Y1, TOP - FAS, TOP, blanco);
+  caja(X0 - 1.2, Y0 + 1, X0, Y1, TOP - FAS, TOP + 0.08 * M, amarillo);
+  caja(X0 + 1, 1343, X0 + 5, 1347, F, TOP - FAS, columna);
+  // gradas en la esquina noroeste (G-02): bajan del pasillo hacia el oeste
+  for (let k = 0; k < 4; k++) caja(X0 - 4 * (k + 1), Y0 + 2, X0 - 4 * k, Y0 + 20, base, base + (PL * (4 - k)) / 4.4, piso);
   return g;
 }
 
@@ -1003,7 +1007,7 @@ function bodega(a, base) {
   // entra). Este (rampa), de sur a norte: ventana, puerta, ventana, ventana, ventana; norte: una ventana de celosía de dos hojas.
   const c = caja(a), W = (c.x1 - c.x0) * ESC, h = (c.y1 - c.y0) * ESC, ctr = aEscena((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2);
   const dPuerta = 0.71, yPuerta = c.y0 + dPuerta * (c.y1 - c.y0);
-  const yRampa = E.altura(c.x1 + 6, yPuerta) * M, g = new THREE.Group(), yb = yRampa + 0.15 * M, piso1 = yb - base, piso2 = 3.0 * M;   // la puerta de arriba queda un escalón sobre la rampa (foto)
+  const yRampa = E.altura(c.x1 + 6, yPuerta) * M, g = new THREE.Group(), yb = Math.max(base + 2.9 * M, ARRIBA * EXAGERA * M), piso1 = yb - base, piso2 = 3.0 * M;   // el piso de arriba llega al nivel de arriba de la rampa
   const xE = ctr.x + W / 2, xO = ctr.x - W / 2, zN = ctr.z - h / 2, zS = ctr.z + h / 2, G = 0.2 * M;   // G: grueso del muro
   const box = (x0, x1, y0, y1, z0, z1, mat) => { const m = new THREE.Mesh(new THREE.BoxGeometry(Math.abs(x1 - x0), Math.abs(y1 - y0), Math.abs(z1 - z0)), mat); m.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); m.castShadow = m.receiveShadow = true; g.add(m); return m; };
   const crema = new THREE.MeshStandardMaterial({ color: 0xe0c072, roughness: 0.9 }), azul = new THREE.MeshStandardMaterial({ color: 0x3f6aa6, roughness: 0.9 });
@@ -1031,7 +1035,7 @@ function bodega(a, base) {
   alero.rotation.x = -0.1;
   for (const x of [xp0 - 0.3 * M, xp1 + 0.3 * M]) box(x - 0.02, x + 0.02, base + hp + 0.2 * M, base + hp + 0.55 * M, zN - 0.5 * M, zN, metal);   // ménsulas
   // piso de arriba: block café sobre la parte de la rampa
-  const w = W * 0.72, xc = xE - w / 2, block = cuadros("#8f7a66", "#857060", [Math.round(h / 0.4), Math.round(piso2 / 0.4)]);
+  const w = W, xc = xE - w / 2, block = cuadros("#8f7a66", "#857060", [Math.round(h / 0.4), Math.round(piso2 / 0.4)]);
   box(xE - w, xE, yb, yb + piso2, zN, zS, block);
   box(xE - w - 0.02, xE + 0.02, yb + piso2, yb + piso2 + 0.1, zN - 0.02, zS + 0.02, new THREE.MeshStandardMaterial({ color: 0x7a6656, roughness: 0.95 }));
   const celosia = new THREE.MeshStandardMaterial({ color: 0x9aa3a8, metalness: 0.4, roughness: 0.45 });
@@ -1039,7 +1043,8 @@ function bodega(a, base) {
   const huecoE = (mat, an, alto, desde, d) => box(xE, xE + 0.08, yb + desde * M, yb + (desde + alto) * M, zd(d) - (an * M) / 2, zd(d) + (an * M) / 2, mat);
   for (const [d, an] of [[0.91, 1.4], [0.5, 1.3], [0.29, 1.2], [0.09, 1.1]]) huecoE(celosia, an, 1.2, 0.9, d);
   huecoE(new THREE.MeshStandardMaterial({ color: 0xcfd2d4 }), 1.1, 2.25, 0, dPuerta); const pu = huecoE(new THREE.MeshStandardMaterial({ color: 0x2f3438 }), 0.9, 2.15, 0, dPuerta); pu.position.x += 0.02;
-  box(xE, xE + 0.5 * M, yRampa - 0.3 * M, yb, zd(dPuerta) - 0.7 * M, zd(dPuerta) + 0.7 * M, new THREE.MeshStandardMaterial({ color: 0xbdbab3, roughness: 0.95 }));   // escalón de concreto a la puerta
+  { const n = Math.max(1, Math.round((yb - yRampa) / (0.18 * M))), con = new THREE.MeshStandardMaterial({ color: 0xbdbab3, roughness: 0.95 });   // gradas de la rampa a la puerta
+    for (let k = 0; k < n; k++) box(xE, xE + (0.3 * (n - k)) * M, yRampa - 0.2 * M, yRampa + ((yb - yRampa) * (k + 1)) / n, zd(dPuerta) - 0.7 * M, zd(dPuerta) + 0.7 * M, con); }
   box(xc - 0.12 * w - 0.85 * M, xc - 0.12 * w + 0.85 * M, yb + 0.9 * M, yb + 2.0 * M, zN - 0.06, zN, celosia);   // ventana del norte
   return g;
 }
