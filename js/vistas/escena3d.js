@@ -733,14 +733,15 @@ function casita() {
   const g = new THREE.Group(), m = MATS_CASETA(), q = CASITA, base = E.altura((q.x0 + q.x1) / 2, (q.y0 + q.y1) / 2) * M;
   const cara = caseta(g, q, base, 3, m.crema, m);
   ventanas(cara, "s", 724, 750, 2, 1.0, 1.0, m); puertaV(cara, "s", 760, 776, m); ventanas(cara, "s", 784, 803, 2, 1.0, 1.0, m);   // frente: ventana, puerta, ventana
-  // techo inclinado hacia el frente, con alero y orilla amarilla
-  const w = (q.x1 - q.x0 + 6) * ESC, fondo = aEscena(0, q.y0 - 2).z, frente = aEscena(0, q.y1 + 16).z, d = frente - fondo, cx = aEscena((q.x0 + q.x1) / 2, 0).x;
-  const yA = base + 3.9 * M, yB = base + 3.2 * M, inc = Math.atan2(yA - yB, d);
-  const lam = new THREE.Mesh(new THREE.BoxGeometry(w, 0.1, Math.hypot(d, yA - yB)), m.lamina); lam.position.set(cx, (yA + yB) / 2, (fondo + frente) / 2); lam.rotation.x = inc; lam.castShadow = true; g.add(lam);
-  const orilla = new THREE.Mesh(new THREE.BoxGeometry(w, 0.35, 0.12), m.amarillo); orilla.position.set(cx, yB - 0.1, frente); g.add(orilla);
-  // mostrador de rayas rojas y blancas al frente, a la izquierda
-  const mv = aEscena(733, q.y1 + 6), mw = 24 * ESC;
-  for (let k = 0; k < 6; k++) { const r = new THREE.Mesh(new THREE.BoxGeometry(mw / 6, 1.1 * M, 0.6 * M), k % 2 ? m.blanco : m.rojo); r.position.set(mv.x - mw / 2 + (mw * (k + 0.5)) / 6, base + 0.55 * M, mv.z); g.add(r); }
+  // techo (G-01): una sola lámina de x 715 a 932 y de y 5 a 168, cae al 7% hacia el norte (atrás); vuela adelante
+  // de la casita hasta topar con el techo del supervisor. Viga de celosía en la orilla de enfrente, sobre dos postes.
+  const T = { x0: 715, x1: 932, y0: 5, y1: 168 }, FRENTE = 4.0, ATRAS = FRENTE - 0.07 * (T.y1 - T.y0) * 0.056;
+  const P = (x, y, h) => { const v = aEscena(x, y); v.y = base + h * M; return v; };
+  const geo = new THREE.BufferGeometry(), pts = [P(T.x0, T.y0, ATRAS), P(T.x1, T.y0, ATRAS), P(T.x1, T.y1, FRENTE), P(T.x0, T.y1, FRENTE)];
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pts.flatMap((p) => [p.x, p.y, p.z]), 3)); geo.setIndex([0, 1, 2, 0, 2, 3]); geo.computeVertexNormals();
+  const lam = new THREE.Mesh(geo, m.lamina); lam.castShadow = lam.receiveShadow = true; g.add(lam);
+  celosia(g, P(T.x0, T.y1 - 1, FRENTE - 0.05), P(T.x1, T.y1 - 1, FRENTE - 0.05), 0.4 * M, m.acero, 0.07);
+  for (const x of [T.x0 + 2, 806]) { const v = P(x, T.y1 - 1, 0), h = (FRENTE - 0.45) * M, t = new THREE.Mesh(new THREE.BoxGeometry(0.2, h, 0.2), m.acero); t.position.set(v.x, base + h / 2, v.z); t.castShadow = true; g.add(t); }
   return g;
 }
 
