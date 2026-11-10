@@ -330,6 +330,7 @@ function ponerLamina(piezas, lista) {
   const murito = [], lamina = [];
   PIEZAS.forEach(([clase, , , d], i) => {
     if (clase !== "lamina") return;
+    if (enSupervisor(...centro(i))) return;
     const est = estadoPieza(i, piezas);
     if (est === "quitado") return;
     for (const pl of polilineas(d)) for (let k = 1; k < pl.length; k++) {
@@ -584,7 +585,53 @@ function ponerJardineras() {
 const SUPERVISOR = { x0: 829, x1: 931, y0: 175, y1: 260 }, TECHO_SUP = { x0: 808, x1: 933, y0: 168, y1: 284 };
 // Casita del comedor (atrás y a la izquierda): crema con franjas naranjas, techo inclinado hacia el frente (sur) con orilla amarilla.
 const CASITA = { x0: 718, x1: 808, y0: 10, y1: 103 };
-const enSupervisor = (x, y) => [SUPERVISOR, CASITA].some((q) => x > q.x0 - 3 && x < q.x1 + 3 && y > q.y0 - 3 && y < q.y1 + 3);
+const enSupervisor = (x, y) => [SUPERVISOR, CASITA, LAVADO].some((q) => x > q.x0 - 3 && x < q.x1 + 3 && y > q.y0 - 3 && y < q.y1 + 3);
+const centro = (i) => [(CAJAS[i].x0 + CAJAS[i].x1) / 2, (CAJAS[i].y0 + CAJAS[i].y1) / 2];
+// ---------- Lavado de vehículos (foto): galera abierta hacia el patio de maniobras ----------
+// Techo de lámina de una caída (8%, AR-08) sobre largueros de celosía blancos; viga de celosía al frente con fascia oxidada.
+// Al fondo (sur) pared de lámina con zócalo de bloque pintado de azul; al este pared de bloque con franja azul.
+// Postes de tubo blanco al frente y a lo largo del fondo. El frente (norte) queda abierto.
+const LAVADO = { x0: 1085, x1: 1335, y0: 1310, y1: 1445 };
+function celosia(g, a, b, alto, mat, grueso = 0.12) {   // viga de celosía de a a b (puntos de la escena, cuerda de arriba)
+  const d = new THREE.Vector3().subVectors(b, a), L = d.length(), n = Math.max(2, Math.round(L / (alto * 1.2)));
+  const barra = (p, q) => { const v = new THREE.Vector3().subVectors(q, p), m = new THREE.Mesh(new THREE.BoxGeometry(grueso, grueso, v.length()), mat);
+    m.position.copy(p).addScaledVector(v, 0.5); m.lookAt(q); g.add(m); };
+  const abajo = new THREE.Vector3(0, -alto, 0), A = a.clone().add(abajo), B = b.clone().add(abajo);
+  barra(a, b); barra(A, B);
+  for (let k = 0; k < n; k++) { const p = a.clone().addScaledVector(d, k / n), q = a.clone().addScaledVector(d, (k + 1) / n);
+    barra(k % 2 ? p : p.clone().add(abajo), k % 2 ? q.clone().add(abajo) : q); }
+}
+function lavado(base) {
+  const g = new THREE.Group(), q = LAVADO, m = MATS_CASETA();
+  const blanco = new THREE.MeshStandardMaterial({ color: 0xeeeeea, roughness: 0.6, metalness: 0.3 });
+  const azul = new THREE.MeshStandardMaterial({ color: 0x2f6fb8, roughness: 0.8 }), bloque = new THREE.MeshStandardMaterial({ color: 0x9a9c98, roughness: 0.95 });
+  const oxido = new THREE.MeshStandardMaterial({ color: 0xc8962e, roughness: 0.8 }), losa = new THREE.MeshStandardMaterial({ color: 0xc9c7c0, roughness: 0.95 });
+  const lam = new THREE.MeshStandardMaterial({ color: 0x9da4aa, metalness: 0.5, roughness: 0.5, side: THREE.DoubleSide });
+  const lamT = new THREE.MeshStandardMaterial({ color: 0xb9c0c6, metalness: 0.5, roughness: 0.45, side: THREE.DoubleSide, transparent: true, opacity: 0.85 });
+  const P = (x, y, h = 0) => { const v = aEscena(x, y); v.y = base + h * M; return v; };
+  const caja = (x0, x1, y0, y1, h0, h1, mat) => { const a = P(x0, y0), b = P(x1, y1), w = Math.max(0.12, Math.abs(b.x - a.x)), d = Math.max(0.12, Math.abs(b.z - a.z));
+    const k = new THREE.Mesh(new THREE.BoxGeometry(w, (h1 - h0) * M, d), mat); k.position.set((a.x + b.x) / 2, base + ((h0 + h1) / 2) * M, (a.z + b.z) / 2); k.castShadow = k.receiveShadow = true; g.add(k); };
+  const FRENTE = 4.51, FONDO = FRENTE - 0.08 * (q.y1 - q.y0) * 0.056, alto = (y) => FRENTE + ((FONDO - FRENTE) * (y - q.y0)) / (q.y1 - q.y0);
+  caja(q.x0, q.x1, q.y0, q.y1, 0, 0.12, losa);                                   // losa de concreto
+  // fondo: zócalo de bloque azul y lámina hasta el techo
+  caja(q.x0, q.x1, q.y1 - 2, q.y1, 0, 1.2, azul); caja(q.x0, q.x1, q.y1 - 1.5, q.y1, 1.2, FONDO, lam);
+  // este: bloque con franja azul abajo
+  caja(q.x1 - 2.5, q.x1, q.y0 + 8, q.y1, 0, 1.5, azul); caja(q.x1 - 2.5, q.x1, q.y0 + 8, q.y1, 1.5, alto(q.y0 + 8) - 0.1, bloque);
+  // postes de tubo blanco: al frente (orillas y centro) y a lo largo del fondo
+  const tubo = (x, y, h) => { const t = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, h * M, 10), blanco); const v = P(x, y, h / 2); t.position.copy(v); t.castShadow = true; g.add(t); };
+  for (const x of [q.x0 + 4, (q.x0 + q.x1) / 2, q.x1 - 6]) tubo(x, q.y0 + 4, alto(q.y0 + 4) - 0.35);
+  for (let k = 0; k <= 4; k++) { const x = q.x0 + 4 + ((q.x1 - q.x0 - 8) * k) / 4; tubo(x, q.y1 - 4, alto(q.y1 - 4) - 0.35); }
+  // viga de celosía al frente y largueros de celosía de frente a fondo
+  celosia(g, P(q.x0, q.y0 + 4, FRENTE - 0.05), P(q.x1, q.y0 + 4, FRENTE - 0.05), 0.5, blanco, 0.07);
+  const nL = 6; for (let k = 0; k <= nL; k++) { const x = q.x0 + 2 + ((q.x1 - q.x0 - 4) * k) / nL; celosia(g, P(x, q.y0, FRENTE - 0.05), P(x, q.y1, FONDO - 0.05), 0.35, blanco, 0.06); }
+  // lámina del techo (una caída hacia el fondo) y fascia oxidada al frente
+  const a = P((q.x0 + q.x1) / 2, q.y0 - 3, FRENTE), b = P((q.x0 + q.x1) / 2, q.y1, FONDO), w = (q.x1 - q.x0 + 4) * ESC, L = a.distanceTo(b);
+  const t = new THREE.Mesh(new THREE.BoxGeometry(w, 0.08, L), lamT); t.position.set(a.x, (a.y + b.y) / 2 + 0.06, (a.z + b.z) / 2); t.rotation.x = Math.atan2(a.y - b.y, b.z - a.z) * Math.sign(b.z - a.z); t.receiveShadow = true;
+  const techo = new THREE.Group(); techo.userData.techo = true; techo.add(t);
+  const f = new THREE.Mesh(new THREE.BoxGeometry(w, 0.18 * M, 0.08), oxido); f.position.set(a.x, a.y - 0.1, a.z); techo.add(f);
+  g.add(techo);
+  return g;
+}
 const MATS_CASETA = () => ({
   blanco: new THREE.MeshStandardMaterial({ color: 0xe8e6e1, roughness: 0.8 }), crema: new THREE.MeshStandardMaterial({ color: 0xece3cf, roughness: 0.85 }),
   naranja: new THREE.MeshStandardMaterial({ color: 0xe0662e, roughness: 0.8 }), vidrio: new THREE.MeshStandardMaterial({ color: 0x23282d, roughness: 0.3, metalness: 0.4 }),
@@ -732,6 +779,7 @@ function ponerEdificios(areas, elementos = [], piezas = {}) {
     if (a.es_receso) { E.edificios.add(bodega(a, base)); continue; }
     if (/^taller$/i.test(a.nombre || "")) { E.edificios.add(estructuraTaller(base)); continue; }
     if (/supervisor/i.test(a.nombre || "")) { E.edificios.add(supervisor(base)); continue; }
+    if (/lavado/i.test(a.nombre || "")) { E.edificios.add(lavado(base)); continue; }
     const bajoTechoExistente = TECHO_EXISTENTE.some((t) => { const cx = (c.x0 + c.x1) / 2, cy = (c.y0 + c.y1) / 2; return cx > t.x0 && cx < t.x1 && cy > t.y0 && cy < t.y1; });
     if (ALTO_MURO[a.tipo] && !bajoTechoExistente) { const t = techo(a, base, ALTO_MURO[a.tipo] * M * (a.estado === "en_proceso" ? 0.5 : 1)); t.userData.techo = true; E.edificios.add(t); }
   }
