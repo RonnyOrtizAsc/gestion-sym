@@ -1022,8 +1022,6 @@ function bodega(a, base) {
   box(xp0, xp1, base + hp, yb, zN, zN + G, crema);                // sobre el portón
   box(xO, xp0, base, yb, zN, zN + G, crema);                      // resto del norte
   const xa = xp0 - 0.4 * M;                                       // azul abajo (desde el portón hacia el oeste) y esquina gastada
-  box(xO + 0.4 * M, xa, base, base + Math.min(2.1 * M, hp), zN - 0.03, zN, azul);
-  box(xO, xO + 0.4 * M, base, base + Math.min(2.1 * M, hp), zN - 0.03, zN, gastado);
   box(xO + G, xE - G, base, base + 0.03, zN + G, zS - G, pisoOsc);                       // piso adentro
   box(xO + G, xE - G, yb - 0.25, yb - 0.24, zN + G, zS - G, blanco);                      // cielo
   box(xO + G + 0.02, xE - G - 0.02, base, yb - 0.25, zS - G - 0.03, zS - G - 0.02, blanco);   // paredes de adentro (fondo y lados)
