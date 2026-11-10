@@ -86,7 +86,7 @@ function hojaArea(a) {
       <small>${aqui.length ? `${aqui.length} ${aqui.length === 1 ? "persona asignada" : "personas asignadas"}` : "Nadie asignado aquí"}</small></div>
       <button class="x" data-cerrar aria-label="Cerrar">×</button></div>
     ${aqui.length ? `<div class="chips" style="margin-bottom:12px">${aqui.map(chipPersona).join("")}</div>` : ""}
-    <p class="note" style="margin:0 0 6px">Toca a alguien para asignarlo a esta área:</p>
+    <p class="note" style="margin-top:0;margin-bottom:6px">Toca a alguien para asignarlo a esta área:</p>
     <div class="chips">${otros.map((w) => `<button class="chip" data-traer="${w.id}">${esc(w.nombre)}${w.area_id ? `<span class="n">${esc(area(w.area_id)?.nombre || "")}</span>` : ""}</button>`).join("")}</div>`;
 }
 
@@ -270,7 +270,7 @@ export function render(V, { hacer, redibujar }) {
   V.innerHTML = `<div class="titulo-obra"><div><p class="eyebrow">${esc(o.nombre)}${o.propietario ? " · " + esc(o.propietario) : ""}</p>
     <h2>${ui.editar ? "Editando el plano" : alm ? "Modo almuerzo" : receso ? "Modo receso" : "Centro de mando"}</h2></div></div>
   ${ACCIONES}
-  ${receso ? `<p class="pista receso ${alm ? "almuerzo" : ""}">Toca a quien sale ${alm ? "a almorzar" : "a receso"} y otra vez cuando regrese. Para terminar, toca <b>${alm ? "Terminar almuerzo" : "Terminar receso"}</b>.</p>`
+  ${receso ? `<p class="pista receso ${alm ? "almuerzo" : ""}"><span>Modo ${alm ? "almuerzo" : "receso"}: cada toque manda o regresa a la persona. Mientras está activo no se asigna gente.</span> <button class="btn small" data-salir-modo>Salir</button></p>`
     : ui.moviendo && w ? `<p class="pista mover">Toca el área a donde va <b>${esc(primerNombre(w.nombre))}</b> <button class="btn small" data-cancelar-mover>Cancelar</button></p>`
     : ui.punta ? `<p class="pista mover">Toca a dónde llega la pared.</p>`
     : ui.nuevo?.tipo === "muro" ? `<p class="pista mover">${ui.nuevo.p1 ? "Ahora toca donde termina (o arrastra)." : "Toca donde empieza la pared, o arrástrala de punta a punta."}</p>`
@@ -621,6 +621,7 @@ export function render(V, { hacer, redibujar }) {
     if (antes && abiertos(antes)) return hacer(async () => { await terminarReceso(antes); return `${nombre[antes]} terminado, todos a trabajar`; });
     redibujar();
   };
+  $$("[data-salir-modo]").forEach((b) => (b.onclick = () => { ui.modo = null; redibujar(); }));
   const hr = V.querySelector("#hudReceso"); if (hr) hr.onclick = () => modoPausa("receso");
   const hal = V.querySelector("#hudAlmuerzo"); if (hal) hal.onclick = () => modoPausa("almuerzo");
   const rw = V.querySelector("[data-receso-w]"); if (rw) rw.onclick = () => { const id = ui.sel;

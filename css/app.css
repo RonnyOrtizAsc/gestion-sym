@@ -316,8 +316,10 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
 .accion svg{width:30px;height:30px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;margin-bottom:2px}
 .accion b{font-size:15px;font-weight:800;line-height:1.15}
 .accion small{font-size:12px;font-weight:600;opacity:.85;line-height:1.2}
-.accion.pausa{background:var(--break);color:var(--on-break)}
-.accion.pausa.on{background:var(--surface);color:var(--break);border-color:var(--break);box-shadow:0 0 0 3px color-mix(in srgb,var(--break) 35%,transparent)}
+.accion.pausa{background:var(--surface);color:var(--ink);border-color:var(--line)}
+.accion.pausa svg{color:var(--break)}
+.accion.pausa.on{background:var(--break);color:var(--on-break);border-color:var(--break);box-shadow:0 0 0 4px color-mix(in srgb,var(--break) 35%,transparent)}
+.accion.pausa.on svg{color:inherit}
 .accion.herr{background:var(--surface);color:var(--ink);border-color:var(--line)}
 .accion .cuenta{position:absolute;top:7px;right:9px;min-width:22px;height:22px;border-radius:11px;background:#f08a24;color:#fff;font:800 12px/22px inherit;font-style:normal;padding:0 6px}
 .accion:active{transform:scale(.97)}
@@ -374,3 +376,5 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
   .tarjeta-h .foto{aspect-ratio:4/3}
   .buscador .chips{flex-wrap:wrap}
 }
+.pista.receso{display:flex;align-items:center;gap:10px;justify-content:space-between}
+.pista.receso .btn{flex:none}
