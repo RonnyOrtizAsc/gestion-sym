@@ -582,7 +582,7 @@ function ponerJardineras() {
 // Supervisor: paneles blancos con franja naranja y raya blanca. Cara sur (hacia donde termina la pared de lámina): fila de ventanas.
 // Cara oeste (hacia el rebalse técnico): puerta, ventana, puerta y ventanas. Techo delgado sobre cerchas que cubre la caseta y el lado
 // de las puertas y baja hacia la pared de lámina; un poste cerca de la cara sur. Sin la fascia de publicidad.
-const SUPERVISOR = { x0: 829, x1: 931, y0: 175, y1: 260 }, TECHO_SUP = { x0: 808, x1: 933, y0: 168, y1: 305 };
+const SUPERVISOR = { x0: 829, x1: 931, y0: 175, y1: 260 }, TECHO_SUP = { x0: 797, x1: 932, y0: 168, y1: 362 }   // techo del G-01; poste en el "PEDESTAL" del G-02;
 // Casita del comedor (atrás y a la izquierda): crema con franjas naranjas, techo inclinado hacia el frente (sur) con orilla amarilla.
 const CASITA = { x0: 718, x1: 808, y0: 10, y1: 103 };
 const enSupervisor = (x, y) => [SUPERVISOR, CASITA, LAVADO].some((q) => x > q.x0 - 3 && x < q.x1 + 3 && y > q.y0 - 3 && y < q.y1 + 3);
@@ -711,18 +711,16 @@ function supervisor(base) {
   const cara = caseta(g, SUPERVISOR, base, 3, m.blanco, m);
   ventanas(cara, "s", 836, 928, 5, 1.0, 0.75, m);   // cara sur: fila de ventanas
   puertaV(cara, "o", 182, 198, m); ventanas(cara, "o", 200, 220, 1, 1.0, 0.75, m); ventanas(cara, "o", 222, 241, 1, 1.0, 0.75, m); puertaV(cara, "o", 243, 259, m);   // cara oeste: puerta (con espacio a la esquina norte), dos ventanas, puerta pegada a la esquina sur
-  // techo (fotos): una losa plana de lámina, horizontal, más grande que la cabina; vuela al frente (sur, sobre el poste)
-  // y hacia la pared de lámina (este). Orilla blanca delgada y por debajo vigas de celosía en los dos sentidos.
-  const t = TECHO_SUP, tw = (t.x1 - t.x0) * ESC, th = (t.y1 - t.y0) * ESC, tc = aEscena((t.x0 + t.x1) / 2, (t.y0 + t.y1) / 2), yT = base + 4.6 * M;
-  const losa = new THREE.Mesh(new THREE.BoxGeometry(tw, 0.12, th), m.lamina); losa.position.set(tc.x, yT, tc.z); losa.castShadow = true; g.add(losa);
-  const ORILLA = 0.45 * M;
-  for (const [w, d, x, z] of [[tw, 0.1, 0, -th / 2], [tw, 0.1, 0, th / 2], [0.1, th, -tw / 2, 0], [0.1, th, tw / 2, 0]]) {
-    const o = new THREE.Mesh(new THREE.BoxGeometry(w + 0.1, ORILLA, d + 0.1), m.blanco); o.position.set(tc.x + x, yT - ORILLA / 2 + 0.1, tc.z + z); o.castShadow = true; g.add(o);
-  }
-  const P = (x, y) => { const v = aEscena(x, y); v.y = yT - 0.08; return v; };
-  for (let k = 0; k <= 4; k++) { const x = t.x0 + 3 + ((t.x1 - t.x0 - 6) * k) / 4; celosia(g, P(x, t.y0 + 2), P(x, t.y1 - 2), 0.35 * M, m.acero, 0.07); }
-  for (const y of [t.y0 + 3, (t.y0 + t.y1) / 2, t.y1 - 3]) celosia(g, P(t.x0 + 2, y), P(t.x1 - 2, y), 0.35 * M, m.acero, 0.07);
-  const pv = aEscena(862, 297), ap = yT - base - 0.1;   // poste blanco con pie amarillo, unos 2 m al frente de la cara sur (foto), bajo la orilla del techo
+  // techo (G-01): lámina de x 797 a 932 y de y 168 a 362, cae al 19% hacia el este (la pared de lámina).
+  // Lo carga el poste del "PEDESTAL" del G-02 (x 830, y 356), unos 5.4 m al frente de la cabina. Celosías por debajo.
+  const t = TECHO_SUP, OESTE = 5.6, ESTE = OESTE - 0.19 * (t.x1 - t.x0) * 0.056, hT = (x) => OESTE + ((ESTE - OESTE) * (x - t.x0)) / (t.x1 - t.x0);
+  const P = (x, y, h) => { const v = aEscena(x, y); v.y = base + h * M; return v; };
+  const geo = new THREE.BufferGeometry(), pts = [P(t.x0, t.y0, OESTE), P(t.x1, t.y0, ESTE), P(t.x1, t.y1, ESTE), P(t.x0, t.y1, OESTE)];
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pts.flatMap((p) => [p.x, p.y, p.z]), 3)); geo.setIndex([0, 1, 2, 0, 2, 3]); geo.computeVertexNormals();
+  const losa = new THREE.Mesh(geo, m.lamina); losa.castShadow = losa.receiveShadow = true; g.add(losa);
+  for (const y of [t.y0 + 2, t.y0 + 60, t.y0 + 120, t.y1 - 3]) celosia(g, P(t.x0 + 2, y, OESTE - 0.08), P(t.x1 - 2, y, ESTE - 0.08), 0.35 * M, m.acero, 0.07);   // de oeste a este, con la pendiente
+  for (const x of [t.x0 + 3, t.x1 - 3]) celosia(g, P(x, t.y0 + 2, hT(x) - 0.08), P(x, t.y1 - 2, hT(x) - 0.08), 0.35 * M, m.acero, 0.07);
+  const px = 830, py = 356, pv = aEscena(px, py), ap = (hT(px) - 0.4) * M;   // poste blanco con pie amarillo
   const poste = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, ap, 12), new THREE.MeshStandardMaterial({ color: 0xf2f2f0, roughness: 0.6 }));
   poste.position.set(pv.x, base + ap / 2, pv.z); poste.castShadow = true; g.add(poste);
   const pie = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.6 * M, 12), m.amarillo); pie.position.set(pv.x, base + 0.3 * M, pv.z); g.add(pie);
