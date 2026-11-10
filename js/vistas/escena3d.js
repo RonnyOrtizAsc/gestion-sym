@@ -526,18 +526,20 @@ function bodega(a, base) {
   // construcción de arriba (como en obra): block café, ventanas de celosía, una puerta y techo plano
   const yb = base + piso1 + 0.25, block = new THREE.MeshStandardMaterial({ color: 0x9b7a5a, roughness: 0.95 });
   const arriba = new THREE.Mesh(new THREE.BoxGeometry(w, piso2, h), block); arriba.position.set(ctr.x, yb + piso2 / 2, ctr.z); arriba.castShadow = true; arriba.receiveShadow = true;
-  const celosia = new THREE.MeshStandardMaterial({ color: 0x5a6066, metalness: 0.3, roughness: 0.6 }), oscuro = new THREE.MeshStandardMaterial({ color: 0x2b2f33 });
+  const celosia = new THREE.MeshStandardMaterial({ color: 0x7c848b, metalness: 0.3, roughness: 0.6 }), oscuro = new THREE.MeshStandardMaterial({ color: 0x2b2f33 });
   const hueco = (mat, ancho, altoV, desde, z, lado) => {   // lado: -1 oeste, 1 este (paredes largas)
     const v = new THREE.Mesh(new THREE.BoxGeometry(0.12, altoV * M, ancho * M), mat); v.position.set(ctr.x + lado * (w / 2 + 0.04), yb + (desde + altoV / 2) * M, ctr.z + z); return v; };
-  const ventanas = [-0.33, -0.05, 0.18, 0.38].map((t) => hueco(celosia, 1.2, 1.0, 1.1, t * h, 1));   // lado de la rampa
-  const puerta = hueco(oscuro, 0.9, 2.1, 0, -0.43 * h, 1);
+  const ventanas = [-0.15, 0.06, 0.24, 0.40].map((t) => hueco(celosia, 1.2, 1.0, 1.1, t * h, 1));   // lado de la rampa
+  // puerta: marco claro y hoja gris, separada de la esquina (antes parecía un pixel negro)
+  const marcoP = hueco(new THREE.MeshStandardMaterial({ color: 0xcfd2d4, roughness: 0.6 }), 1.1, 2.2, 0, -0.34 * h, 1);
+  const puerta = hueco(new THREE.MeshStandardMaterial({ color: 0x4b5157, roughness: 0.7 }), 0.9, 2.1, 0, -0.34 * h, 1); puerta.position.x += 0.03;
   const otras = [-0.25, 0.05, 0.3].map((t) => hueco(celosia, 1.2, 1.0, 1.1, t * h, -1));
   const cubierta = new THREE.Mesh(new THREE.BoxGeometry(w + 0.2, 0.3, h + 0.2), new THREE.MeshStandardMaterial({ color: 0x8a6d50, roughness: 0.95 }));
   cubierta.position.set(ctr.x, yb + piso2 + 0.15, ctr.z); cubierta.castShadow = true;
   // franja naranja = aquí es el receso
   const franja = new THREE.Mesh(new THREE.BoxGeometry(w + 0.7, 0.6, h + 0.7), new THREE.MeshStandardMaterial({ color: NARANJA }));
   franja.position.set(ctr.x, base + piso1 - 0.4, ctr.z);
-  g.add(losa, arriba, cubierta, franja, puerta, ...ventanas, ...otras);
+  g.add(losa, arriba, cubierta, franja, marcoP, puerta, ...ventanas, ...otras);
   return g;
 }
 

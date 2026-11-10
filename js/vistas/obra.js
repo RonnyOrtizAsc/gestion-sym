@@ -116,7 +116,7 @@ function hojaPrestamos() {
   const total = prestamosActivos().reduce((a, p) => a + p.cantidad, 0);
   return `<div class="hoja-h"><div class="grow"><p class="eyebrow" style="margin:0">Herramientas</p><b>Quién tiene qué</b>
       <small>${total ? `${total} herramienta${total > 1 ? "s" : ""} afuera` : "Todo está en bodega"}</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
-    <button class="btn primary big" id="hojaPrestar" style="width:100%;margin:4px 0 12px">＋ Prestar herramienta</button>
+    <button class="btn primary big" id="hojaPrestar" style="display:block;width:100%;margin-top:4px;margin-bottom:12px">＋ Prestar herramienta</button>
     <div class="list">${Object.keys(por).length ? Object.entries(por).map(([wid, ps]) => `<div class="person-h">${esc(trabajador(wid).nombre)}<span class="pill out">debe ${ps.reduce((a, p) => a + p.cantidad, 0)}</span></div>
       ${ps.map((p) => `<div class="li">${miniatura(herramienta(p.herramienta_id), "foto chica")}<div class="grow"><b>${p.cantidad} × ${esc(herramienta(p.herramienta_id).nombre)}</b><small>desde ${new Date(p.prestado_en).toLocaleDateString("es-SV", { day: "numeric", month: "short" })} · ${hhmm(p.prestado_en)}</small></div>
         ${ui.perdida === p.id ? `<span class="acts"><button class="btn small danger" data-perdida-si="${p.id}">Sí, se perdió</button><button class="btn small" data-perdida-no>No</button></span>`
