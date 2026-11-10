@@ -255,13 +255,13 @@ export function render(V, { hacer, redibujar }) {
     <button class="accion herr" id="hudHerr">${ICONO.llave}<b>Herramientas</b><small>${nPrest ? `${nPrest} prestada${nPrest > 1 ? "s" : ""}` : "Todo en bodega"}</small>
       ${nPrest ? `<i class="cuenta">${nPrest}</i>` : ""}</button>
   </div>`;
-  const FLOTANTES = `<div class="flot flot-arriba">
+  const BARRA_MAPA = `<div class="barra-mapa">
       <div class="flot-grupo"><button class="flot-btn ${ui.editar ? "on" : ""}" id="hudEditar">${ui.editar ? "✓" : ICONO.lapiz}<span>${ui.editar ? "Listo" : "Editar"}</span></button>
         ${ui.editar ? `<button class="flot-btn ${ui.nuevo ? "on" : ""}" id="hudAgregar"><b aria-hidden="true">＋</b><span>Pared</span></button>` : ""}</div>
       <div class="flot-grupo"><button class="flot-btn icono ${ui.sinGente ? "on" : ""}" id="verGente" aria-pressed="${ui.sinGente}" aria-label="${ui.sinGente ? "Mostrar a los trabajadores" : "Ocultar a los trabajadores y ver solo el plano"}" title="${ui.sinGente ? "Mostrar trabajadores" : "Solo el plano"}">${ui.sinGente ? ICONO.ojoNo : ICONO.ojo}</button>
       <div class="seg mini flot-vista" role="group" aria-label="Vista"><button data-vista="2d" aria-pressed="${!es3d}">2D</button><button data-vista="3d" aria-pressed="${es3d}">3D</button></div></div>
-    </div>
-    <div class="flot flot-abajo">${es3d ? `<button class="flot-btn icono" id="centrar" aria-label="Volver a la vista inicial">${ICONO.centrar}</button>`
+    </div>`;
+  const FLOTANTES = `<div class="flot flot-abajo">${es3d ? `<button class="flot-btn icono" id="centrar" aria-label="Volver a la vista inicial">${ICONO.centrar}</button>`
       : `<button class="flot-btn icono" data-z="1" aria-label="Acercar" ${ui.zoom === ZOOMS.at(-1) ? "disabled" : ""}>+</button><button class="flot-btn icono" data-z="-1" aria-label="Alejar" ${ui.zoom === ZOOMS[0] ? "disabled" : ""}>−</button>`}</div>`;
 
   V.innerHTML = `<div class="titulo-obra"><div><p class="eyebrow">${esc(o.nombre)}${o.propietario ? " · " + esc(o.propietario) : ""}</p>
@@ -273,6 +273,7 @@ export function render(V, { hacer, redibujar }) {
     : ui.nuevo?.tipo ? `<p class="pista mover">${ui.nuevo.tipo === "muro" ? (ui.nuevo.p1 ? "Ahora toca donde termina la pared." : "Toca donde empieza la pared.") : ui.nuevo.p1 ? "Toca la esquina opuesta." : "Toca una esquina."}</p>`
     : ui.editar ? `<p class="pista mover">Toca una pared, puerta o grada y márcala. Para alargar una pared, arrastra sus puntos verdes.</p>`
     : `<p class="pista">Toca un área o a una persona.${es3d ? " Arrastra para moverte; con dos dedos giras." : ""}</p>`}
+  ${BARRA_MAPA}
   <div class="mapa-caja">
   ${es3d ? `<div class="escena" id="escena"><p class="cargando">Levantando la obra en 3D…</p></div>`
   : `<div class="mapa-scroll ${ui.zoom > 1 ? "acercado" : ""}" id="mapaScroll">

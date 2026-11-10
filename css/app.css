@@ -334,3 +334,8 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
 .flot-btn.on{background:var(--lime);color:var(--lime-ink);border-color:var(--lime)}
 .flot-vista{box-shadow:0 2px 10px rgba(0,0,0,.18);background:var(--surface);min-width:104px}
 .flot-vista button{min-width:48px;font-weight:800}
+.barra-mapa{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+.barra-mapa .flot-grupo{pointer-events:auto}
+.barra-mapa .flot-btn,.barra-mapa .flot-vista{box-shadow:none}
+.flot-abajo{right:8px;bottom:8px}
+.flot-abajo .flot-btn.icono{width:36px;height:36px;font-size:18px;border-radius:10px}
