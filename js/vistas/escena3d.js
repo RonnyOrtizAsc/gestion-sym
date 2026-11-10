@@ -115,7 +115,7 @@ function crear() {
       if (E.editar) { renderer.domElement.style.cursor = grupo ? "pointer" : ""; resaltar(E.hover, grupo, "hovKey", 0xc4ee4a, 0.5); }
       let html = grupo ? E.handlers?.textoPieza?.(grupo) || "" : "";
       if (!html && !E.editar) {   // sin pared bajo el mouse: el área, con sus medidas
-        const p = q0, a = p && (E.areasUlt || []).find((q) => { const X = (q.x / 100) * ANCHO, Y = (q.y / 100) * ALTO; return p[0] >= X && p[0] <= X + (q.w / 100) * ANCHO && p[1] >= Y && p[1] <= Y + (q.h / 100) * ALTO; });
+        const p = q0, a = p && (E.areasUlt || []).filter((q) => { const X = (q.x / 100) * ANCHO, Y = (q.y / 100) * ALTO; return p[0] >= X && p[0] <= X + (q.w / 100) * ANCHO && p[1] >= Y && p[1] <= Y + (q.h / 100) * ALTO; }).sort((m, n) => m.w * m.h - n.w * n.h)[0];   // la más chica que contiene el punto
         if (a) html = `<b>${a.nombre}</b><span class="med">${medidasArea(a)}</span>`;
       }
       if (!html) { tip.hidden = true; return; }
@@ -574,7 +574,7 @@ function oficinaExistente() {
   const blanco = matE(0xf3f2ee, { metalness: 0 }), amarillo = matE(0xd6b43e, { metalness: 0 }), piso = matE(0xe9e6df, { metalness: 0 });
   // cuerpo norte (y 1245–YP): navy, con dos ventanales al oeste
   caja(q.x0 + 7, q.y0, q.x1, YP, base, base + PL + H, marino);
-  caja(q.x0 + 6.5, 1262, q.x0 + 7, 1296, base + 0.5 * M, base + 2.7 * M, vidrio); caja(q.x0 + 6.5, 1298, q.x0 + 7, 1330, base + 0.5 * M, base + 2.7 * M, vidrio);
+  caja(q.x0 + 6.2, 1283, q.x0 + 7, 1332, base + 0.6 * M, base + 3.0 * M, matE(0x4a4f63)); caja(q.x0 + 6, 1285, q.x0 + 6.5, 1330, base + 0.7 * M, base + 2.9 * M, vidrio);   // un ventanal grande con marco (foto)
   // pórtico (y YP–1447): piso levantado con zócalo de mosaico y gradas, vitrina metida en x XV
   caja(q.x0, YP, q.x1, q.y1, base, base + PL, mosaico); caja(q.x0, YP, q.x1, q.y1, base + PL - 0.02, base + PL, piso);
   for (let k = 0; k < 3; k++) caja(q.x0 - 5 - k * 5, YP, q.x0 - k * 5, YP + 22, base, base + PL * (3 - k) / 4, piso);
