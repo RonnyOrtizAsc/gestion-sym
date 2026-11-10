@@ -220,7 +220,9 @@ function prepararNiveles(areas, piezas = {}) {
     const dx = Math.abs(ex[1] - ex[0]), dy = Math.abs(ey[1] - ey[0]);
     // sube por el lado que cambia de nivel; si los dos cambian igual, por lo largo de la rampa
     const eje = Math.abs(dx - dy) < 0.3 ? (c.x1 - c.x0 >= c.y1 - c.y0 ? "x" : "y") : dx > dy ? "x" : "y";
-    return { a, c, eje, n: eje === "x" ? ex : ey };
+    // los lados de la rampa llegan hasta la pared de al lado (la de la bodega): sin zanja entre la rampa y la pared
+    const L = 5, cc = eje === "y" ? { ...c, x0: c.x0 - L, x1: c.x1 } : { ...c, y0: c.y0 - L, y1: c.y1 + L };
+    return { a, c: cc, eje, n: eje === "x" ? ex : ey };
   });
   rampas.unshift(RAMPA_ESTE, ...LADO_BOULEVARD);
   if (estadoRampa(RAMPA_CHERY, piezas) === "existe") rampas.unshift(RAMPA_CHERY);   // mientras no esté hecha, esa franja queda plana
