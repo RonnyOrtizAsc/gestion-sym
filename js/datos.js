@@ -284,7 +284,7 @@ export async function editarPerfil(id, cambios) {
 export const CATEGORIAS = [
   ["electricas", "Máquinas", /taladr|pulidor|esmeril|rotomart|martillo dem|sierra(?! copa)|caladora|router|lijador|atornillad|compresor|planta|extensi[oó]n|sold|aparato|cortadora|plasma|guillotin/],
   ["manuales", "Manuales", /tenaza|llave|stilson|martill|desarmador|destornill|alicate|pinza|sargento|prensa|cincel|serrucho|cuchilla|navaja|tijera|remachad|pala|piocha|carretill|cuchara|llana|barra|cubeta|balde|azad|rastrillo|codal|cinta m|metro|nivel|escuadra|plomada|tiralinea/],
-  ["accesorios", "Brocas, discos y más", /broca|disco|diacamer|cubo magn|punta|adaptador|copa|lija|hoja|electrod|plum[oó]n|l[aá]piz|marcador|cray[oó]n|tornillo|clavo/],
+  ["accesorios", "Accesorios", /broca|disco|diacamer|cubo magn|punta|adaptador|copa|lija|hoja|electrod|plum[oó]n|l[aá]piz|marcador|cray[oó]n|tornillo|clavo/],
   ["seguridad", "Seguridad", /guante|lente|casco|chaleco|arn[eé]s|tap[oó]n|bota|mascarilla|respirador|tapaboca|faja|careta|conos?\b|cinta de seg/],
   ["otros", "Otros", /$^/],
 ];

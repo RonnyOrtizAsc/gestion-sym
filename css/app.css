@@ -367,3 +367,10 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
 .list .cat-h{margin:0;padding:12px 14px 4px;background:var(--sunk)}
 .tip span{display:block}
 .tip .med{color:#c4ee4a;font-weight:700;font-variant-numeric:tabular-nums}
+@media (max-width:520px){
+  .tarjetas{grid-template-columns:repeat(3,1fr);gap:6px}
+  .tarjeta-h{padding:5px}
+  .tarjeta-h .th-nombre{font-size:12px}
+  .tarjeta-h .foto{aspect-ratio:4/3}
+  .buscador .chips{flex-wrap:wrap}
+}
