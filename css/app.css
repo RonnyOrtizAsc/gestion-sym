@@ -354,6 +354,4 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
   .top{margin-bottom:6px}
   h2{font-size:22px}
   .lead{font-size:14px;margin-bottom:10px}
-  nav.tabs a{flex-direction:row;justify-content:center;gap:8px;padding:6px 2px;font-size:13px}
-  nav.tabs svg{width:18px;height:18px}
 }

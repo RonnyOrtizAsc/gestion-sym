@@ -171,7 +171,7 @@ if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catc
 function ajustarEscala() {
   const compu = matchMedia("(pointer:fine)").matches && innerWidth >= 700;
   const z = compu ? Math.max(0.7, Math.min(1, innerHeight / 900)) : 1;
-  document.documentElement.style.zoom = z === 1 ? "" : String(z);
+  document.body.style.zoom = z === 1 ? "" : String(z);   // en body (no en html) para que el menú de abajo quede pegado al borde
 }
 ajustarEscala();
 addEventListener("resize", ajustarEscala);
