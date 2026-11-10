@@ -588,10 +588,10 @@ const CASITA = { x0: 718, x1: 808, y0: 10, y1: 103 };
 const enSupervisor = (x, y) => [SUPERVISOR, CASITA, LAVADO].some((q) => x > q.x0 - 3 && x < q.x1 + 3 && y > q.y0 - 3 && y < q.y1 + 3);
 const centro = (i) => [(CAJAS[i].x0 + CAJAS[i].x1) / 2, (CAJAS[i].y0 + CAJAS[i].y1) / 2];
 // ---------- Lavado de vehículos (foto): galera abierta hacia el patio de maniobras ----------
-// Techo de lámina de una caída (8%, AR-08) sobre largueros de celosía blancos; viga de celosía al frente con fascia oxidada.
+// Techo de lámina de una caída (18% hacia la calle, G-01) sobre largueros de celosía blancos; viga de celosía al frente con fascia oxidada.
 // Al fondo (sur) pared de lámina con zócalo de bloque pintado de azul; al este pared de bloque con franja azul.
 // Postes de tubo blanco al frente y a lo largo del fondo. El frente (norte) queda abierto.
-const LAVADO = { x0: 1085, x1: 1335, y0: 1310, y1: 1445 };
+const LAVADO = { x0: 1085, x1: 1337, y0: 1333, y1: 1448 };   // techo del G-01
 function celosia(g, a, b, alto, mat, grueso = 0.12) {   // viga de celosía de a a b (puntos de la escena, cuerda de arriba)
   const d = new THREE.Vector3().subVectors(b, a), L = d.length(), n = Math.max(2, Math.round(L / (alto * 1.2)));
   const barra = (p, q) => { const v = new THREE.Vector3().subVectors(q, p), m = new THREE.Mesh(new THREE.BoxGeometry(grueso, grueso, v.length()), mat);
@@ -611,7 +611,8 @@ function lavado(base) {
   const P = (x, y, h = 0) => { const v = aEscena(x, y); v.y = base + h * M; return v; };
   const caja = (x0, x1, y0, y1, h0, h1, mat) => { const a = P(x0, y0), b = P(x1, y1), w = Math.max(0.12, Math.abs(b.x - a.x)), d = Math.max(0.12, Math.abs(b.z - a.z));
     const k = new THREE.Mesh(new THREE.BoxGeometry(w, (h1 - h0) * M, d), mat); k.position.set((a.x + b.x) / 2, base + ((h0 + h1) / 2) * M, (a.z + b.z) / 2); k.castShadow = k.receiveShadow = true; g.add(k); };
-  const FRENTE = 4.51, FONDO = FRENTE - 0.08 * (q.y1 - q.y0) * 0.056, alto = (y) => FRENTE + ((FONDO - FRENTE) * (y - q.y0)) / (q.y1 - q.y0);
+  const FRENTE = 4.51, FONDO = FRENTE - 0.18 * (q.y1 - q.y0) * 0.056,   // 18% hacia la calle (G-01)
+    alto = (y) => FRENTE + ((FONDO - FRENTE) * (y - q.y0)) / (q.y1 - q.y0);
   caja(q.x0, q.x1, q.y0, q.y1, 0, 0.12, losa);                                   // losa de concreto
   // fondo: zócalo de bloque azul y lámina hasta el techo
   caja(q.x0, q.x1, q.y1 - 2, q.y1, 0, 1.2, azul); caja(q.x0, q.x1, q.y1 - 1.5, q.y1, 1.2, FONDO, lam);
@@ -632,53 +633,53 @@ function lavado(base) {
   g.add(techo);
   return g;
 }
-// ---------- Galeras existentes sobre el rebalse y el patio (fotos) ----------
-// Grande: de la pared de lámina del oeste (x 935) a la rampa este (x 1264), abierta hacia el lavado (sur), con fascia alta
-// de lámina al frente; adentro dos aguas (cumbrera de norte a sur), largueros amarillos, vigas oscuras y algunos tragaluces.
-// Pequeña: pegada al sur de la grande, junto a la rampa; una caída hacia el oeste (frente a entrega de vehículos) con canal.
-const GALERA = { x0: 935, x1: 1264, y0: 712, y1: 940 }, GALERA_CHICA = { x0: 1130, x1: 1264, y0: 940, y1: 1180 };
+// ---------- Galeras existentes sobre el rebalse y el patio (G-01, levantamiento: planta de techos existente) ----------
+// G-01 calza con el AR-01 (ajuste con las columnas de G-02, error ≈ 13 cm). Medidas y pendientes de ahí:
+//  Grande (rebalse): x 935–1263, y 712–892, una caída al 9% hacia el norte; al frente (sur, hacia el lavado) la fascia alta.
+//  Pequeña (patio): x 1075–1263, y 892–1216, pegada a la grande, una caída al 8% hacia el este (alta del lado de entrega).
+//  Entre las galeras y el lindero este queda la rampa, sin techo.
+const GALERA = { x0: 935, x1: 1263, y0: 712, y1: 892 }, GALERA_CHICA = { x0: 1075, x1: 1263, y0: 892, y1: 1216 };
 const enGalera = (x, y) => [GALERA, GALERA_CHICA].some((q) => x > q.x0 - 3 && x < q.x1 + 3 && y > q.y0 - 3 && y < q.y1 + 3);
 function galeras(base) {
   const g = new THREE.Group(), tg = new THREE.Group(); tg.userData.techo = true; g.add(tg);
   const oscuro = new THREE.MeshStandardMaterial({ color: 0x3d4247, metalness: 0.5, roughness: 0.6 }), amarillo = new THREE.MeshStandardMaterial({ color: 0xd9a821, roughness: 0.6 });
   const lam = new THREE.MeshStandardMaterial({ color: 0x8e959b, metalness: 0.5, roughness: 0.5, side: THREE.DoubleSide });
   const lamT = new THREE.MeshStandardMaterial({ color: 0xb4bbc1, metalness: 0.5, roughness: 0.45, side: THREE.DoubleSide, transparent: true, opacity: 0.8, depthWrite: false });
-  const fascia = new THREE.MeshStandardMaterial({ color: 0xd4d8dc, metalness: 0.4, roughness: 0.5, side: THREE.DoubleSide }), luz = new THREE.MeshStandardMaterial({ color: 0xf0d27a, transparent: true, opacity: 0.75, side: THREE.DoubleSide, depthWrite: false });
+  const fascia = new THREE.MeshStandardMaterial({ color: 0xd4d8dc, metalness: 0.4, roughness: 0.5, side: THREE.DoubleSide });
   const bloque = new THREE.MeshStandardMaterial({ color: 0xe6e3da, roughness: 0.9, side: THREE.DoubleSide });
   const P = (x, y, h = 0) => { const v = aEscena(x, y); v.y = base + h * M; return v; };
   const barra = (grupo, a, b, s, mat) => { const v = new THREE.Vector3().subVectors(b, a), m = new THREE.Mesh(new THREE.BoxGeometry(s, s, v.length()), mat); m.position.copy(a).addScaledVector(v, 0.5); m.lookAt(b); m.castShadow = true; grupo.add(m); };
-  const panel = (grupo, pts, mat) => {   // cuadrilátero (4 puntos de la escena)
+  const panel = (grupo, pts, mat) => {
     const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(pts.flatMap((p) => [p.x, p.y, p.z]), 3)); geo.setIndex([0, 1, 2, 0, 2, 3]); geo.computeVertexNormals();
     const m = new THREE.Mesh(geo, mat); m.receiveShadow = true; grupo.add(m); return m;
   };
-  // --- grande ---
-  const q = GALERA, ALERO = 6, CUMBRE = 8.2, FASCIA = 8.8, xm = (q.x0 + q.x1) / 2;
-  const hTecho = (x) => ALERO + ((CUMBRE - ALERO) * (1 - Math.abs(x - xm) / ((q.x1 - q.x0) / 2)));
-  for (const [x0, x1] of [[q.x0, xm], [xm, q.x1]]) panel(tg, [P(x0, q.y0, hTecho(x0)), P(x1, q.y0, hTecho(x1)), P(x1, q.y1, hTecho(x1)), P(x0, q.y1, hTecho(x0))], lamT);
-  for (const [x0, x1] of [[q.x0 + 30, q.x0 + 45], [q.x0 + 95, q.x0 + 110], [xm + 25, xm + 40], [xm + 95, xm + 110]]) for (const [y0, y1] of [[q.y0 + 40, q.y0 + 70], [q.y0 + 140, q.y0 + 170]])
-    panel(tg, [P(x0, y0, hTecho(x0) + 0.05), P(x1, y0, hTecho(x1) + 0.05), P(x1, y1, hTecho(x1) + 0.05), P(x0, y1, hTecho(x0) + 0.05)], luz);   // tragaluces
-  for (let y = q.y0; y <= q.y1 + 0.1; y += (q.y1 - q.y0) / 5) {   // marcos: columnas oscuras y viga quebrada
-    for (const x of [q.x0 + 1, q.x1 - 1]) barra(g, P(x, y, 0), P(x, y, ALERO), 0.35, oscuro);
-    barra(tg, P(q.x0, y, ALERO - 0.25), P(xm, y, CUMBRE - 0.25), 0.5, oscuro); barra(tg, P(xm, y, CUMBRE - 0.25), P(q.x1, y, ALERO - 0.25), 0.5, oscuro);
+  const metros = (u) => u * 0.056;
+  // --- grande: alta al sur, baja al norte (9%) ---
+  const q = GALERA, SUR = 6.6, NORTE = SUR - 0.09 * metros(q.y1 - q.y0), hq = (y) => SUR + ((NORTE - SUR) * (q.y1 - y)) / (q.y1 - q.y0);
+  panel(tg, [P(q.x0, q.y0, NORTE), P(q.x1, q.y0, NORTE), P(q.x1, q.y1, SUR), P(q.x0, q.y1, SUR)], lamT);
+  const X = [q.x0 + 1, (q.x0 + q.x1) / 2, q.x1 - 1];
+  for (let k = 0; k <= 6; k++) {   // vigas de norte a sur, sobre columnas en las dos orillas
+    const x = q.x0 + 1 + ((q.x1 - q.x0 - 2) * k) / 6;
+    barra(tg, P(x, q.y0, NORTE - 0.3), P(x, q.y1, SUR - 0.3), 0.45, oscuro);
   }
-  for (let k = 0; k <= 8; k++) { const x = q.x0 + ((q.x1 - q.x0) * k) / 8; barra(tg, P(x, q.y0, hTecho(x) - 0.12), P(x, q.y1, hTecho(x) - 0.12), 0.18, amarillo); }   // largueros amarillos
-  // paredes: fondo (norte) de lámina hasta el techo; este junto a la rampa: bloque blanco abajo y lámina arriba
-  for (let k = 0; k < 8; k++) { const x0 = q.x0 + ((q.x1 - q.x0) * k) / 8, x1 = q.x0 + ((q.x1 - q.x0) * (k + 1)) / 8; panel(g, [P(x0, q.y0, 0), P(x1, q.y0, 0), P(x1, q.y0, hTecho(x1)), P(x0, q.y0, hTecho(x0))], lam); }
-  panel(g, [P(q.x1, q.y0, 0), P(q.x1, q.y1, 0), P(q.x1, q.y1, 1.2), P(q.x1, q.y0, 1.2)], bloque);
-  panel(g, [P(q.x1, q.y0, 1.2), P(q.x1, q.y1, 1.2), P(q.x1, q.y1, ALERO), P(q.x1, q.y0, ALERO)], lam);
-  // frente (sur, hacia el lavado): abierto, con la fascia alta de lámina que tapa las aguas
-  const yf = q.y1 + 5; panel(tg, [P(q.x0 - 1, yf, ALERO - 0.6), P(q.x1 + 1, yf, ALERO - 0.6), P(q.x1 + 1, yf, FASCIA), P(q.x0 - 1, yf, FASCIA)], fascia);
-  barra(g, P(q.x0, q.y1, ALERO - 0.6), P(q.x1, q.y1, ALERO - 0.6), 0.5, oscuro);
-  // --- pequeña ---
-  const c = GALERA_CHICA, ATRAS = 5.2, FRENTE = 4.3, h2 = (x) => FRENTE + ((ATRAS - FRENTE) * (x - c.x0)) / (c.x1 - c.x0);
-  panel(tg, [P(c.x0 - 4, c.y0, h2(c.x0 - 4)), P(c.x1, c.y0, ATRAS), P(c.x1, c.y1, ATRAS), P(c.x0 - 4, c.y1, h2(c.x0 - 4))], lamT);
-  barra(tg, P(c.x0 - 4, c.y0, h2(c.x0 - 4) - 0.15), P(c.x0 - 4, c.y1, h2(c.x0 - 4) - 0.15), 0.35, fascia);   // canal al frente
-  for (let y = c.y0; y <= c.y1 + 0.1; y += (c.y1 - c.y0) / 5) {
-    barra(g, P(c.x0, y, 0), P(c.x0, y, FRENTE), 0.25, oscuro);
-    barra(tg, P(c.x0 - 4, y, h2(c.x0 - 4) - 0.2), P(c.x1, y, ATRAS - 0.2), 0.3, oscuro);
+  for (const x of X) for (const y of [q.y0 + 1, q.y1 - 1]) barra(g, P(x, y, 0), P(x, y, hq(y) - 0.3), 0.4, oscuro);
+  for (let k = 0; k <= 8; k++) { const y = q.y0 + ((q.y1 - q.y0) * k) / 8; barra(tg, P(q.x0, y, hq(y) - 0.12), P(q.x1, y, hq(y) - 0.12), 0.16, amarillo); }   // polines
+  panel(g, [P(q.x0, q.y0, 0), P(q.x1, q.y0, 0), P(q.x1, q.y0, NORTE), P(q.x0, q.y0, NORTE)], lam);   // fondo norte de lámina
+  panel(g, [P(q.x1, q.y0, 0), P(q.x1, q.y1, 0), P(q.x1, q.y1, 1.2), P(q.x1, q.y0, 1.2)], bloque);    // junto a la rampa: bloque abajo, lámina arriba
+  panel(g, [P(q.x1, q.y0, 1.2), P(q.x1, q.y1, 1.2), P(q.x1, q.y1, SUR), P(q.x1, q.y0, NORTE)], lam);
+  const yf = q.y1 + 5; panel(tg, [P(q.x0 - 1, yf, SUR - 1.4), P(q.x1 + 1, yf, SUR - 1.4), P(q.x1 + 1, yf, SUR + 1.2), P(q.x0 - 1, yf, SUR + 1.2)], fascia);   // fascia alta al frente
+  // --- pequeña: alta al oeste (frente a entrega), baja al este (8%) ---
+  const c = GALERA_CHICA, OESTE = 5.0, ESTE = OESTE - 0.08 * metros(c.x1 - c.x0), hc = (x) => OESTE + ((ESTE - OESTE) * (x - c.x0)) / (c.x1 - c.x0);
+  panel(tg, [P(c.x0, c.y0, OESTE), P(c.x1, c.y0, ESTE), P(c.x1, c.y1, ESTE), P(c.x0, c.y1, OESTE)], lamT);
+  for (let k = 0; k <= 5; k++) {
+    const y = c.y0 + 1 + ((c.y1 - c.y0 - 2) * k) / 5;
+    barra(tg, P(c.x0, y, OESTE - 0.25), P(c.x1, y, ESTE - 0.25), 0.35, oscuro);
+    for (const x of [c.x0 + 1, c.x1 - 1]) barra(g, P(x, y, 0), P(x, y, hc(x) - 0.25), 0.3, oscuro);
   }
+  barra(tg, P(c.x0, c.y0, OESTE - 0.1), P(c.x0, c.y1, OESTE - 0.1), 0.3, fascia);   // orilla del frente
+  barra(tg, P(c.x1 + 2, c.y0, ESTE - 0.2), P(c.x1 + 2, c.y1, ESTE - 0.2), 0.35, fascia);   // canal del lado bajo
   panel(g, [P(c.x1, c.y0, 0), P(c.x1, c.y1, 0), P(c.x1, c.y1, 1.2), P(c.x1, c.y0, 1.2)], bloque);
-  panel(g, [P(c.x1, c.y0, 1.2), P(c.x1, c.y1, 1.2), P(c.x1, c.y1, ATRAS), P(c.x1, c.y0, ATRAS)], lam);
+  panel(g, [P(c.x1, c.y0, 1.2), P(c.x1, c.y1, 1.2), P(c.x1, c.y1, ESTE), P(c.x1, c.y0, ESTE)], lam);
   return g;
 }
 const MATS_CASETA = () => ({
