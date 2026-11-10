@@ -276,6 +276,7 @@ function ponerParedes(areas, piezas) {
     if (!lista[est]) return;   // "no va"
     const tipo = tipoEn(areas, cx, cy), base = E.altura(cx, cy) * M;
     if (clase === "columna") {
+      if (enTaller(cx, cy)) return;   // las del taller son de acero y van con su estructura (ver estructuraTaller)
       const alto = (ALTO_MURO[tipo] || 4.5) * M * (est === "en_proceso" ? 0.5 : 1), lado = Math.max(0.7, Math.min(2.5, c.largo * ESC));
       lista[est].push([cx, cy, lado, lado, 0, base, alto]); return;
     }
@@ -468,6 +469,52 @@ function techoElemento(e) {
   return g;
 }
 
+// ---------- Taller: estructura de acero gris perla (como en obra) ----------
+// Columnas en 4 filas de norte a sur (AR-01): pared oeste x 941, dos por dentro x 1083 y x 1190, pared este x 1331.
+// Las franjas de los lados ya tienen techo; la del centro solo tiene las cerchas a dos aguas, sin lámina.
+const TALLER = { x0: 933, x1: 1337, y0: 60, y1: 715 };
+const enTaller = (x, y) => x > TALLER.x0 - 8 && x < TALLER.x1 + 8 && y > TALLER.y0 - 8 && y < TALLER.y1 + 8;
+const COLUMNAS_TALLER = [
+  ...[64, 177, 356, 535, 710].map((y) => [941, y]),
+  ...[356, 536, 709].map((y) => [1083, y]),
+  ...[218, 356, 535, 710].map((y) => [1190, y]),
+  ...[87, 176, 264, 354, 444, 534].map((y) => [1331, y]),
+];
+const ALTO_TALLER = 6, SUBE_CENTRO = 1.6;   // metros: aleros de los techos y cumbrera de las cerchas
+function estructuraTaller(base) {
+  const g = new THREE.Group();
+  const perla = new THREE.MeshStandardMaterial({ color: 0xd8d8d2, metalness: 0.35, roughness: 0.5 });
+  const lamina = new THREE.MeshStandardMaterial({ color: 0xc9cdd0, metalness: 0.5, roughness: 0.45, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false });
+  const y = base + ALTO_TALLER * M, z0 = aEscena(0, TALLER.y0 + 5).z, z1 = aEscena(0, TALLER.y1 - 5).z, largo = z1 - z0, zc = (z0 + z1) / 2;
+  const X = (x) => aEscena(x, 0).x;
+  for (const [cx, cy] of COLUMNAS_TALLER) {   // columnas delgadas de acero
+    const v = aEscena(cx, cy), b = E.altura(cx, cy) * M, alto = y - b;
+    const col = new THREE.Mesh(new THREE.BoxGeometry(0.45, alto, 0.45), perla); col.position.set(v.x, b + alto / 2, v.z); col.castShadow = true; E.edificios.add(col);   // las columnas se ven también al editar
+  }
+  const viga = (x0, x1, yv, z, alto = 0.6) => { const v = new THREE.Mesh(new THREE.BoxGeometry(Math.abs(x1 - x0), alto, 0.25), perla); v.position.set((x0 + x1) / 2, yv, z); v.castShadow = true; g.add(v); };
+  const paso = 5 * M, n = Math.max(2, Math.round(largo / paso));
+  // franjas de los lados: techo de lámina sobre vigas, con poca caída
+  for (const [a, b] of [[941, 1083], [1190, 1331]]) {
+    const xa = X(a), xb = X(b), w = xb - xa;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.12, largo), lamina); m.position.set((xa + xb) / 2, y + 0.3, zc); m.receiveShadow = true; g.add(m);
+    for (let k = 0; k <= n; k++) viga(xa, xb, y, z0 + (largo * k) / n);
+    for (const xx of [xa, xb]) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.6, largo), perla); l.position.set(xx, y, zc); g.add(l); }
+  }
+  // franja del centro: solo cerchas a dos aguas (sin lámina) y largueros
+  const xa = X(1083), xb = X(1190), w = xb - xa, sube = SUBE_CENTRO * M, lado = Math.hypot(w / 2, sube), inc = Math.atan2(sube, w / 2);
+  for (let k = 0; k <= n; k++) {
+    const z = z0 + (largo * k) / n;
+    for (const s of [-1, 1]) { const v = new THREE.Mesh(new THREE.BoxGeometry(lado, 0.5, 0.22), perla); v.position.set((xa + xb) / 2 + (s * w) / 4, y + sube / 2, z); v.rotation.z = -s * inc; v.castShadow = true; g.add(v); }
+    viga(xa, xb, y - 0.1, z, 0.25);   // cuerda de abajo
+  }
+  for (const t of [0, 0.25, 0.5, 0.75, 1]) {   // largueros a lo largo
+    const l = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, largo), perla);
+    l.position.set(xa + w * t, y + sube * (1 - Math.abs(t - 0.5) * 2) + 0.2, zc); g.add(l);
+  }
+  g.userData.techo = true;   // al editar el plano se esconde, igual que los techos
+  return g;
+}
+
 // La bodega (edificación de block existente) con la otra construcción encima
 function bodega(a, base) {
   const c = caja(a), w = (c.x1 - c.x0) * ESC, h = (c.y1 - c.y0) * ESC, ctr = aEscena((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2);
@@ -550,6 +597,7 @@ function ponerEdificios(areas, elementos = [], piezas = {}) {
   for (const a of areas) {
     const c = caja(a), base = E.altura((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2) * M;
     if (a.es_receso) { E.edificios.add(bodega(a, base)); continue; }
+    if (/^taller$/i.test(a.nombre || "")) { E.edificios.add(estructuraTaller(base)); continue; }
     if (ALTO_MURO[a.tipo]) { const t = techo(a, base, ALTO_MURO[a.tipo] * M * (a.estado === "en_proceso" ? 0.5 : 1)); t.userData.techo = true; E.edificios.add(t); }
   }
   E.edificios.add(techoExistente());
