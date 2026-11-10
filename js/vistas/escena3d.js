@@ -233,11 +233,11 @@ function prepararNiveles(areas, piezas = {}) {
     const eje = Math.abs(dx - dy) < 0.3 ? (c.x1 - c.x0 >= c.y1 - c.y0 ? "x" : "y") : dx > dy ? "x" : "y";
     // los lados de la rampa llegan hasta la pared de al lado (la de la bodega): sin zanja entre la rampa y la pared
     const L = 5, cc = eje === "y" ? { ...c, x0: c.x0 - L, x1: c.x1 } : { ...c, y0: c.y0 - L, y1: c.y1 + L };
-    if (/circulaci[oó]n central/i.test(a.nombre || "")) return { a, c: { ...cc, y0: 713, y1: 912 }, eje: "y", n: [ABAJO, ARRIBA] };   // fotos: sube junto a la bodega
+    if (/circulaci[oó]n central/i.test(a.nombre || "")) return { a, c: { ...cc, y0: 713, y1: 850 }, eje: "y", n: [ABAJO, ARRIBA] };   // foto: sube junto a la bodega y llega arriba a la altura de su puerta
     return { a, c: cc, eje, n: eje === "x" ? ex : ey };
   });
   const rc = areas.find((a) => /circulaci[oó]n central/i.test(a.nombre || ""));
-  if (rc) { const c = caja(rc); rampas.push({ c: { x0: c.x0 - 5, x1: c.x1, y0: 912, y1: c.y1 }, eje: "y", n: [ARRIBA, ARRIBA], sinRotulo: true }); }   // arriba de la rampa: plano
+  if (rc) { const c = caja(rc); rampas.push({ c: { x0: c.x0 - 5, x1: c.x1, y0: 850, y1: c.y1 }, eje: "y", n: [ARRIBA, ARRIBA], sinRotulo: true }); }   // arriba de la rampa: plano
   rampas.unshift(RAMPA_ESTE, ...LADO_BOULEVARD);
   if (estadoRampa(RAMPA_CHERY, piezas) === "existe") rampas.unshift(RAMPA_CHERY);   // mientras no esté hecha, esa franja queda plana
   E.altura = (x, y) => EXAGERA * alturaReal(x, y);
@@ -1041,8 +1041,7 @@ function bodega(a, base) {
   const huecoE = (mat, an, alto, desde, d) => box(xE, xE + 0.08, yb + desde * M, yb + (desde + alto) * M, zd(d) - (an * M) / 2, zd(d) + (an * M) / 2, mat);
   for (const [d, an] of [[0.91, 1.4], [0.5, 1.3], [0.29, 1.2], [0.09, 1.1]]) huecoE(celosia, an, 1.2, 0.9, d);
   huecoE(new THREE.MeshStandardMaterial({ color: 0xcfd2d4 }), 1.1, 2.25, 0, dPuerta); const pu = huecoE(new THREE.MeshStandardMaterial({ color: 0x2f3438 }), 0.9, 2.15, 0, dPuerta); pu.position.x += 0.02;
-  { const n = Math.max(1, Math.round((yb - yRampa) / (0.18 * M))), con = new THREE.MeshStandardMaterial({ color: 0xbdbab3, roughness: 0.95 });   // gradas de la rampa a la puerta
-    for (let k = 0; k < n; k++) box(xE, xE + (0.3 * (n - k)) * M, yRampa - 0.2 * M, yRampa + ((yb - yRampa) * (k + 1)) / n, zd(dPuerta) - 0.7 * M, zd(dPuerta) + 0.7 * M, con); }
+  box(xE, xE + 0.35 * M, yRampa - 0.2 * M, yb, zd(dPuerta) - 0.6 * M, zd(dPuerta) + 0.6 * M, new THREE.MeshStandardMaterial({ color: 0xbdbab3, roughness: 0.95 }));   // umbral
   box(xc - 0.12 * w - 0.85 * M, xc - 0.12 * w + 0.85 * M, yb + 0.9 * M, yb + 2.0 * M, zN - 0.06, zN, celosia);   // ventana del norte
   return g;
 }
