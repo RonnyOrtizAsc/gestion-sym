@@ -181,8 +181,8 @@ const RAMPA_CHERY = { c: { x0: 140, y0: 748, x1: 325, y1: 813 }, eje: "x", n: [A
 //  carriles, carros demo y estacionamiento de clientes: N 868.97 junto a Marca 4 → N 868.15 a medio camino → N 868.32 abajo
 //  Exhibición exterior (3) a N 868.32; "Rampa existente" de Carros demo Nissan sube de N 868.32 a Entrega de vehículos (N 869.95)
 const LADO_BOULEVARD = [
-  { c: { x0: 85, y0: 715, x1: 330, y1: 1310 }, eje: "y", n: [0.01, -0.64] },   // baja parejo, sin hundirse en medio
-  { c: { x0: 85, y0: 1310, x1: 282, y1: 1446 }, eje: "y", n: [-0.64, -0.64] },
+  { c: { x0: 85, y0: 715, x1: 330, y1: 1310 }, eje: "y", n: [0.01, -0.64], sinRotulo: true },   // baja parejo, sin hundirse en medio (no es rampa)
+  { c: { x0: 85, y0: 1310, x1: 282, y1: 1446 }, eje: "y", n: [-0.64, -0.64], sinRotulo: true },
   { c: { x0: 282, y0: 1322, x1: 455, y1: 1446 }, eje: "x", n: [-0.64, 0.99] },
 ];
 // Estado de una rampa del plano: el de la mayoría de sus rayas (se marcan juntas)
@@ -587,24 +587,33 @@ function filaNorteTaller(base, H) {
 }
 
 // Jardineras del plano (piezas "jardin"): cajón bajo de concreto con plantas, como en el render
-function ponerJardineras() {
+function ponerJardineras(piezas = {}) {
+  // Jardineras del plano (render): cajones de concreto claro, escalonados con el terreno, con zacate ornamental bajo.
+  // Cada una con su estado: si falta, se ve transparente y sin plantas.
   const grupos = [];
   PIEZAS.forEach(([clase], i) => {
     if (clase !== "jardin") return;
     const c = CAJAS[i], g = grupos.find((q) => c.x0 < q.x1 + 10 && c.x1 > q.x0 - 10 && c.y0 < q.y1 + 10 && c.y1 > q.y0 - 10);
-    if (g) { g.x0 = Math.min(g.x0, c.x0); g.x1 = Math.max(g.x1, c.x1); g.y0 = Math.min(g.y0, c.y0); g.y1 = Math.max(g.y1, c.y1); }
-    else grupos.push({ x0: c.x0, x1: c.x1, y0: c.y0, y1: c.y1 });
+    if (g) { g.x0 = Math.min(g.x0, c.x0); g.x1 = Math.max(g.x1, c.x1); g.y0 = Math.min(g.y0, c.y0); g.y1 = Math.max(g.y1, c.y1); g.i.push(i); }
+    else grupos.push({ x0: c.x0, x1: c.x1, y0: c.y0, y1: c.y1, i: [i] });
   });
-  const concreto = new THREE.MeshStandardMaterial({ color: 0xc9c6bd, roughness: 0.9 }), tierra = new THREE.MeshStandardMaterial({ color: 0x5f8f3e, roughness: 1 });
-  const hoja = new THREE.MeshStandardMaterial({ color: 0x4f8a36, roughness: 0.9 });
+  const concreto = new THREE.MeshStandardMaterial({ color: 0xd6d3cc, roughness: 0.9 }), tierra = new THREE.MeshStandardMaterial({ color: 0x6b5a40, roughness: 1 });
+  const zacate = new THREE.MeshStandardMaterial({ color: 0x8fae3e, roughness: 0.95 });
   for (const q of grupos) {
-    const w = (q.x1 - q.x0) * ESC, h = (q.y1 - q.y0) * ESC, c = aEscena((q.x0 + q.x1) / 2, (q.y0 + q.y1) / 2), base = E.altura((q.x0 + q.x1) / 2, (q.y0 + q.y1) / 2) * M, alto = 0.5 * M;
-    const caj = new THREE.Mesh(new THREE.BoxGeometry(w, alto, h), concreto); caj.position.set(c.x, base + alto / 2, c.z); caj.castShadow = true; caj.receiveShadow = true; E.edificios.add(caj);
-    const top = new THREE.Mesh(new THREE.BoxGeometry(w - 0.3, 0.06, h - 0.3), tierra); top.position.set(c.x, base + alto + 0.03, c.z); E.edificios.add(top);
-    const n = Math.max(2, Math.round(w / 1.6));   // arbustos
-    for (let k = 0; k < n; k++) {
-      const r = 0.5 + ((k * 37) % 5) * 0.08, b = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 8), hoja);
-      b.position.set(c.x - w / 2 + (w * (k + 0.5)) / n, base + alto + r * 0.8, c.z + (((k * 53) % 3) - 1) * h * 0.18); b.castShadow = true; E.edificios.add(b);
+    const est = (() => { const n = {}; for (const i of q.i) { const e = estadoPieza(i, piezas); n[e] = (n[e] || 0) + 1; } return Object.entries(n).sort((a, b) => b[1] - a[1])[0][0]; })();
+    if (est === "quitado") continue;
+    const falta = est === "falta", largoX = q.x1 - q.x0 >= q.y1 - q.y0, L = largoX ? q.x1 - q.x0 : q.y1 - q.y0, nT = Math.max(1, Math.round((L * 0.056) / 2.5));   // tramos de ~2.5 m
+    for (let k = 0; k < nT; k++) {
+      const t0 = k / nT, t1 = (k + 1) / nT, x0 = largoX ? q.x0 + (q.x1 - q.x0) * t0 : q.x0, x1 = largoX ? q.x0 + (q.x1 - q.x0) * t1 : q.x1, y0 = largoX ? q.y0 : q.y0 + (q.y1 - q.y0) * t0, y1 = largoX ? q.y1 : q.y0 + (q.y1 - q.y0) * t1;
+      const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, w = (x1 - x0) * ESC - 0.1, h = (y1 - y0) * ESC - 0.1, c = aEscena(cx, cy), base = E.altura(cx, cy) * M, alto = 0.6 * M;
+      const caj = new THREE.Mesh(new THREE.BoxGeometry(w, alto, h), falta ? MAT.falta : est === "en_proceso" ? MAT.en_proceso : concreto); caj.position.set(c.x, base + alto / 2, c.z); caj.castShadow = !falta; caj.receiveShadow = true; E.edificios.add(caj);
+      if (est !== "existe") continue;
+      const top = new THREE.Mesh(new THREE.BoxGeometry(w - 0.3, 0.06, h - 0.3), tierra); top.position.set(c.x, base + alto + 0.02, c.z); E.edificios.add(top);
+      const n = Math.max(3, Math.round(w * h * 1.2));   // matas de zacate: conos bajos y finos
+      for (let j = 0; j < n; j++) {
+        const r = 0.18 + ((j * 37) % 5) * 0.03, m = new THREE.Mesh(new THREE.ConeGeometry(r, 0.5 + ((j * 13) % 4) * 0.1, 6), zacate);
+        m.position.set(c.x + (((j * 0.618) % 1) - 0.5) * (w - 0.6), base + alto + 0.3, c.z + (((j * 0.382 + 0.17) % 1) - 0.5) * (h - 0.6)); E.edificios.add(m);
+      }
     }
   }
 }
@@ -804,6 +813,7 @@ function rotulosNivel() {
   const poner = (texto, x, y, n) => { const s = etiqueta(texto, "#24435e"); s.scale.set(17, 2.1, 1); const v = aEscena(x, y); s.position.set(v.x, EXAGERA * n * M + 3, v.z); E.edificios.add(s); };
   for (const [n, { p }] of porNivel) poner(`N ${(BASE_N + n).toFixed(2)}`, (p.c.x0 + p.c.x1) / 2, p.c.y0 + 18, n);
   for (const r of E.niveles.rampas) {
+    if (r.sinRotulo) continue;
     const sube = r.n[1] - r.n[0];
     if (Math.abs(sube) > 0.3) poner(`Rampa ${Math.abs(sube).toFixed(1)} m`, (r.c.x0 + r.c.x1) / 2, (r.c.y0 + r.c.y1) / 2, Math.max(...r.n));
   }
@@ -867,7 +877,7 @@ function ponerEdificios(areas, elementos = [], piezas = {}) {
   }
   E.edificios.add(techoExistente());
   E.edificios.add(galeras(E.altura(1100, 850) * M));
-  ponerJardineras();
+  ponerJardineras(piezas);
   rotulosNivel();
   // Elementos agregados (gradas, jardineras, baños…)
   const ALTO_EL = { grada: 2.2, jardinera: 1.2, bano: 3, muro: 3.5, puerta: 3, columna: 6, bodega: 4, otro: 2 };
