@@ -562,7 +562,7 @@ function oficinaExistente() {
   const marino = matE(0x3b3f57, { metalness: 0 }), vidrio = new THREE.MeshStandardMaterial({ color: 0x2a3640, metalness: 0.7, roughness: 0.08 }), mosaico = cuadros("#d9cdb6", "#c4b393", [24, 2]);
   const blanco = matE(0xf3f2ee, { metalness: 0 }), amarillo = matE(0xd6b43e, { metalness: 0 }), piso = matE(0xe9e6df, { metalness: 0 });
   // cuerpo norte (y 1245–YP): navy, con dos ventanales al oeste
-  caja(q.x0 + 7, q.y0, q.x1, YP, base, base + H + 0.6 * M, marino);
+  caja(q.x0 + 7, q.y0, q.x1, YP, base, base + PL + H, marino);
   caja(q.x0 + 6.5, 1262, q.x0 + 7, 1296, base + 0.5 * M, base + 2.7 * M, vidrio); caja(q.x0 + 6.5, 1298, q.x0 + 7, 1330, base + 0.5 * M, base + 2.7 * M, vidrio);
   // pórtico (y YP–1447): piso levantado con zócalo de mosaico y gradas, vitrina metida en x XV
   caja(q.x0, YP, q.x1, q.y1, base, base + PL, mosaico); caja(q.x0, YP, q.x1, q.y1, base + PL - 0.02, base + PL, piso);
@@ -570,11 +570,13 @@ function oficinaExistente() {
   caja(XV, YP, q.x1, q.y1, base + PL, base + PL + H, marino);
   for (let y0 = YP + 4; y0 < q.y1 - 10; y0 += 36) caja(XV - 0.6, y0, XV, y0 + 32, base + PL + 0.05 * M, base + PL + H - 0.3 * M, vidrio);
   // losa del pórtico (cielo blanco) y fascia amarilla al oeste y al sur
-  caja(q.x0, YP - 2, q.x1, q.y1, base + PL + H, base + PL + H + 0.3 * M, blanco);
-  caja(q.x0 - 1, YP - 2, q.x0 + 1, q.y1 + 1, base + PL + H - 0.1 * M, base + PL + H + 1.0 * M, amarillo);
-  caja(q.x0 - 1, q.y1 - 1, q.x1, q.y1 + 1, base + PL + H - 0.1 * M, base + PL + H + 1.0 * M, amarillo);
+  // la losa solo cubre el pórtico; arriba queda al ras del cuerpo azul (foto: la fascia amarilla sigue la línea del muro)
+  const tope = base + PL + H;
+  caja(q.x0, YP, XV, q.y1, tope - 0.35 * M, tope - 0.05 * M, blanco);
+  caja(q.x0 - 1, YP, q.x0 + 1, q.y1 + 1, tope - 0.9 * M, tope, amarillo);
+  caja(q.x0 - 1, q.y1 - 1, XV, q.y1 + 1, tope - 0.9 * M, tope, amarillo);
   // dos columnas azul marino en el frente del pórtico
-  for (const yc of [YP + 2, YP + 55]) caja(q.x0 + 1, yc, q.x0 + 6, yc + 5, base + PL, base + PL + H, marino);
+  for (const yc of [YP + 2, YP + 55]) caja(q.x0 + 1, yc, q.x0 + 6, yc + 5, base + PL, base + PL + H - 0.9 * M, marino);
   return g;
 }
 
