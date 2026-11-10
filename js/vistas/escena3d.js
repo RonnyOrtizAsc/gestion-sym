@@ -503,8 +503,8 @@ const COLUMNAS_TALLER = [
 const ALTO_TALLER = 6, SUBE_CENTRO = 1.6;   // metros: aleros de los techos y cumbrera de las cerchas
 function estructuraTaller(base) {
   const g = new THREE.Group();
-  const perla = new THREE.MeshStandardMaterial({ color: 0xd8d8d2, metalness: 0.35, roughness: 0.5 });
-  const lamina = new THREE.MeshStandardMaterial({ color: 0xc9cdd0, metalness: 0.5, roughness: 0.45, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false });
+  const perla = new THREE.MeshStandardMaterial({ color: 0xeceee9, metalness: 0.3, roughness: 0.5 });   // acero pintado blanco (foto)
+  const lamina = new THREE.MeshStandardMaterial({ color: 0xeef0f1, metalness: 0.3, roughness: 0.5, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false });   // lámina blanca (foto)
   const y = base + ALTO_TALLER * M, z0 = aEscena(0, TALLER.y0 + 5).z, z1 = aEscena(0, TALLER.y1 - 5).z, largo = z1 - z0, zc = (z0 + z1) / 2;
   const X = (x) => aEscena(x, 0).x;
   for (const [cx, cy] of COLUMNAS_TALLER) {   // columnas delgadas de acero
@@ -524,7 +524,7 @@ function estructuraTaller(base) {
   const m2 = (u) => u * 0.056, H = ALTO_TALLER, CLARO = 1.4, CUMBRE = 0.21 * m2(1138 - 1085);
   const hO = H - 0.02 * m2(1085 - 941), hE = H - 0.03 * m2(1331 - 1192), hC = H + CLARO;
   panel([941, hO], [1085, H], lamina); panel([1192, H], [1331, hE], lamina);                       // franjas de los lados
-  panel([1085, hC], [1138, hC + CUMBRE], lamina); panel([1138, hC + CUMBRE], [1192, hC], lamina);   // dos aguas del centro
+  // el centro todavía no tiene lámina (foto): solo las cerchas levantadas
   const paso = 5 * M, n = Math.max(2, Math.round((zb - za) / paso));
   for (let k = 0; k <= n; k++) {   // marcos cada ~5 m
     const z = za + ((zb - za) * k) / n;
@@ -534,6 +534,12 @@ function estructuraTaller(base) {
     barra(Pt(1085, H - 0.3, z), Pt(1192, H - 0.3, z), 0.25);                                                   // cuerda de abajo
   }
   for (const [x, h] of [[941, hO], [1085, H], [1085, hC], [1138, hC + CUMBRE], [1192, hC], [1192, H], [1331, hE]]) barra(Pt(x, h - 0.2, za), Pt(x, h - 0.2, zb), 0.22);   // largueros a lo largo
+  for (const x of [1085, 1192]) { barra(Pt(x, H + 1.0, za), Pt(x, H + 1.0, zb), 0.08); for (let k = 0; k <= 4 * n; k++) { const z = za + ((zb - za) * k) / (4 * n); barra(Pt(x, H, z), Pt(x, H + 1.0, z), 0.07); } }   // barandal en la orilla de los techos de los lados
+  // paredes (foto): bloque abajo (1.5 m) y lámina arriba hasta el techo, al oeste, al norte y al este; al sur abre a la galera del rebalse
+  const blq = new THREE.MeshStandardMaterial({ color: 0xbdbab2, roughness: 0.95, side: THREE.DoubleSide }), lmP = new THREE.MeshStandardMaterial({ color: 0xc2c7cb, metalness: 0.45, roughness: 0.5, side: THREE.DoubleSide });
+  const muro = (x0, y0, x1, y1, h0, h1, mat) => { const a = aEscena(x0, y0), b = aEscena(x1, y1), L = Math.hypot(b.x - a.x, b.z - a.z), m = new THREE.Mesh(new THREE.BoxGeometry(L, (h1 - h0) * M, 0.15), mat);
+    m.position.set((a.x + b.x) / 2, base + ((h0 + h1) / 2) * M, (a.z + b.z) / 2); m.rotation.y = -Math.atan2(b.z - a.z, b.x - a.x); m.castShadow = m.receiveShadow = true; E.edificios.add(m); };
+  for (const [x0, y0, x1, y1, h] of [[941, 64, 941, 640, hO], [941, 64, 1331, 64, H], [1331, 64, 1331, 712, hE]]) { muro(x0, y0, x1, y1, 0, 1.5, blq); muro(x0, y0, x1, y1, 1.5, h - 0.1, lmP); }
   g.userData.techo = true;   // al editar el plano se esconde, igual que los techos
   return g;
 }
