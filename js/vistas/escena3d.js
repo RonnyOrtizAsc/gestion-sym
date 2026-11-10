@@ -974,35 +974,51 @@ function subestacion(base) {
 
 // La bodega (edificación de block existente) con la otra construcción encima
 function bodega(a, base) {
-  // Fotos (lado de la rampa y lado norte): abajo block pintado crema/amarillo, a la altura del rebalse técnico; arriba un piso de
-  // block café SOLO sobre la parte de la rampa (este, ~60 %), techo plano sin aleros. La parte oeste es de un piso (azul abajo).
-  // Este (rampa), de sur a norte: ventana, puerta, ventana, ventana, ventana (celosías). Norte: abajo un portón abierto con
-  // reja arriba y un alerito de lámina; arriba una ventana de celosía de dos hojas.
+  // Fotos 13:57–13:58 + plano. Planta baja: UN solo volumen de block a todo el ancho; afuera pintado amarillo/crema, y en la
+  // cara norte la parte oeste lleva azul abajo (es muro, no otra cosa) con el block gastado en la esquina. En la cara norte,
+  // del lado de la rampa, el portón: por fuera se ve el hueco abierto (el portón corre por dentro), reja blanca arriba y un
+  // alerito de lámina con ménsulas. Adentro: piso de concreto oscuro, paredes y cielo blancos.
+  // Arriba: piso de block café sobre la parte de la rampa; su piso queda al nivel de la rampa donde está la puerta (por ahí se
+  // entra). Este (rampa), de sur a norte: ventana, puerta, ventana, ventana, ventana; norte: una ventana de celosía de dos hojas.
   const c = caja(a), W = (c.x1 - c.x0) * ESC, h = (c.y1 - c.y0) * ESC, ctr = aEscena((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2);
-  const g = new THREE.Group(), piso1 = Math.max(3 * M, ARRIBA * EXAGERA * M - base), piso2 = 3.0 * M, yb = base + piso1;
-  const xe = ctr.x + W / 2, w = W * 0.6, xc = xe - w / 2, zN = ctr.z - h / 2;   // parte de dos pisos (este)
-  const box = (sx, sy, sz, x, y, z, mat) => { const m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; g.add(m); return m; };
-  const crema = new THREE.MeshStandardMaterial({ color: 0xe3c977, roughness: 0.9 }), azul = new THREE.MeshStandardMaterial({ color: 0x3e6aa8, roughness: 0.9 });
-  const gris = new THREE.MeshStandardMaterial({ color: 0xb9b7b0, roughness: 0.95 }), oscuro = new THREE.MeshStandardMaterial({ color: 0x1c1f22, roughness: 0.8 });
-  const block = cuadros("#8f7a66", "#857060", [Math.round(h / 0.4), Math.round(piso2 / 0.4)]), celosia = new THREE.MeshStandardMaterial({ color: 0x9aa3a8, metalness: 0.4, roughness: 0.45 });
-  // planta baja: parte este hasta la losa; parte oeste de un piso (2.6 m), azul abajo y concreto gastado
-  box(w, piso1, h, xc, base + piso1 / 2, ctr.z, crema);
-  const wo = W - w, hO = Math.min(piso1, 2.6 * M);
-  box(wo, hO, h, ctr.x - W / 2 + wo / 2, base + hO / 2, ctr.z, gris);
-  box(wo * 0.55, 1.6 * M, 0.06, ctr.x - W / 2 + wo * 0.72, base + 0.8 * M, zN - 0.04, azul);
-  // portón del norte (abierto) con reja arriba y alerito de lámina
-  const ap = 2.7 * M, cx = xe - 0.6 * M - ap / 2;
-  box(ap, 2.4 * M, 0.08, cx, base + 1.2 * M, zN - 0.03, oscuro);
-  for (let k = 0; k <= 8; k++) box(0.05, 0.35 * M, 0.06, cx - ap / 2 + (ap * k) / 8, base + 2.25 * M, zN - 0.07, new THREE.MeshStandardMaterial({ color: 0xf2f2ee }));
-  const alero = box(ap * 1.15, 0.06, 0.6 * M, cx, base + 2.75 * M, zN - 0.3 * M, new THREE.MeshStandardMaterial({ color: 0x9da4aa, metalness: 0.5 })); alero.rotation.x = 0.12;
-  // piso de arriba (block café)
-  box(w, piso2, h, xc, yb + piso2 / 2, ctr.z, block);
-  box(w + 0.05, 0.12, h + 0.05, xc, yb + piso2 + 0.06, ctr.z, new THREE.MeshStandardMaterial({ color: 0x7a6656, roughness: 0.95 }));
-  const f = (d) => ctr.z - h / 2 + d * h;   // d: fracción desde el norte (en la escena el norte es -z)
-  const huecoE = (mat, an, alto, desde, d) => box(0.12, alto * M, an * M, xe + 0.04, yb + (desde + alto / 2) * M, f(d), mat);
+  const dPuerta = 0.71, yPuerta = c.y0 + dPuerta * (c.y1 - c.y0);
+  const g = new THREE.Group(), yb = Math.max(base + 2.6 * M, E.altura(c.x1 + 4, yPuerta) * M), piso1 = yb - base, piso2 = 3.0 * M;
+  const xE = ctr.x + W / 2, xO = ctr.x - W / 2, zN = ctr.z - h / 2, zS = ctr.z + h / 2, G = 0.2 * M;   // G: grueso del muro
+  const box = (x0, x1, y0, y1, z0, z1, mat) => { const m = new THREE.Mesh(new THREE.BoxGeometry(Math.abs(x1 - x0), Math.abs(y1 - y0), Math.abs(z1 - z0)), mat); m.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); m.castShadow = m.receiveShadow = true; g.add(m); return m; };
+  const crema = new THREE.MeshStandardMaterial({ color: 0xe0c072, roughness: 0.9 }), azul = new THREE.MeshStandardMaterial({ color: 0x3f6aa6, roughness: 0.9 });
+  const gastado = new THREE.MeshStandardMaterial({ color: 0xc9c6bf, roughness: 1 }), blanco = new THREE.MeshStandardMaterial({ color: 0xf1f0ec, roughness: 0.9 });
+  const pisoOsc = new THREE.MeshStandardMaterial({ color: 0x3b3e42, roughness: 0.9 }), metal = new THREE.MeshStandardMaterial({ color: 0x2a2d30, metalness: 0.4, roughness: 0.6 });
+  // planta baja hueca: muros y losa
+  const ap = 2.3 * M, xp0 = xE - 0.45 * M - ap, xp1 = xE - 0.45 * M, hp = 2.4 * M;   // portón (lado de la rampa)
+  box(xO, xE, base, yb, zS - G, zS, crema);                       // sur
+  box(xO, xO + G, base, yb, zN, zS, crema);                       // oeste
+  box(xE - G, xE, base, yb, zN, zS, crema);                       // este (rampa)
+  box(xp1, xE, base, yb, zN, zN + G, crema);                      // norte: pilar junto a la rampa
+  box(xp0, xp1, base + hp, yb, zN, zN + G, crema);                // sobre el portón
+  box(xO, xp0, base, yb, zN, zN + G, crema);                      // resto del norte
+  const xa = xp0 - 0.4 * M;                                       // azul abajo (desde el portón hacia el oeste) y esquina gastada
+  box(xO + 1.4 * M, xa, base, base + 2.1 * M, zN - 0.03, zN, azul);
+  box(xO, xO + 1.4 * M, base, base + 2.3 * M, zN - 0.03, zN, gastado);
+  box(xO + G, xE - G, base, base + 0.03, zN + G, zS - G, pisoOsc);                       // piso adentro
+  box(xO + G, xE - G, yb - 0.25, yb - 0.24, zN + G, zS - G, blanco);                      // cielo
+  box(xO + G + 0.02, xE - G - 0.02, base, yb - 0.25, zS - G - 0.03, zS - G - 0.02, blanco);   // paredes de adentro (fondo y lados)
+  box(xO + G, xO + G + 0.01, base, yb - 0.25, zN + G, zS - G, blanco); box(xE - G - 0.01, xE - G, base, yb - 0.25, zN + G, zS - G, blanco);
+  box(xO, xE, yb - 0.12, yb, zN, zS, crema);                      // losa
+  for (let k = 0; k <= 12; k++) box(xp0 + (ap * k) / 12 - 0.02, xp0 + (ap * k) / 12 + 0.02, base + hp - 0.45 * M, base + hp, zN + 0.02, zN + 0.06, blanco);   // reja
+  box(xp0, xp1, base + hp - 0.05, base + hp, zN + 0.02, zN + 0.06, blanco);
+  const alero = box(xp0 - 0.5 * M, xp1 + 0.5 * M, base + hp + 0.55 * M, base + hp + 0.58 * M, zN - 0.75 * M, zN, new THREE.MeshStandardMaterial({ color: 0x9ea5aa, metalness: 0.5, roughness: 0.5 }));
+  alero.rotation.x = -0.1;
+  for (const x of [xp0 - 0.3 * M, xp1 + 0.3 * M]) box(x - 0.02, x + 0.02, base + hp + 0.2 * M, base + hp + 0.55 * M, zN - 0.5 * M, zN, metal);   // ménsulas
+  // piso de arriba: block café sobre la parte de la rampa
+  const w = W * 0.72, xc = xE - w / 2, block = cuadros("#8f7a66", "#857060", [Math.round(h / 0.4), Math.round(piso2 / 0.4)]);
+  box(xE - w, xE, yb, yb + piso2, zN, zS, block);
+  box(xE - w - 0.02, xE + 0.02, yb + piso2, yb + piso2 + 0.1, zN - 0.02, zS + 0.02, new THREE.MeshStandardMaterial({ color: 0x7a6656, roughness: 0.95 }));
+  const celosia = new THREE.MeshStandardMaterial({ color: 0x9aa3a8, metalness: 0.4, roughness: 0.45 });
+  const zd = (d) => zN + d * h;   // d: fracción desde el norte
+  const huecoE = (mat, an, alto, desde, d) => box(xE, xE + 0.08, yb + desde * M, yb + (desde + alto) * M, zd(d) - (an * M) / 2, zd(d) + (an * M) / 2, mat);
   for (const [d, an] of [[0.91, 1.4], [0.5, 1.3], [0.29, 1.2], [0.09, 1.1]]) huecoE(celosia, an, 1.2, 0.9, d);
-  huecoE(new THREE.MeshStandardMaterial({ color: 0xcfd2d4 }), 1.1, 2.25, 0, 0.71); huecoE(oscuro, 0.9, 2.15, 0, 0.71).position.x += 0.03;
-  box(1.7 * M, 1.1 * M, 0.1, xc - 0.12 * w, yb + 1.5 * M, zN - 0.05, celosia);   // ventana de celosía del norte
+  huecoE(new THREE.MeshStandardMaterial({ color: 0xcfd2d4 }), 1.1, 2.25, 0, dPuerta); const pu = huecoE(new THREE.MeshStandardMaterial({ color: 0x2f3438 }), 0.9, 2.15, 0, dPuerta); pu.position.x += 0.02;
+  box(xc - 0.12 * w - 0.85 * M, xc - 0.12 * w + 0.85 * M, yb + 0.9 * M, yb + 2.0 * M, zN - 0.06, zN, celosia);   // ventana del norte
   return g;
 }
 
