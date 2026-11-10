@@ -449,7 +449,8 @@ function techoExistente() {
   // (x 333 y 722); al oeste la franja del alero (x 205–333) cae al 4% hacia adentro, a la canal sobre la fila del oeste.
   const P = (x, yy, h) => { const v = aEscena(x, yy); v.y = h; return v; };
   const panel = (pts, mat) => { const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(pts.flatMap((p) => [p.x, p.y, p.z]), 3)); geo.setIndex([0, 1, 2, 0, 2, 3]); geo.computeVertexNormals(); const m = new THREE.Mesh(geo, mat); m.receiveShadow = true; g.add(m); };
-  const barra = (a, b, s) => { const v = new THREE.Vector3().subVectors(b, a), m = new THREE.Mesh(new THREE.BoxGeometry(s, s, v.length()), amarillo); m.position.copy(a).addScaledVector(v, 0.5); m.lookAt(b); m.castShadow = true; g.add(m); };
+  const rojo = new THREE.MeshStandardMaterial({ color: 0xb3352c, roughness: 0.6, metalness: 0.3 });   // vigas rojas (foto)
+  const barra = (a, b, s, mat = rojo) => { const v = new THREE.Vector3().subVectors(b, a), m = new THREE.Mesh(new THREE.BoxGeometry(s, s, v.length()), mat); m.position.copy(a).addScaledVector(v, 0.5); m.lookAt(b); m.castShadow = true; g.add(m); };
   const m2 = (u) => u * 0.056 * M;
   for (const c of TECHO_EXISTENTE) {
     const XC = 527, hC = y + 0.09 * m2(XC - c.x0), yE = hC - 0.09 * m2(c.x1 - XC), y0 = c.y0, y1 = c.y1;
@@ -457,8 +458,11 @@ function techoExistente() {
     panel([P(XC, y0, hC), P(c.x1, y0, yE), P(c.x1, y1, yE), P(XC, y1, hC)], lamina);
     const n = Math.max(1, Math.round((y1 - y0) / 107));   // cerchas cada ~6 m
     for (let k = 0; k <= n; k++) { const yy = y0 + ((y1 - y0) * k) / n;
-      barra(P(c.x0, yy, y - 0.35), P(XC, yy, hC - 0.35), 0.6); barra(P(XC, yy, hC - 0.35), P(c.x1, yy, yE - 0.35), 0.6); barra(P(c.x0, yy, y - 0.9), P(c.x1, yy, yE - 0.9), 0.25); }
-    for (const [x, h] of [[c.x0, y], [XC, hC], [c.x1, yE]]) barra(P(x, y0, h - 0.4), P(x, y1, h - 0.4), 0.35);
+      barra(P(c.x0, yy, y - 0.3), P(XC, yy, hC - 0.3), 0.4); barra(P(XC, yy, hC - 0.3), P(c.x1, yy, yE - 0.3), 0.4); barra(P(c.x0, yy, y - 0.9), P(c.x1, yy, yE - 0.9), 0.25); }
+    for (const [x, h] of [[c.x0, y], [c.x1, yE]]) celosia(g, P(x, y0, h - 0.1), P(x, y1, h - 0.1), 0.9 * M, amarillo, 0.12);   // celosías amarillas a lo largo (foto)
+    for (const t of [0.33, 0.66]) { const x = c.x0 + (XC - c.x0) * t, h = y + (hC - y) * t; celosia(g, P(x, y0, h - 0.1), P(x, y1, h - 0.1), 0.6 * M, amarillo, 0.1); }
+    for (const t of [0.33, 0.66]) { const x = XC + (c.x1 - XC) * t, h = hC + (yE - hC) * t; celosia(g, P(x, y0, h - 0.1), P(x, y1, h - 0.1), 0.6 * M, amarillo, 0.1); }
+    barra(P(XC, y0, hC - 0.3), P(XC, y1, hC - 0.3), 0.3);
   }
   // alero (G-01): franja de x 205 a 333 que cae al 4% hacia adentro (a la canal de la fila de columnas del oeste)
   for (const c of ALEROS) {
@@ -470,6 +474,7 @@ function techoExistente() {
   for (const cx of [333, 713]) for (const cy of [739, 988, 1237]) {
     const base = E.altura(cx, cy) * M, alto = y - base, v = aEscena(cx, cy);
     const col = new THREE.Mesh(new THREE.BoxGeometry(0.9, alto, 0.9), amarillo); col.position.set(v.x, base + alto / 2, v.z); col.castShadow = true; g.add(col);
+    const pie = new THREE.Mesh(new THREE.BoxGeometry(0.95, 1.4 * M, 0.95), rojo); pie.position.set(v.x, base + 0.7 * M, v.z); g.add(pie);
   }
   return g;
 }
@@ -685,7 +690,8 @@ function galeras(base) {
   const oscuro = new THREE.MeshStandardMaterial({ color: 0x3d4247, metalness: 0.5, roughness: 0.6 }), amarillo = new THREE.MeshStandardMaterial({ color: 0xd9a821, roughness: 0.6 });
   const lam = new THREE.MeshStandardMaterial({ color: 0x8e959b, metalness: 0.5, roughness: 0.5, side: THREE.DoubleSide });
   const lamT = new THREE.MeshStandardMaterial({ color: 0xb4bbc1, metalness: 0.5, roughness: 0.45, side: THREE.DoubleSide, transparent: true, opacity: 0.8, depthWrite: false });
-  const fascia = new THREE.MeshStandardMaterial({ color: 0xd4d8dc, metalness: 0.4, roughness: 0.5, side: THREE.DoubleSide });
+  const fascia = new THREE.MeshStandardMaterial({ color: 0x7d858c, metalness: 0.5, roughness: 0.5, side: THREE.DoubleSide });
+  const blancoG = new THREE.MeshStandardMaterial({ color: 0xe6e8e6, metalness: 0.3, roughness: 0.5 });
   const bloque = new THREE.MeshStandardMaterial({ color: 0xe6e3da, roughness: 0.9, side: THREE.DoubleSide });
   const P = (x, y, h = 0) => { const v = aEscena(x, y); v.y = base + h * M; return v; };
   const barra = (grupo, a, b, s, mat) => { const v = new THREE.Vector3().subVectors(b, a), m = new THREE.Mesh(new THREE.BoxGeometry(s, s, v.length()), mat); m.position.copy(a).addScaledVector(v, 0.5); m.lookAt(b); m.castShadow = true; grupo.add(m); };
@@ -706,13 +712,14 @@ function galeras(base) {
   for (let k = 0; k <= 8; k++) { const y = q.y0 + ((q.y1 - q.y0) * k) / 8; barra(tg, P(q.x0, y, hq(y) - 0.12), P(q.x1, y, hq(y) - 0.12), 0.16, amarillo); }   // polines
   panel(g, [P(q.x0, q.y0, 0), P(q.x1, q.y0, 0), P(q.x1, q.y0, NORTE), P(q.x0, q.y0, NORTE)], lam);   // fondo norte de lámina
   // la pared junto a la rampa es la que dibujaste en el plano (x 1247.7)
-  const yf = q.y1 + 5; panel(tg, [P(q.x0 - 1, yf, SUR - 1.4), P(q.x1 + 1, yf, SUR - 1.4), P(q.x1 + 1, yf, SUR + 1.2), P(q.x0 - 1, yf, SUR + 1.2)], fascia);   // fascia alta al frente
+  const yf = q.y1 + 5; panel(tg, [P(q.x0 - 1, yf, SUR - 1.4), P(q.x1 + 1, yf, SUR - 1.4), P(q.x1 + 1, yf, SUR + 1.2), P(q.x0 - 1, yf, SUR + 1.2)], fascia);   // fascia alta al frente (foto: lámina sobre viga de celosía)
+  celosia(tg, P(q.x0, yf - 1, SUR - 1.4), P(q.x1, yf - 1, SUR - 1.4), 0.7 * M, oscuro, 0.12);
   // --- pequeña: alta al oeste (frente a entrega), baja al este (8%) ---
   const c = GALERA_CHICA, OESTE = 5.0, ESTE = OESTE - 0.08 * metros(c.x1 - c.x0), hc = (x) => OESTE + ((ESTE - OESTE) * (x - c.x0)) / (c.x1 - c.x0);
   panel(tg, [P(c.x0, c.y0, OESTE), P(c.x1, c.y0, ESTE), P(c.x1, c.y1, ESTE), P(c.x0, c.y1, OESTE)], lamT);
   for (let k = 0; k <= 5; k++) {
     const y = c.y0 + 1 + ((c.y1 - c.y0 - 2) * k) / 5;
-    barra(tg, P(c.x0, y, OESTE - 0.25), P(c.x1, y, ESTE - 0.25), 0.35, oscuro);
+    celosia(tg, P(c.x0, y, OESTE - 0.1), P(c.x1, y, ESTE - 0.1), 0.45 * M, blancoG, 0.08);   // celosías blancas (foto)
     for (const x of [c.x0 + 1, c.x1 - 1]) barra(g, P(x, y, 0), P(x, y, hc(x) - 0.25), 0.3, oscuro);
   }
   barra(tg, P(c.x0, c.y0, OESTE - 0.1), P(c.x0, c.y1, OESTE - 0.1), 0.3, fascia);   // orilla del frente
