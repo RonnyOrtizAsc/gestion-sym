@@ -499,7 +499,7 @@ function techoExistente() {
   for (const cx of [333, 713]) for (const cy of [739, 988, 1237]) {
     const base = E.altura(cx + (cx === 333 ? 4 : 0), cy) * M, alto = y - base, v = aEscena(cx, cy);
     const col = new THREE.Mesh(new THREE.BoxGeometry(0.8, alto, 0.8), amarillo); col.position.set(v.x, base + alto / 2, v.z); col.castShadow = true; g.add(col);
-    const pie = new THREE.Mesh(new THREE.BoxGeometry(0.85, 1.6 * M, 0.85), cx === 333 ? azul : rojo); pie.position.set(v.x, base + 0.8 * M, v.z); g.add(pie);
+    const pie = new THREE.Mesh(new THREE.BoxGeometry(0.85, 1.6 * M, 0.85), cx === 333 && cy !== 1237 ? azul : rojo); pie.position.set(v.x, base + 0.8 * M, v.z); g.add(pie);
   }
   return g;
 }
@@ -521,12 +521,20 @@ function zonaBoulevard() {
     barraE(g, a.clone().add(up), b.clone().add(up), 0.09, gris); barraE(g, a.clone().addScaledVector(up, 0.1), b.clone().addScaledVector(up, 0.1), 0.07, gris);
     for (let k = 0; k <= n; k++) { const p = a.clone().lerp(b, k / n); barraE(g, p, p.clone().add(up), k % 12 ? 0.04 : 0.09, k % 12 ? amar : gris); } };
   baranda([330, 1150], [330, 1316]); baranda([330, 1316], [445, 1316]);
-  // caseta (foto): sobre la plataforma, en la esquina detrás de la baranda; cuadrada, abajo blanca, vidrio y lámina amarilla, techito plano
-  const piso = plat;
-  caja(392, 1268, 432, 1308, piso, piso + 1.0 * M, matE(0xeeece6));
-  caja(392.5, 1268.5, 431.5, 1307.5, piso + 1.0 * M, piso + 2.1 * M, new THREE.MeshStandardMaterial({ color: 0x8fa3ad, metalness: 0.6, roughness: 0.15, transparent: true, opacity: 0.75 }));
-  caja(392, 1268, 432, 1308, piso + 2.1 * M, piso + 2.8 * M, matE(0xf0c800));
-  caja(389, 1265, 435, 1311, piso + 2.8 * M, piso + 2.92 * M, matE(0xdcdcd6));
+  // caseta (fotos 13:36): bajo el techo grande, junto a la columna amarilla de base roja (x 333, y 1237), con la baranda detrás.
+  // Rectangular ~1.7 × 2.2 m, 2.4 m de alto: abajo lámina gris, franja de ventanas con marco blanco, arriba lámina amarilla con techito
+  // curvo; puerta de dos hojas oscuras en la cara este.
+  const lamG = cuadros("#7c8287", "#6c7277", [14, 1]), lamA = cuadros("#f2d10a", "#e3c200", [14, 1]), marco = matE(0xf4f4f0), vid = new THREE.MeshStandardMaterial({ color: 0x9fb2ba, metalness: 0.5, roughness: 0.15, transparent: true, opacity: 0.8 });
+  const X0 = 343, X1 = 373, Y0 = 1214, Y1 = 1253, pc = plat;
+  caja(X0, Y0, X1, Y1, pc, pc + 0.12 * M, matE(0x2f3337));
+  caja(X0, Y0, X1, Y1, pc + 0.12 * M, pc + 1.15 * M, lamG);
+  caja(X0, Y0, X1, Y1, pc + 1.15 * M, pc + 1.25 * M, marco);
+  caja(X0 + 0.3, Y0 + 0.3, X1 - 0.3, Y1 - 0.3, pc + 1.25 * M, pc + 1.85 * M, vid);
+  for (const t of [0, 0.33, 0.66, 1]) { caja(X0 + (X1 - X0) * t - 0.4, Y0 - 0.2, X0 + (X1 - X0) * t + 0.4, Y0 + 0.4, pc + 1.25 * M, pc + 1.85 * M, marco); caja(X0 - 0.2, Y0 + (Y1 - Y0) * t - 0.4, X0 + 0.4, Y0 + (Y1 - Y0) * t + 0.4, pc + 1.25 * M, pc + 1.85 * M, marco); }
+  caja(X0, Y0, X1, Y1, pc + 1.85 * M, pc + 2.4 * M, lamA);
+  const cur = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16, 1, false, 0, Math.PI), matE(0xd9dad4)), ca = aEscena(X0, Y0), cb = aEscena(X1, Y1);
+  cur.scale.set((cb.x - ca.x) / 2 + 0.05, cb.z - ca.z, 0.12 * M); cur.rotation.set(Math.PI / 2, 0, 0); cur.position.set((ca.x + cb.x) / 2, pc + 2.4 * M, (ca.z + cb.z) / 2); cur.castShadow = true; g.add(cur);
+  caja(X1 - 0.2, Y0 + 6, X1 + 0.3, Y1 - 6, pc + 0.12 * M, pc + 2.3 * M, matE(0x24282c));   // puerta de dos hojas (este)
   // gradas de concreto (foto): pegadas al final del muro con mural, al borde oeste de la rampa, suben hacia el norte hasta la plataforma
   for (let k = 0; k < 6; k++) { const y1 = 1318 + 40 - k * 8, b = suelo(450, y1); caja(440, y1 - 8, 462, y1, b, b + Math.max(0.05, (plat - b) * (k + 1) / 6), concreto); }
   // rótulo: columna alta amarilla con base azul y marco blanco arriba (fotos 5 y 7), junto a la calle
@@ -543,22 +551,30 @@ function zonaBoulevard() {
   return g;
 }
 
-// Oficina existente de block (G-02, x 555–725 / y 1245–1445; fotos 3 y 9): paredes azul marino, frente de vidrio al oeste,
-// pasillo de piso de mosaico levantado con gradas, losa con alero y fascia amarilla (pintura vieja) al oeste y al sur.
+// Oficina existente de block (G-02 x 555–727 / y 1245–1447; fotos 13:36). Cuerpo azul marino con dos ventanales grandes al oeste.
+// Al sur, el pórtico: piso levantado con zócalo de mosaico y gradas al oeste, vitrina de vidrio metida, losa con cielo blanco
+// y fascia amarilla (pintura vieja) en la orilla oeste y sur, cargada por dos columnas azul marino en la esquina del pórtico.
 const OFI_NISSAN = { x0: 555, x1: 727, y0: 1243, y1: 1447 };
 function oficinaExistente() {
-  const g = new THREE.Group(), q = OFI_NISSAN, base = MEDIO * EXAGERA * M, PL = 0.6 * M, H = 3.4 * M, xc = q.x0 + 22;
+  const g = new THREE.Group(), q = OFI_NISSAN, base = MEDIO * EXAGERA * M, PL = 0.6 * M, H = 3.3 * M, YP = 1335, XV = 590;
   const caja = (x0, y0, x1, y1, b, t, mat) => { const a = aEscena(x0, y0), c = aEscena(x1, y1), m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.1, Math.abs(c.x - a.x)), t - b, Math.max(0.1, Math.abs(c.z - a.z))), mat);
     m.position.set((a.x + c.x) / 2, (b + t) / 2, (a.z + c.z) / 2); m.castShadow = m.receiveShadow = true; g.add(m); return m; };
-  const marino = matE(0x3a3f55, { metalness: 0 }), vidrio = new THREE.MeshStandardMaterial({ color: 0x1e2a33, metalness: 0.7, roughness: 0.1 }), mosaico = cuadros("#d8cdb8", "#bfae92", [30, 2]);
-  const blancoL = matE(0xf3f2ee, { metalness: 0 }), amarilloF = matE(0xd8b43c, { metalness: 0 });
-  caja(q.x0, q.y0, q.x1, q.y1, base, base + PL, mosaico);                 // plataforma con mosaico
-  for (let k = 0; k < 4; k++) caja(q.x0 - 4 - k * 5, 1300, q.x0 - k * 5, 1330, base, base + PL * (4 - k) / 4, blancoL);   // gradas al pasillo
-  caja(xc, q.y0, q.x1, q.y1, base + PL, base + PL + H, marino);          // cuerpo
-  for (let y0 = q.y0 + 50; y0 < q.y1 - 8; y0 += 34) caja(xc - 0.6, y0 + 3, xc, y0 + 31, base + PL + 0.1 * M, base + PL + 2.6 * M, vidrio);   // vitrinas al oeste
-  caja(q.x0, q.y0, q.x1, q.y1, base + PL + H, base + PL + H + 0.25 * M, blancoL);   // losa con alero sobre el pasillo
-  caja(q.x0 - 1, q.y0, q.x0 + 1, q.y1 + 1, base + PL + H - 0.2 * M, base + PL + H + 0.9 * M, amarilloF);   // fascia amarilla oeste
-  caja(q.x0 - 1, q.y1 - 1, q.x1, q.y1 + 1, base + PL + H - 0.2 * M, base + PL + H + 0.9 * M, amarilloF);   // y sur
+  const marino = matE(0x3b3f57, { metalness: 0 }), vidrio = new THREE.MeshStandardMaterial({ color: 0x2a3640, metalness: 0.7, roughness: 0.08 }), mosaico = cuadros("#d9cdb6", "#c4b393", [24, 2]);
+  const blanco = matE(0xf3f2ee, { metalness: 0 }), amarillo = matE(0xd6b43e, { metalness: 0 }), piso = matE(0xe9e6df, { metalness: 0 });
+  // cuerpo norte (y 1245–YP): navy, con dos ventanales al oeste
+  caja(q.x0 + 7, q.y0, q.x1, YP, base, base + H + 0.6 * M, marino);
+  caja(q.x0 + 6.5, 1262, q.x0 + 7, 1296, base + 0.5 * M, base + 2.7 * M, vidrio); caja(q.x0 + 6.5, 1298, q.x0 + 7, 1330, base + 0.5 * M, base + 2.7 * M, vidrio);
+  // pórtico (y YP–1447): piso levantado con zócalo de mosaico y gradas, vitrina metida en x XV
+  caja(q.x0, YP, q.x1, q.y1, base, base + PL, mosaico); caja(q.x0, YP, q.x1, q.y1, base + PL - 0.02, base + PL, piso);
+  for (let k = 0; k < 3; k++) caja(q.x0 - 5 - k * 5, YP, q.x0 - k * 5, YP + 22, base, base + PL * (3 - k) / 4, piso);
+  caja(XV, YP, q.x1, q.y1, base + PL, base + PL + H, marino);
+  for (let y0 = YP + 4; y0 < q.y1 - 10; y0 += 36) caja(XV - 0.6, y0, XV, y0 + 32, base + PL + 0.05 * M, base + PL + H - 0.3 * M, vidrio);
+  // losa del pórtico (cielo blanco) y fascia amarilla al oeste y al sur
+  caja(q.x0, YP - 2, q.x1, q.y1, base + PL + H, base + PL + H + 0.3 * M, blanco);
+  caja(q.x0 - 1, YP - 2, q.x0 + 1, q.y1 + 1, base + PL + H - 0.1 * M, base + PL + H + 1.0 * M, amarillo);
+  caja(q.x0 - 1, q.y1 - 1, q.x1, q.y1 + 1, base + PL + H - 0.1 * M, base + PL + H + 1.0 * M, amarillo);
+  // dos columnas azul marino en el frente del pórtico
+  for (const yc of [YP + 2, YP + 55]) caja(q.x0 + 1, yc, q.x0 + 6, yc + 5, base + PL, base + PL + H, marino);
   return g;
 }
 
