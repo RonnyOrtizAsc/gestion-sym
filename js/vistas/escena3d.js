@@ -521,17 +521,14 @@ function zonaBoulevard() {
     barraE(g, a.clone().add(up), b.clone().add(up), 0.09, gris); barraE(g, a.clone().addScaledVector(up, 0.1), b.clone().addScaledVector(up, 0.1), 0.07, gris);
     for (let k = 0; k <= n; k++) { const p = a.clone().lerp(b, k / n); barraE(g, p, p.clone().add(up), k % 12 ? 0.04 : 0.09, k % 12 ? amar : gris); } };
   baranda([330, 1150], [330, 1316]); baranda([330, 1316], [445, 1316]);
-  // caseta amarilla (G-02: x 460–515, y 1205–1245): ocho lados, abajo blanco, vidrio, banda de lámina amarilla y techito
-  const cc = aEscena(487, 1225), r = 1.6 * M, piso = suelo(487, 1225);
-  const anillo = (b, h, mat, rr = r) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(rr, rr, h, 8, 1, false), mat); m.position.set(cc.x, piso + b + h / 2, cc.z); m.castShadow = true; g.add(m); };
-  anillo(0, 1.0 * M, matE(0xeeece6)); anillo(1.0 * M, 1.1 * M, new THREE.MeshStandardMaterial({ color: 0x8fa3ad, metalness: 0.6, roughness: 0.15, transparent: true, opacity: 0.75 }), r * 0.98);
-  anillo(2.1 * M, 0.75 * M, matE(0xf0c800)); anillo(2.85 * M, 0.12 * M, matE(0xdcdcd6), r * 1.12);
-  // gradas de concreto al lado de la rampa, subiendo hacia la oficina (fotos 1 y 2)
-  for (let k = 0; k < 5; k++) { const x0 = 405 + k * 9, b = suelo(x0 + 4, 1330); caja(x0, 1318, x0 + 9, 1340, b, b + Math.max(0.05, (plat - b) * (k + 1) / 5), concreto); }
-  // gradas metálicas negras del muro del oeste, junto a la columna de base azul (fotos 4 y 7)
-  const negro = matE(0x1f2326, { metalness: 0.5 }), bajo = suelo(300, 1205), nE = 9;
-  for (let k = 0; k < nE; k++) { const t = (k + 1) / nE; caja(300 + 30 * t - 3, 1196, 300 + 30 * t + 3, 1214, bajo + (plat - bajo) * t - 0.06 * M, bajo + (plat - bajo) * t, negro); }
-  for (const yy of [1196, 1214]) barraE(g, PA(300, yy, bajo), PA(330, yy, plat), 0.12, negro, 0.3 * M);
+  // caseta (foto): sobre la plataforma, en la esquina detrás de la baranda; cuadrada, abajo blanca, vidrio y lámina amarilla, techito plano
+  const piso = plat;
+  caja(392, 1268, 432, 1308, piso, piso + 1.0 * M, matE(0xeeece6));
+  caja(392.5, 1268.5, 431.5, 1307.5, piso + 1.0 * M, piso + 2.1 * M, new THREE.MeshStandardMaterial({ color: 0x8fa3ad, metalness: 0.6, roughness: 0.15, transparent: true, opacity: 0.75 }));
+  caja(392, 1268, 432, 1308, piso + 2.1 * M, piso + 2.8 * M, matE(0xf0c800));
+  caja(389, 1265, 435, 1311, piso + 2.8 * M, piso + 2.92 * M, matE(0xdcdcd6));
+  // gradas de concreto (foto): pegadas al final del muro con mural, al borde oeste de la rampa, suben hacia el norte hasta la plataforma
+  for (let k = 0; k < 6; k++) { const y1 = 1318 + 40 - k * 8, b = suelo(450, y1); caja(440, y1 - 8, 462, y1, b, b + Math.max(0.05, (plat - b) * (k + 1) / 6), concreto); }
   // rótulo: columna alta amarilla con base azul y marco blanco arriba (fotos 5 y 7), junto a la calle
   for (const [x, yy] of [[255, 1432]]) {
     const b = suelo(x, yy), v = aEscena(x, yy), h = 9 * M;
@@ -562,7 +559,6 @@ function oficinaExistente() {
   caja(q.x0, q.y0, q.x1, q.y1, base + PL + H, base + PL + H + 0.25 * M, blancoL);   // losa con alero sobre el pasillo
   caja(q.x0 - 1, q.y0, q.x0 + 1, q.y1 + 1, base + PL + H - 0.2 * M, base + PL + H + 0.9 * M, amarilloF);   // fascia amarilla oeste
   caja(q.x0 - 1, q.y1 - 1, q.x1, q.y1 + 1, base + PL + H - 0.2 * M, base + PL + H + 0.9 * M, amarilloF);   // y sur
-  for (const y0 of [q.y0 + 2, (q.y0 + q.y1) / 2, q.y1 - 6]) caja(q.x0 + 2, y0, q.x0 + 6, y0 + 4, base + PL, base + PL + H, matE(0x6f7487));   // columnas del pasillo
   return g;
 }
 
