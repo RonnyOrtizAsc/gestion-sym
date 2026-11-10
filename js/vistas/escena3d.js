@@ -582,7 +582,7 @@ function ponerJardineras() {
 // Supervisor: paneles blancos con franja naranja y raya blanca. Cara sur (hacia donde termina la pared de lámina): fila de ventanas.
 // Cara oeste (hacia el rebalse técnico): puerta, ventana, puerta y ventanas. Techo delgado sobre cerchas que cubre la caseta y el lado
 // de las puertas y baja hacia la pared de lámina; un poste cerca de la cara sur. Sin la fascia de publicidad.
-const SUPERVISOR = { x0: 829, x1: 931, y0: 175, y1: 260 }, TECHO_SUP = { x0: 808, x1: 933, y0: 168, y1: 284 };
+const SUPERVISOR = { x0: 829, x1: 931, y0: 175, y1: 260 }, TECHO_SUP = { x0: 808, x1: 933, y0: 168, y1: 305 };
 // Casita del comedor (atrás y a la izquierda): crema con franjas naranjas, techo inclinado hacia el frente (sur) con orilla amarilla.
 const CASITA = { x0: 718, x1: 808, y0: 10, y1: 103 };
 const enSupervisor = (x, y) => [SUPERVISOR, CASITA, LAVADO].some((q) => x > q.x0 - 3 && x < q.x1 + 3 && y > q.y0 - 3 && y < q.y1 + 3);
@@ -710,7 +710,7 @@ function supervisor(base) {
   const g = new THREE.Group(), m = MATS_CASETA();
   const cara = caseta(g, SUPERVISOR, base, 3, m.blanco, m);
   ventanas(cara, "s", 836, 928, 5, 1.0, 0.75, m);   // cara sur: fila de ventanas
-  puertaV(cara, "o", 176, 192, m); ventanas(cara, "o", 194, 214, 1, 1.0, 0.75, m); ventanas(cara, "o", 216, 236, 1, 1.0, 0.75, m); puertaV(cara, "o", 238, 254, m);   // cara oeste: puerta, dos ventanas, puerta
+  puertaV(cara, "o", 182, 198, m); ventanas(cara, "o", 200, 220, 1, 1.0, 0.75, m); ventanas(cara, "o", 222, 241, 1, 1.0, 0.75, m); puertaV(cara, "o", 243, 259, m);   // cara oeste: puerta (con espacio a la esquina norte), dos ventanas, puerta pegada a la esquina sur
   // techo (fotos): una losa plana de lámina, horizontal, más grande que la cabina; vuela al frente (sur, sobre el poste)
   // y hacia la pared de lámina (este). Orilla blanca delgada y por debajo vigas de celosía en los dos sentidos.
   const t = TECHO_SUP, tw = (t.x1 - t.x0) * ESC, th = (t.y1 - t.y0) * ESC, tc = aEscena((t.x0 + t.x1) / 2, (t.y0 + t.y1) / 2), yT = base + 4.6 * M;
@@ -722,7 +722,7 @@ function supervisor(base) {
   const P = (x, y) => { const v = aEscena(x, y); v.y = yT - 0.08; return v; };
   for (let k = 0; k <= 4; k++) { const x = t.x0 + 3 + ((t.x1 - t.x0 - 6) * k) / 4; celosia(g, P(x, t.y0 + 2), P(x, t.y1 - 2), 0.35 * M, m.acero, 0.07); }
   for (const y of [t.y0 + 3, (t.y0 + t.y1) / 2, t.y1 - 3]) celosia(g, P(t.x0 + 2, y), P(t.x1 - 2, y), 0.35 * M, m.acero, 0.07);
-  const pv = aEscena(860, 276), ap = yT - base - 0.1;   // poste blanco con pie amarillo, al frente de la cara sur
+  const pv = aEscena(862, 297), ap = yT - base - 0.1;   // poste blanco con pie amarillo, unos 2 m al frente de la cara sur (foto), bajo la orilla del techo
   const poste = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, ap, 12), new THREE.MeshStandardMaterial({ color: 0xf2f2f0, roughness: 0.6 }));
   poste.position.set(pv.x, base + ap / 2, pv.z); poste.castShadow = true; g.add(poste);
   const pie = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.6 * M, 12), m.amarillo); pie.position.set(pv.x, base + 0.3 * M, pv.z); g.add(pie);
