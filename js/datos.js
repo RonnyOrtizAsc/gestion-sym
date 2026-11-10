@@ -56,6 +56,7 @@ export async function cargarTodo() {
   S.elementos = ok(el).filter((x) => !S.obra || x.obra_id === S.obra.id);
   S.resumen = ok(rs);
   S.piezas = Object.fromEntries(ok(pz).filter((x) => !S.obra || x.obra_id === S.obra.id).map((x) => [x.idx, x.estado]));
+  FOTO.el = new Map(S.elementos.map((e) => [e.id, structuredClone(e)])); FOTO.pz = { ...S.piezas };
   if (S.perfil?.rol === "admin") S.perfiles = ok(await sb.from("perfiles").select("*").order("creado_en"));
 }
 
@@ -218,19 +219,60 @@ export async function estadoArea(id, estado) {
   ok(await sb.from("areas").update({ estado }).eq("id", id));
 }
 // Marcar piezas del plano (una o muchas a la vez)
+// ---------- Deshacer (plano) ----------
+// FOTO = cómo está guardado (no lo que se ve, que a veces se cambia antes de guardar). Cada cambio del plano guarda
+// cómo deshacerse; lo que se hace en una sola acción (p. ej. una pared que se une con otras) se deshace junto.
+const FOTO = { el: new Map(), pz: {} };
+const PILA = [];   // [{ grupo, deshacer }]
+let grupoActual = 0;
+export const nuevoGrupo = () => ++grupoActual;
+export const puedeDeshacer = () => PILA.length > 0;
+const anotar = (deshacer) => { PILA.push({ grupo: grupoActual, deshacer }); if (PILA.length > 60) PILA.shift(); };
+export async function deshacer() {
+  if (!PILA.length) return false;
+  const g = PILA[PILA.length - 1].grupo;
+  while (PILA.length && PILA[PILA.length - 1].grupo === g) await PILA.pop().deshacer();
+  return true;
+}
+const filaPieza = (idx, estado) => ({ obra_id: S.obra.id, idx, estado, actualizado_en: ahora(), actualizado_por: yo() });
+async function guardarPiezas(indices, estado) {
+  const filas = indices.map((idx) => filaPieza(idx, estado));
+  for (let i = 0; i < filas.length; i += 500) ok(await sb.from("piezas").upsert(filas.slice(i, i + 500), { onConflict: "obra_id,idx" }));
+  for (const i of indices) FOTO.pz[i] = estado;
+}
+// Marcar piezas del plano (una o muchas a la vez)
 export async function estadoPiezas(indices, estado) {
   if (!indices.length) return;
-  const filas = indices.map((idx) => ({ obra_id: S.obra.id, idx, estado, actualizado_en: ahora(), actualizado_por: yo() }));
-  for (let i = 0; i < filas.length; i += 500) ok(await sb.from("piezas").upsert(filas.slice(i, i + 500), { onConflict: "obra_id,idx" }));
+  const antes = indices.map((i) => [i, FOTO.pz[i] ?? null]);
+  await guardarPiezas(indices, estado);
+  anotar(async () => {
+    const porEstado = {}; for (const [i, e] of antes) (porEstado[e] ||= []).push(i);
+    for (const [e, lista] of Object.entries(porEstado)) {
+      if (e === "null") { ok(await sb.from("piezas").delete().eq("obra_id", S.obra.id).in("idx", lista)); lista.forEach((i) => { delete FOTO.pz[i]; delete S.piezas[i]; }); }
+      else { await guardarPiezas(lista, e); lista.forEach((i) => (S.piezas[i] = e)); }
+    }
+  });
 }
 export async function agregarElemento(e) {
-  return ok(await sb.from("elementos").insert({ ...e, obra_id: S.obra.id, actualizado_por: yo() }).select().single());
+  const n = ok(await sb.from("elementos").insert({ ...e, obra_id: S.obra.id, actualizado_por: yo() }).select().single());
+  FOTO.el.set(n.id, structuredClone(n));
+  anotar(async () => { ok(await sb.from("elementos").delete().eq("id", n.id)); FOTO.el.delete(n.id); S.elementos = S.elementos.filter((q) => q.id !== n.id); });
+  return n;
 }
 export async function editarElemento(id, cambios) {
+  const viejo = FOTO.el.get(id), antes = viejo ? Object.fromEntries(Object.keys(cambios).map((k) => [k, viejo[k] ?? null])) : null;
   ok(await sb.from("elementos").update({ ...cambios, actualizado_en: ahora(), actualizado_por: yo() }).eq("id", id));
+  if (viejo) Object.assign(viejo, structuredClone(cambios));
+  if (antes) anotar(async () => {
+    ok(await sb.from("elementos").update({ ...antes, actualizado_en: ahora(), actualizado_por: yo() }).eq("id", id));
+    Object.assign(FOTO.el.get(id) || {}, antes); const e = S.elementos.find((q) => q.id === id); if (e) Object.assign(e, antes);
+  });
 }
 export async function borrarElemento(id) {
+  const viejo = FOTO.el.get(id);
   ok(await sb.from("elementos").delete().eq("id", id));
+  FOTO.el.delete(id);
+  if (viejo) anotar(async () => { const n = ok(await sb.from("elementos").insert(viejo).select().single()); FOTO.el.set(n.id, structuredClone(n)); S.elementos.push(n); });
 }
 
 export async function editarPerfil(id, cambios) {

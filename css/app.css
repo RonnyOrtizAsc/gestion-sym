@@ -339,3 +339,12 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
 .barra-mapa .flot-btn,.barra-mapa .flot-vista{box-shadow:none}
 .flot-abajo{right:8px;bottom:8px}
 .flot-abajo .flot-btn.icono{width:36px;height:36px;font-size:18px;border-radius:10px}
+
+.capa-edicion .previa-nueva{stroke:#1f6fd6;stroke-width:5;stroke-opacity:.9;stroke-dasharray:none}
+.punto.iman{background:#fff;border-color:#1f6fd6;width:12px;height:12px;margin:-6px 0 0 -6px}
+.captura .tip{transform:none}
+.medida{position:absolute;z-index:8;transform:translate(-50%,-160%);background:#1d2125;color:#fff;font-size:12px;font-weight:600;padding:3px 8px;border-radius:999px;pointer-events:none;white-space:nowrap}
+.captura{touch-action:none}
+.mapa-scroll .mapa{transition:none}
+.hoja>button,.hoja>a{display:block;width:100%;text-align:left}
+.hoja>button.btn{text-align:center}

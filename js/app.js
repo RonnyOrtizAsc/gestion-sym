@@ -1,5 +1,5 @@
 // Gestión SYM: arranque, ingreso, navegación y tiempo real.
-import { sb, S, cargarPerfil, cargarTodo, enReceso } from "./datos.js";
+import { sb, S, cargarPerfil, cargarTodo, enReceso, nuevoGrupo } from "./datos.js";
 import { esc, dur, pad, toast } from "./util.js";
 import * as obra from "./vistas/obra.js";
 import * as recesos from "./vistas/recesos.js";
@@ -27,7 +27,7 @@ function redibujar() {
 // Ejecuta una acción, recarga los datos y avisa el resultado
 // Las acciones se forman en fila: si tocas rápido, ninguna se pierde
 let cola = Promise.resolve();
-function hacer(accion) { cola = cola.then(() => ejecutar(accion)); return cola; }
+function hacer(accion) { cola = cola.then(() => { nuevoGrupo(); return ejecutar(accion); }); return cola; }
 async function ejecutar(accion) {
   ocupado = true;
   try { const msg = await accion(); await cargarTodo(); redibujar(); if (msg) toast(msg); }

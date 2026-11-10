@@ -5,7 +5,7 @@
 import { S, recesoAbierto, enReceso, recesoTurno, turnoDe, turnoActual, limiteReceso, esAlmuerzo, almuerzoHoy, LIMITE_ALMUERZO, prestamosActivos, cambiarReceso, terminarReceso,
   trabajador, herramienta, area, enArea, moverTrabajador,
   ESTADOS, NOMBRE_ESTADO, TIPOS_ELEMENTO, estadoArea, agregarElemento, editarElemento, borrarElemento,
-  ponerActividad, prestarRapido, cerrarPrestamo, disponibles, METROS_POR_UNIDAD, usarComoBodega, estadoPiezas } from "../datos.js";
+  ponerActividad, prestarRapido, cerrarPrestamo, disponibles, METROS_POR_UNIDAD, usarComoBodega, estadoPiezas, deshacer, puedeDeshacer } from "../datos.js";
 import { esc, iniciales, primerNombre, ms, hhmm } from "../util.js";
 import { miniatura, tarjeta, avatares, cara } from "./fotos.js";
 import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, CAJAS, grupoDe, queEs, pegar, ANCHO, ALTO, MATERIALES, puntas, pared, largoPared, gruesoPared, enderezar, distPared, enLinea, sobrePared, ANCHO_HUECO, CHICAS, rampaDe } from "./mapa-svg.js";
@@ -25,6 +25,7 @@ const ICONO = {
   ojoNo: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A10.6 10.6 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6C3.8 8.4 2 12 2 12s3.5 7 10 7c1.8 0 3.4-.5 4.8-1.3M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>`,
   comida: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 21V3c-2 1-3 4-3 7h3"/></svg>`,
   reloj: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>`,
+  deshacer: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>`,
   centrar: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>`,
   lapiz: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg>`,
   llave: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></svg>`,
@@ -186,7 +187,7 @@ function hojaPieza() {
 function hojaNuevo() {
   const pared = ui.nuevo.tipo === "muro";
   return `<div class="hoja-h"><div class="grow"><b>${pared ? "Dibujar pared" : ui.nuevo.tipo ? "Agregar " + TIPOS_ELEMENTO[ui.nuevo.tipo].toLowerCase() : "¿Qué vas a agregar?"}</b>
-      <small>${pared ? (ui.nuevo.p1 ? "Ahora toca donde termina." : "Toca donde empieza la pared.") : ui.nuevo.tipo ? (ui.nuevo.p1 ? "Ahora toca la esquina opuesta." : "Toca una esquina en el plano.") : "Elige qué vas a agregar."}</small></div>
+      <small>${pared ? "Material de la pared:" : ui.nuevo.tipo ? "Márcalo en el plano." : "Elige qué vas a agregar."}</small></div>
       <button class="x" data-cerrar aria-label="Terminar">×</button></div>
     ${pared ? chipsMaterial(ui.nuevo.material, "data-mat-nuevo") : ""}
     <button class="linkbtn" data-mas style="margin-top:8px">${ui.mas ? "Ocultar otras cosas ▴" : "Agregar otra cosa (gradas, jardinera…) ▾"}</button>
@@ -258,8 +259,9 @@ export function render(V, { hacer, redibujar }) {
   </div>`;
   const BARRA_MAPA = `<div class="barra-mapa">
       <div class="flot-grupo"><button class="flot-btn ${ui.editar ? "on" : ""}" id="hudEditar">${ui.editar ? "✓" : ICONO.lapiz}<span>${ui.editar ? "Listo" : "Editar"}</span></button>
-        ${ui.editar ? `<button class="flot-btn ${ui.nuevo ? "on" : ""}" id="hudAgregar"><b aria-hidden="true">＋</b><span>Pared</span></button>` : ""}</div>
-      <div class="flot-grupo"><button class="flot-btn icono ${ui.sinGente ? "on" : ""}" id="verGente" aria-pressed="${ui.sinGente}" aria-label="${ui.sinGente ? "Mostrar a los trabajadores" : "Ocultar a los trabajadores y ver solo el plano"}" title="${ui.sinGente ? "Mostrar trabajadores" : "Solo el plano"}">${ui.sinGente ? ICONO.ojoNo : ICONO.ojo}</button>
+        ${ui.editar ? `<button class="flot-btn ${ui.nuevo ? "on" : ""}" id="hudAgregar"><b aria-hidden="true">＋</b><span>Pared</span></button>
+          <button class="flot-btn icono" id="hudDeshacer" aria-label="Deshacer lo último" title="Deshacer" ${puedeDeshacer() ? "" : "disabled"}>${ICONO.deshacer}</button>` : ""}</div>
+      <div class="flot-grupo">${ui.editar ? "" : `<button class="flot-btn icono ${ui.sinGente ? "on" : ""}" id="verGente" aria-pressed="${ui.sinGente}" aria-label="${ui.sinGente ? "Mostrar a los trabajadores" : "Ocultar a los trabajadores y ver solo el plano"}" title="${ui.sinGente ? "Mostrar trabajadores" : "Solo el plano"}">${ui.sinGente ? ICONO.ojoNo : ICONO.ojo}</button>`}
       <div class="seg mini flot-vista" role="group" aria-label="Vista"><button data-vista="2d" aria-pressed="${!es3d}">2D</button><button data-vista="3d" aria-pressed="${es3d}">3D</button></div></div>
     </div>`;
   const FLOTANTES = `<div class="flot flot-abajo">${es3d ? `<button class="flot-btn icono" id="centrar" aria-label="Volver a la vista inicial">${ICONO.centrar}</button>`
@@ -271,7 +273,8 @@ export function render(V, { hacer, redibujar }) {
   ${receso ? `<p class="pista receso ${alm ? "almuerzo" : ""}">Toca a quien sale ${alm ? "a almorzar" : "a receso"} y otra vez cuando regrese. Para terminar, toca <b>${alm ? "Terminar almuerzo" : "Terminar receso"}</b>.</p>`
     : ui.moviendo && w ? `<p class="pista mover">Toca el área a donde va <b>${esc(primerNombre(w.nombre))}</b> <button class="btn small" data-cancelar-mover>Cancelar</button></p>`
     : ui.punta ? `<p class="pista mover">Toca a dónde llega la pared.</p>`
-    : ui.nuevo?.tipo ? `<p class="pista mover">${ui.nuevo.tipo === "muro" ? (ui.nuevo.p1 ? "Ahora toca donde termina la pared." : "Toca donde empieza la pared.") : ui.nuevo.p1 ? "Toca la esquina opuesta." : "Toca una esquina."}</p>`
+    : ui.nuevo?.tipo === "muro" ? `<p class="pista mover">${ui.nuevo.p1 ? "Ahora toca donde termina (o arrastra)." : "Toca donde empieza la pared, o arrástrala de punta a punta."}</p>`
+    : ui.nuevo?.tipo ? `<p class="pista mover">${ui.nuevo.p1 ? "Toca la esquina opuesta." : "Toca una esquina."}</p>`
     : ui.editar ? `<p class="pista mover">Toca una pared, puerta o grada y márcala. Para alargar una pared, arrastra sus puntos verdes.</p>`
     : `<p class="pista">Toca un área o a una persona.${es3d ? " Arrastra para moverte; con dos dedos giras." : ""}</p>`}
   ${BARRA_MAPA}
@@ -284,11 +287,13 @@ export function render(V, { hacer, redibujar }) {
         const nombre = a.es_receso ? a.uso_actual || "Zona de receso" : a.nombre;
         return `<button class="area ${n ? "ocupada" : ""} ${a.es_receso ? "zr" : ""} ${ui.areaSel === a.id ? "sel" : ""}" data-area="${a.id}"
           style="left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%" aria-label="${esc(nombre)}, ${n} asignados"></button>`; }).join("")}
-      ${ui.sinGente ? "" : tokens.map(([p, x, y]) => token(p, x, y)).join("")}
+      ${ui.sinGente || ui.editar ? "" : tokens.map(([p, x, y]) => token(p, x, y)).join("")}
       ${ui.editar && !ui.nuevo ? capaPiezas(S.piezas, ui.pz?.grupo) : ""}
       ${ui.editar ? S.elementos.map((e) => `<button class="el-btn ${e.trazo ? "pared" : ""} ${e.tipo === "techo" ? "techo" : ""} ${ui.elSel === e.id ? "sel" : ""}" data-el="${e.id}" style="left:${e.x}%;top:${e.y}%;width:${e.w}%;height:${e.h}%" aria-label="${esc(e.nombre || TIPOS_ELEMENTO[e.tipo])}"></button>`).join("") : ""}
       ${(() => { const A = asasActuales(); if (!A) return ""; const [a, b] = A.puntas, P = (q) => `left:${(q[0] / ANCHO) * 100}%;top:${(q[1] / ALTO) * 100}%`;
+        const L = fmtM(Math.hypot(b[0] - a[0], b[1] - a[1]) * METROS_POR_UNIDAD);
         return `<svg class="capa-edicion" viewBox="0 0 ${ANCHO} ${ALTO}" preserveAspectRatio="none"><path id="previa" d="M${a[0]} ${a[1]}L${b[0]} ${b[1]}"/></svg>
+          <span class="medida" style="left:${((a[0] + b[0]) / 2 / ANCHO) * 100}%;top:${((a[1] + b[1]) / 2 / ALTO) * 100}%">${L}</span>
           <span class="asa" data-asa="0" style="${P(a)}" aria-label="Arrastra para alargar"></span><span class="asa" data-asa="1" style="${P(b)}" aria-label="Arrastra para alargar"></span>`; })()}
       ${ui.nuevo?.p1 ? `<span class="punto" style="left:${ui.nuevo.p1[0]}%;top:${ui.nuevo.p1[1]}%"></span>` : ""}
       ${ui.nuevo?.tipo || ui.punta || ui.hueco ? `<div class="captura" id="captura"></div>` : ""}
@@ -393,6 +398,23 @@ export function render(V, { hacer, redibujar }) {
       ui.zoom = ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, ZOOMS.indexOf(ui.zoom) + +b.dataset.z))]; redibujar();
       const n = V.querySelector("#mapaScroll"); n.scrollLeft = cx * n.scrollWidth - n.clientWidth / 2; n.scrollTop = cy * n.scrollHeight - n.clientHeight / 2;
     }));
+    // Zoom con dos dedos (celular) o con la rueda / el trackpad (compu): se acerca hacia donde están los dedos o el puntero
+    const zoomA = (nivel, fx, fy) => {   // fx, fy: punto de la pantalla que debe quedarse quieto
+      const z = ZOOMS.reduce((m, q) => (Math.abs(q - nivel) < Math.abs(m - nivel) ? q : m), ZOOMS[0]); if (z === ui.zoom) return;
+      const r = mapa.getBoundingClientRect(), px = (mapa.scrollLeft + fx - r.left) / mapa.scrollWidth, py = (mapa.scrollTop + fy - r.top) / mapa.scrollHeight;
+      ui.zoom = z; redibujar();
+      const n = V.querySelector("#mapaScroll"); if (n) { n.scrollLeft = px * n.scrollWidth - (fx - r.left); n.scrollTop = py * n.scrollHeight - (fy - r.top); }
+    };
+    let pinza = null;
+    const dosDedos = (t) => [Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY), (t[0].clientX + t[1].clientX) / 2, (t[0].clientY + t[1].clientY) / 2];
+    mapa.addEventListener("touchstart", (e) => { if (e.touches.length === 2) { const [d, x, y] = dosDedos(e.touches); pinza = { d, x, y, f: 1 }; } }, { passive: true });
+    mapa.addEventListener("touchmove", (e) => {
+      if (!pinza || e.touches.length !== 2) return; e.preventDefault();
+      const [d] = dosDedos(e.touches); pinza.f = d / pinza.d; const m = mapa.querySelector(".mapa"); m.style.transformOrigin = `${pinza.x - mapa.getBoundingClientRect().left + mapa.scrollLeft}px ${pinza.y - mapa.getBoundingClientRect().top + mapa.scrollTop}px`; m.style.transform = `scale(${pinza.f})`;
+    }, { passive: false });
+    mapa.addEventListener("touchend", () => { if (!pinza) return; const p = pinza; pinza = null; const m = mapa.querySelector(".mapa"); if (m) m.style.transform = ""; if (Math.abs(p.f - 1) > 0.12) zoomA(ui.zoom * p.f, p.x, p.y); });
+    mapa.addEventListener("wheel", (e) => { if (!e.ctrlKey && !e.metaKey && ui.zoom === ZOOMS[0] && e.deltaY > 0) return; if (!e.ctrlKey && !e.metaKey && !ui.editar) return;
+      e.preventDefault(); const i = ZOOMS.indexOf(ui.zoom) + (e.deltaY < 0 ? 1 : -1); if (i >= 0 && i < ZOOMS.length) zoomA(ZOOMS[i], e.clientX, e.clientY); }, { passive: false });
     V.querySelectorAll("[data-area]").forEach((b) => (b.onclick = () => tocarArea(b.dataset.area)));
     // Nombre flotante al pasar el mouse por cada lugar
     const tip = document.createElement("div"); tip.className = "tip"; tip.hidden = true; V.querySelector(".mapa").appendChild(tip);
@@ -427,7 +449,35 @@ export function render(V, { hacer, redibujar }) {
       el.addEventListener("pointerleave", quitarHov);
     });
     const cap = V.querySelector("#captura");
-    if (cap) cap.onclick = (e) => { const r = cap.getBoundingClientRect(); tocarPunto(((e.clientX - r.left) / r.width) * 100, ((e.clientY - r.top) / r.height) * 100); };
+    const pct = (e) => { const r = cap.getBoundingClientRect(); return [((e.clientX - r.left) / r.width) * 100, ((e.clientY - r.top) / r.height) * 100]; };
+    if (cap && ui.nuevo?.tipo === "muro") {
+      // Pared: toca y toca, o arrastra de punta a punta. Mientras tanto se ve la línea (pegada y enderezada) con su medida.
+      cap.innerHTML = `<svg class="capa-edicion" viewBox="0 0 ${ANCHO} ${ALTO}" preserveAspectRatio="none"><path class="previa-nueva" d=""/></svg><span class="punto iman" hidden></span><div class="tip" hidden></div>`;
+      const linea = cap.querySelector("path"), iman = cap.querySelector(".iman"), tip = cap.querySelector(".tip");
+      const extra = puntasDibujadas(), aMapa = ([x, y]) => [(x / 100) * ANCHO, (y / 100) * ALTO];
+      const inicio = () => ui.nuevo.p1 && (ui.nuevo.a || pegar(...aMapa(ui.nuevo.p1), 9, extra));
+      let abajo = null;
+      const mostrar = (e) => {
+        const a = inicio(), q = pegar(...aMapa(pct(e)), 9, extra), b = a ? enderezar(a, q) : q, r = cap.getBoundingClientRect();
+        iman.hidden = false; iman.style.left = (b[0] / ANCHO) * 100 + "%"; iman.style.top = (b[1] / ALTO) * 100 + "%";
+        if (!a) { tip.hidden = true; linea.setAttribute("d", ""); return; }
+        linea.setAttribute("d", `M${a[0]} ${a[1]}L${b[0]} ${b[1]}`);
+        tip.hidden = false; tip.innerHTML = `<b>${fmtM(Math.hypot(b[0] - a[0], b[1] - a[1]) * METROS_POR_UNIDAD)}</b>`;
+        tip.style.left = Math.min(r.width - 90, e.clientX - r.left + 18) + "px"; tip.style.top = Math.max(0, e.clientY - r.top - 40) + "px";
+      };
+      cap.addEventListener("pointermove", mostrar);
+      cap.addEventListener("pointerdown", (e) => {
+        e.preventDefault(); try { cap.setPointerCapture(e.pointerId); } catch (_) {}
+        abajo = { x: e.clientX, y: e.clientY, nuevo: !ui.nuevo.p1 };
+        if (!ui.nuevo.p1) { ui.nuevo.p1 = pct(e); ui.nuevo.a = pegar(...aMapa(ui.nuevo.p1), 9, extra); }
+        mostrar(e);
+      });
+      cap.addEventListener("pointerup", (e) => {
+        if (!abajo) return; const movio = Math.hypot(e.clientX - abajo.x, e.clientY - abajo.y) > 12, eraNuevo = abajo.nuevo; abajo = null;
+        if (eraNuevo && !movio) { redibujar(); return; }   // primer toque: queda marcado el inicio
+        tocarPunto(...pct(e));
+      });
+    } else if (cap) cap.onclick = (e) => tocarPunto(...pct(e));
   }
 
   // ---- Alargar paredes arrastrando sus puntas ----
@@ -494,12 +544,13 @@ export function render(V, { hacer, redibujar }) {
   $$("[data-traer]").forEach((b) => (b.onclick = () => { const id = b.dataset.traer, a = area(ui.areaSel);
     hacer(async () => { await moverTrabajador(id, a.id); return `${primerNombre(trabajador(id).nombre)} → ${a.nombre}`; }); }));
   const he = V.querySelector("#hudEditar");
-  if (he) he.onclick = () => { ui.modo = null; ui.pz = null; ui.editar = !ui.editar; ui.nuevo = null; ui.elSel = null; ui.areaSel = null; ui.sel = null; ui.moviendo = false; redibujar(); };
+  if (he) he.onclick = () => { ui.modo = null; ui.pz = null; ui.editar = !ui.editar; if (!es3d && innerWidth < 700) ui.zoom = ui.editar ? ZOOMS[1] : ZOOMS[0]; ui.nuevo = null; ui.elSel = null; ui.areaSel = null; ui.sel = null; ui.moviendo = false; redibujar(); };
   $$("[data-hueco]").forEach((b) => (b.onclick = () => { ui.hueco = ui.hueco?.t === b.dataset.hueco ? null : { t: b.dataset.hueco }; redibujar(); }));
   $$("[data-quitar-hueco]").forEach((b) => (b.onclick = () => { const e = S.elementos.find((q) => q.id === ui.elSel), k = +b.dataset.quitarHueco;
     const huecos = (e.huecos || []).filter((_, i) => i !== k); e.huecos = huecos; redibujar();
     hacer(async () => { await editarElemento(e.id, { huecos }); return "Hueco quitado"; }); }));
   const mo = V.querySelector("[data-mas]"); if (mo) mo.onclick = () => { ui.mas = !ui.mas; redibujar(); };
+  const hd = V.querySelector("#hudDeshacer"); if (hd) hd.onclick = () => { cerrarTodo(); hacer(async () => (await deshacer()) ? "Listo, se deshizo" : ""); };
   const ha = V.querySelector("#hudAgregar"); if (ha) ha.onclick = () => { ui.nuevo = ui.nuevo ? null : { tipo: "muro", p1: null, material: "block" }; ui.elSel = null; ui.areaSel = null; redibujar(); };
   $$("[data-tipo]").forEach((b) => (b.onclick = () => { ui.nuevo = { tipo: b.dataset.tipo, p1: null, material: ui.nuevo?.material }; redibujar(); }));
   $$("[data-mat-nuevo]").forEach((b) => (b.onclick = () => { ui.nuevo.material = b.dataset.matNuevo; redibujar(); }));
