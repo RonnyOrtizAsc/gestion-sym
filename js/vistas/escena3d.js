@@ -180,8 +180,7 @@ const RAMPA_CHERY = { c: { x0: 140, y0: 748, x1: 325, y1: 813 }, eje: "x", n: [A
 //  carriles, carros demo y estacionamiento de clientes: N 868.97 junto a Marca 4 → N 868.15 a medio camino → N 868.32 abajo
 //  Exhibición exterior (3) a N 868.32; "Rampa existente" de Carros demo Nissan sube de N 868.32 a Entrega de vehículos (N 869.95)
 const LADO_BOULEVARD = [
-  { c: { x0: 85, y0: 715, x1: 330, y1: 1063 }, eje: "y", n: [0.01, -0.81] },
-  { c: { x0: 85, y0: 1063, x1: 330, y1: 1310 }, eje: "y", n: [-0.81, -0.64] },
+  { c: { x0: 85, y0: 715, x1: 330, y1: 1310 }, eje: "y", n: [0.01, -0.64] },   // baja parejo, sin hundirse en medio
   { c: { x0: 85, y0: 1310, x1: 282, y1: 1446 }, eje: "y", n: [-0.64, -0.64] },
   { c: { x0: 282, y0: 1322, x1: 455, y1: 1446 }, eje: "x", n: [-0.64, 0.99] },
 ];
@@ -517,6 +516,29 @@ function estructuraTaller(base) {
   return g;
 }
 
+// Jardineras del plano (piezas "jardin"): cajón bajo de concreto con plantas, como en el render
+function ponerJardineras() {
+  const grupos = [];
+  PIEZAS.forEach(([clase], i) => {
+    if (clase !== "jardin") return;
+    const c = CAJAS[i], g = grupos.find((q) => c.x0 < q.x1 + 10 && c.x1 > q.x0 - 10 && c.y0 < q.y1 + 10 && c.y1 > q.y0 - 10);
+    if (g) { g.x0 = Math.min(g.x0, c.x0); g.x1 = Math.max(g.x1, c.x1); g.y0 = Math.min(g.y0, c.y0); g.y1 = Math.max(g.y1, c.y1); }
+    else grupos.push({ x0: c.x0, x1: c.x1, y0: c.y0, y1: c.y1 });
+  });
+  const concreto = new THREE.MeshStandardMaterial({ color: 0xc9c6bd, roughness: 0.9 }), tierra = new THREE.MeshStandardMaterial({ color: 0x5f8f3e, roughness: 1 });
+  const hoja = new THREE.MeshStandardMaterial({ color: 0x4f8a36, roughness: 0.9 });
+  for (const q of grupos) {
+    const w = (q.x1 - q.x0) * ESC, h = (q.y1 - q.y0) * ESC, c = aEscena((q.x0 + q.x1) / 2, (q.y0 + q.y1) / 2), base = E.altura((q.x0 + q.x1) / 2, (q.y0 + q.y1) / 2) * M, alto = 0.5 * M;
+    const caj = new THREE.Mesh(new THREE.BoxGeometry(w, alto, h), concreto); caj.position.set(c.x, base + alto / 2, c.z); caj.castShadow = true; caj.receiveShadow = true; E.edificios.add(caj);
+    const top = new THREE.Mesh(new THREE.BoxGeometry(w - 0.3, 0.06, h - 0.3), tierra); top.position.set(c.x, base + alto + 0.03, c.z); E.edificios.add(top);
+    const n = Math.max(2, Math.round(w / 1.6));   // arbustos
+    for (let k = 0; k < n; k++) {
+      const r = 0.5 + ((k * 37) % 5) * 0.08, b = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 8), hoja);
+      b.position.set(c.x - w / 2 + (w * (k + 0.5)) / n, base + alto + r * 0.8, c.z + (((k * 53) % 3) - 1) * h * 0.18); b.castShadow = true; E.edificios.add(b);
+    }
+  }
+}
+
 // La bodega (edificación de block existente) con la otra construcción encima
 function bodega(a, base) {
   const c = caja(a), w = (c.x1 - c.x0) * ESC, h = (c.y1 - c.y0) * ESC, ctr = aEscena((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2);
@@ -606,6 +628,7 @@ function ponerEdificios(areas, elementos = [], piezas = {}) {
     if (ALTO_MURO[a.tipo] && !bajoTechoExistente) { const t = techo(a, base, ALTO_MURO[a.tipo] * M * (a.estado === "en_proceso" ? 0.5 : 1)); t.userData.techo = true; E.edificios.add(t); }
   }
   E.edificios.add(techoExistente());
+  ponerJardineras();
   rotulosNivel();
   // Elementos agregados (gradas, jardineras, baños…)
   const ALTO_EL = { grada: 2.2, jardinera: 1.2, bano: 3, muro: 3.5, puerta: 3, columna: 6, bodega: 4, otro: 2 };
