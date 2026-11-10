@@ -584,21 +584,21 @@ function oficinaExistente() {
   const vidrio = new THREE.MeshStandardMaterial({ color: 0xa9c2cc, metalness: 0.3, roughness: 0.05, transparent: true, opacity: 0.25, depthWrite: false });
   const oscuro = new THREE.MeshStandardMaterial({ color: 0x1d2328, metalness: 0.6, roughness: 0.1 }), F = base + PL;
   // piso del edificio y pasillo (zócalo de mosaico)
-  caja(X0, Y0, X1, Y1, base, F, mosaico); caja(X0, Y0, X1, Y1, F - 0.01, F, piso);
+  caja(X0, Y0, XV, Y1, base, F, mosaico); caja(X0, Y0, XV, Y1, F - 0.01, F, piso); caja(XV, Y0, X1, Y1, base, F, marino);
   // muros: norte, este, sur (azul marino) y el divisorio entre las dos oficinas
   caja(XV, Y0, X1, Y0 + 1.2, F, TOP, marino); caja(X1 - 1.2, Y0, X1, Y1, F, TOP, marino); caja(XV, Y1 - 1.2, X1, Y1, F, TOP, marino);
   caja(XV, 1344, 690, 1346, F, TOP - FAS, blanco);
   caja(XV, Y0, X1, Y1, TOP - FAS, TOP, marino);                                                  // tapa (losa)
-  caja(590, Y0 - 0.6, 640, Y0, F + 0.7 * M, F + 2.7 * M, oscuro);                                // ventanal norte
-  caja(592, Y0 - 0.9, 638, Y0 - 0.6, F + 0.8 * M, F + 2.6 * M, persiana);
+  caja(578, Y0 - 0.6, 640, Y0, F + 0.3 * M, F + 2.8 * M, oscuro);                                // ventanal norte (cerca de la esquina)
+  caja(600, Y0 - 0.9, 638, Y0 - 0.6, F + 0.4 * M, F + 2.7 * M, persiana);
   caja(700, Y0 - 0.6, 708, Y0, F + 1.9 * M, F + 2.6 * M, oscuro);                                 // ventanita
   // frente de vidrio (oeste) con parales y las dos puertas
   caja(XV, Y0 + 1, XV + 0.4, Y1 - 1, F, TOP - FAS, vidrio);
   for (let y = Y0 + 1; y <= Y1 - 1; y += 25) caja(XV - 0.3, y - 0.4, XV + 0.5, y + 0.4, F, TOP - FAS, marino);
   for (const [a, b] of [[1318, 1338], [1425, 1445]]) { caja(XV - 0.3, a, XV + 0.5, a + 0.8, F, F + 2.5 * M, marino); caja(XV - 0.3, b - 0.8, XV + 0.5, b, F, F + 2.5 * M, marino); }
   // pasillo: losa con cielo blanco, fascia amarilla, una columna
-  caja(X0, Y0, XV, Y1, TOP - FAS, TOP, blanco);
-  caja(X0 - 1.2, Y0 + 1, X0, Y1, TOP - FAS, TOP + 0.08 * M, amarillo);
+  caja(X0, Y0 + 1.5, XV, Y1, TOP - FAS, TOP - FAS + 0.15 * M, blanco);
+  caja(X0 - 1.2, Y0 - 3, X0, Y1, TOP - FAS, TOP + 0.08 * M, amarillo);
   caja(X0 + 1, 1343, X0 + 5, 1347, F, TOP - FAS, columna);
   // gradas en la esquina noroeste (G-02): bajan del pasillo hacia el oeste
   for (let k = 0; k < 4; k++) caja(X0 - 4 * (k + 1), Y0 + 2, X0 - 4 * k, Y0 + 20, base, base + (PL * (4 - k)) / 4.4, piso);
