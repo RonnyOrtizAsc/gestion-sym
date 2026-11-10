@@ -293,3 +293,20 @@ export function dibujarObra(areas, elementos = [], piezas = {}) {
   ${zonas.map((z) => etiqueta(z.a.es_receso ? z.a.uso_actual || "Bodega (receso)" : z.a.nombre, z.X, z.Y, z.W, z.H, false)).join("")}
 </svg>`;
 }
+
+// ---------- Medidas (para el globito al pasar el mouse) ----------
+const fm = (m) => (m >= 10 ? m.toFixed(1) : m.toFixed(2)).replace(/\.?0+$/, "") + " m";
+// Pieza o grupo del plano: largo (y grueso si es pared); si es un recuadro, ancho × largo y m²
+export function medidasPieza(grupo) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const i of grupo) { const c = CAJAS[i]; x0 = Math.min(x0, c.x0); y0 = Math.min(y0, c.y0); x1 = Math.max(x1, c.x1); y1 = Math.max(y1, c.y1); }
+  const a = (x1 - x0) * M, b = (y1 - y0) * M, L = Math.max(a, b), G = Math.min(a, b), pared = grupo.some((i) => ["muro", "lamina", "fino", "borde"].includes(TRAZO[i][0]));
+  if (pared && G < 0.6) return `Largo ${fm(L)}${G > 0.05 ? ` · grueso ${Math.round(G * 100)} cm` : ""}`;
+  return `${fm(a)} × ${fm(b)} · ${Math.round(a * b * 10) / 10} m²`;
+}
+// Área (en %) o elemento: ancho × largo y m²; pared dibujada: largo, alto y grueso
+export function medidasArea(a) { const w = a.w / 100 * ANCHO * M, h = a.h / 100 * ALTO * M; return `${fm(w)} × ${fm(h)} · ${Math.round(w * h)} m²`; }
+export function medidasElemento(e) {
+  if (e.trazo) return `Largo ${fm(largoPared(e))}${e.alto ? ` · alto ${fm(+e.alto)}` : ""}${e.grueso ? ` · grueso ${Math.round(e.grueso * 100)} cm` : ""}`;
+  return medidasArea(e) + (e.alto ? ` · alto ${fm(+e.alto)}` : "");
+}

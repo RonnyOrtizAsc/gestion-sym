@@ -2,6 +2,7 @@
 // y cada trabajador como un muñequito con casco que camina a su área (o a la bodega en el receso).
 import * as THREE from "three";
 import { MapControls } from "three/addons/controls/MapControls.js";
+import { medidasArea } from "./mapa-svg.js";
 import { ANCHO, ALTO, PIEZAS, CAJAS, estadoPieza, piezaEn, grupoDe, segmentos, puntas, gruesoPared, tramosPared, CHICAS, RAMPAS, rampaDe } from "./mapa-svg.js";
 
 const ESC = 0.1;                                   // unidades del plano → metros de la escena
@@ -69,6 +70,13 @@ function crear() {
     const i = piezaEn(golpe.point.x / ESC + ANCHO / 2, golpe.point.z / ESC + ALTO / 2, 10);
     return CHICAS.has(i) ? -1 : i;   // los cuadritos sueltos del plano no se tocan en 3D
   };
+  const puntoSuelo = (cx, cy) => {   // punto del mapa bajo el mouse (sobre lo que se vea primero)
+    const r = renderer.domElement.getBoundingClientRect();
+    p.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); ray.setFromCamera(p, camera);
+    const visible = (o) => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+    const golpe = ray.intersectObjects([piso, ...edificios.children], true).find((h) => !h.object.isSprite && visible(h.object));
+    return golpe ? [golpe.point.x / ESC + ANCHO / 2, golpe.point.z / ESC + ALTO / 2] : null;
+  };
   // Agarraderas: se arrastran para alargar la pared (la cámara no se mueve mientras tanto)
   let arrastre = null; const plano = new THREE.Plane(), golpeP = new THREE.Vector3();
   const alPlano = (e) => { const r = renderer.domElement.getBoundingClientRect();
@@ -96,19 +104,23 @@ function crear() {
 
   let pendiente = null;
   renderer.domElement.addEventListener("pointermove", (e) => {
-    if (!E.editar || e.pointerType !== "mouse") return;
+    if (e.pointerType !== "mouse") return;
     if (e.buttons) { tip.hidden = true; return; }                // arrastrando: no resaltar
     const ev = { x: e.clientX, y: e.clientY };
     if (pendiente) { pendiente = ev; return; }
     pendiente = ev;
     requestAnimationFrame(() => {
       const { x, y } = pendiente; pendiente = null;
-      const i = piezaBajo(x, y), grupo = i < 0 ? null : grupoDe(i);
-      renderer.domElement.style.cursor = grupo ? "pointer" : "";
-      resaltar(E.hover, grupo, "hovKey", 0xc4ee4a, 0.5);
-      if (!grupo) { tip.hidden = true; return; }
-      const r = renderer.domElement.getBoundingClientRect();
-      tip.innerHTML = E.handlers?.textoPieza?.(grupo) || ""; tip.hidden = !tip.innerHTML;
+      const q0 = E.editar ? null : puntoSuelo(x, y), i = E.editar ? piezaBajo(x, y) : q0 ? piezaEn(q0[0], q0[1], 3) : -1;
+      const grupo = i < 0 || CHICAS.has(i) ? null : grupoDe(i), r = renderer.domElement.getBoundingClientRect();
+      if (E.editar) { renderer.domElement.style.cursor = grupo ? "pointer" : ""; resaltar(E.hover, grupo, "hovKey", 0xc4ee4a, 0.5); }
+      let html = grupo ? E.handlers?.textoPieza?.(grupo) || "" : "";
+      if (!html && !E.editar) {   // sin pared bajo el mouse: el área, con sus medidas
+        const p = q0, a = p && (E.areasUlt || []).find((q) => { const X = (q.x / 100) * ANCHO, Y = (q.y / 100) * ALTO; return p[0] >= X && p[0] <= X + (q.w / 100) * ANCHO && p[1] >= Y && p[1] <= Y + (q.h / 100) * ALTO; });
+        if (a) html = `<b>${a.nombre}</b><span class="med">${medidasArea(a)}</span>`;
+      }
+      if (!html) { tip.hidden = true; return; }
+      tip.innerHTML = html; tip.hidden = false;
       tip.style.left = x - r.left + 14 + "px"; tip.style.top = y - r.top + 14 + "px";
     });
   });
@@ -1242,6 +1254,7 @@ export function montar(contenedor, { svg, clave, areas, elementos, piezas, perso
   E.handlers = handlers;
   contenedor.appendChild(E.renderer.domElement); contenedor.appendChild(E.tip); E.tip.hidden = true;
   ajustar();
+  E.areasUlt = areas;
   if (E.clave !== clave) { E.clave = clave; E.hovKey = E.selKey = "-"; prepararNiveles(areas, piezas); ponerTerreno(); ponerPiso(svg); ponerEdificios(areas, elementos, piezas); }
   // Editando: sin techos (para ver las paredes) y con la pieza elegida resaltada
   E.editar = editar; E.gente.visible = !editar; E.renderer.domElement.style.cursor = "";

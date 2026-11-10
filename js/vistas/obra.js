@@ -8,7 +8,7 @@ import { S, recesoAbierto, enReceso, recesoTurno, turnoDe, turnoActual, limiteRe
   ponerActividad, prestarRapido, cerrarPrestamo, disponibles, METROS_POR_UNIDAD, usarComoBodega, estadoPiezas, deshacer, puedeDeshacer } from "../datos.js";
 import { esc, iniciales, primerNombre, ms, hhmm } from "../util.js";
 import { miniatura, tarjeta, avatares, cara } from "./fotos.js";
-import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, CAJAS, grupoDe, queEs, pegar, ANCHO, ALTO, MATERIALES, puntas, pared, largoPared, gruesoPared, enderezar, distPared, enLinea, sobrePared, ANCHO_HUECO, CHICAS, rampaDe } from "./mapa-svg.js";
+import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, CAJAS, grupoDe, queEs, pegar, ANCHO, ALTO, MATERIALES, puntas, pared, largoPared, gruesoPared, enderezar, distPared, enLinea, sobrePared, ANCHO_HUECO, CHICAS, rampaDe, piezaEn, medidasPieza, medidasArea, medidasElemento } from "./mapa-svg.js";
 
 const ZOOMS = [1, 1.6, 2.4, 3.4];
 let vistaGuardada = "2d"; try { vistaGuardada = localStorage.getItem("sym-vista") || "2d"; } catch (e) {}
@@ -357,7 +357,7 @@ export function render(V, { hacer, redibujar }) {
   };
   const tocarPieza = (i) => { const grupo = grupoDe(i); ui.mas = false; ui.pz = { tocada: i, grupo, nombre: queEs(grupo) }; ui.areaSel = null; ui.elSel = null; redibujar(); };
   const textoPieza = (grupo) => { const est = grupo.map((i) => estadoPieza(i, S.piezas));
-    return `<b>${esc(queEs(grupo))}</b><span>${est.every((e) => e === est[0]) ? NOMBRE_ESTADO[est[0]] : "Partes en distinto estado"}</span>`; };
+    return `<b>${esc(queEs(grupo))}</b><span class="med">${medidasPieza(grupo)}</span><span>${est.every((e) => e === est[0]) ? NOMBRE_ESTADO[est[0]] : "Partes en distinto estado"}</span>`; };
   const tocarArea = (aid) => {
     if (receso || !aid) return;
     if (ui.editar) { ui.areaSel = aid; ui.elSel = null; ui.sel = null; ui.pz = null; return redibujar(); }
@@ -424,8 +424,10 @@ export function render(V, { hacer, redibujar }) {
         if (e.pointerType !== "mouse") return;
         const r = mapaEl.getBoundingClientRect();
         let t = "";
-        if (el.dataset.area) { const a = area(el.dataset.area); t = `<b>${esc(a.es_receso ? a.uso_actual || "Bodega (receso)" : a.nombre)}</b><span>${ESTADOS[a.estado] || ""} · ${enArea(a.id).length} asignados</span>`; }
-        else if (el.dataset.el) { const x = S.elementos.find((q) => q.id === el.dataset.el); t = `<b>${esc(x.nombre || TIPOS_ELEMENTO[x.tipo])}</b><span>${ESTADOS[x.estado]}</span>`; }
+        const mx = ((e.clientX - r.left) / r.width) * ANCHO, my = ((e.clientY - r.top) / r.height) * ALTO, iz = el.dataset.area ? piezaEn(mx, my, 3) : -1;
+        if (iz >= 0 && !CHICAS.has(iz)) { const gr = grupoDe(iz); t = `<b>${esc(queEs(gr))}</b><span class="med">${medidasPieza(gr)}</span>`; }   // pared, columna, gradas… bajo el mouse
+        else if (el.dataset.area) { const a = area(el.dataset.area); t = `<b>${esc(a.es_receso ? a.uso_actual || "Bodega (receso)" : a.nombre)}</b><span class="med">${medidasArea(a)}</span><span>${ESTADOS[a.estado] || ""} · ${enArea(a.id).length} asignados</span>`; }
+        else if (el.dataset.el) { const x = S.elementos.find((q) => q.id === el.dataset.el); t = `<b>${esc(x.nombre || TIPOS_ELEMENTO[x.tipo])}</b><span class="med">${medidasElemento(x)}</span><span>${ESTADOS[x.estado]}</span>`; }
         else if (el.dataset.w) { const w = trabajador(el.dataset.w), a = area(w.area_id); t = `<b>${esc(w.nombre)}</b><span>${recesoAbierto(w.id) ? "En receso" : (w.actividad ? esc(w.actividad) + " · " : "") + (a ? esc(a.nombre) : "Sin área")}</span>`; }
         tip.innerHTML = t; tip.hidden = false;
         tip.style.left = e.clientX - r.left + 14 + "px"; tip.style.top = e.clientY - r.top + 14 + "px";

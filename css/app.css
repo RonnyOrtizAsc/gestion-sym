@@ -365,3 +365,5 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
 .cat-h{margin:14px 0 6px}
 .li .chips.mover{margin-top:6px}
 .list .cat-h{margin:0;padding:12px 14px 4px;background:var(--sunk)}
+.tip span{display:block}
+.tip .med{color:#c4ee4a;font-weight:700;font-variant-numeric:tabular-nums}
