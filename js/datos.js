@@ -282,19 +282,19 @@ export async function editarPerfil(id, cambios) {
 // ---------- Categorías de herramientas ----------
 // Se ponen solas por el nombre; se pueden cambiar en Inventario (queda guardada).
 export const CATEGORIAS = [
-  ["electricas", "Eléctricas", /taladr|pulidor|esmeril|rotomart|martillo dem|sierra|caladora|router|lijador|atornillad|compresor|planta|extension|extensión/],
-  ["soldadura", "Soldadura y corte", /sold|careta|electrod|guillotin|oxicorte|plasma|cortadora/],
-  ["accesorios", "Brocas, discos y puntas", /broca|disco|diacamer|punta|adaptador|cubo magn|copa|sierra copa|lija|hoja/],
-  ["manuales", "Manuales", /tenaza|llave|stilson|martill|desarmador|destornill|alicate|pinza|sargento|prensa|cincel|serrucho|cuchilla|navaja|tijera|cubo|remachad/],
-  ["medicion", "Medir y marcar", /cinta|metro|nivel|escuadra|plum[oó]n|l[aá]piz|marcador|l[aá]ser|plomada|tiralinea|crayon|cray[oó]n/],
-  ["obra", "Albañilería y excavación", /pala|piocha|carretill|cuchara|llana|barra|mezclador|cubeta|balde|azad|rastrillo|manguera|vibrador|codal/],
-  ["seguridad", "Seguridad", /guante|lente|casco|chaleco|arn[eé]s|tap[oó]n|bota|mascarilla|respirador|tapaboca|faja|conos?\b|cinta de seg/],
+  ["electricas", "Máquinas", /taladr|pulidor|esmeril|rotomart|martillo dem|sierra(?! copa)|caladora|router|lijador|atornillad|compresor|planta|extensi[oó]n|sold|aparato|cortadora|plasma|guillotin/],
+  ["manuales", "Manuales", /tenaza|llave|stilson|martill|desarmador|destornill|alicate|pinza|sargento|prensa|cincel|serrucho|cuchilla|navaja|tijera|remachad|pala|piocha|carretill|cuchara|llana|barra|cubeta|balde|azad|rastrillo|codal|cinta m|metro|nivel|escuadra|plomada|tiralinea/],
+  ["accesorios", "Brocas, discos y más", /broca|disco|diacamer|cubo magn|punta|adaptador|copa|lija|hoja|electrod|plum[oó]n|l[aá]piz|marcador|cray[oó]n|tornillo|clavo/],
+  ["seguridad", "Seguridad", /guante|lente|casco|chaleco|arn[eé]s|tap[oó]n|bota|mascarilla|respirador|tapaboca|faja|careta|conos?\b|cinta de seg/],
   ["otros", "Otros", /$^/],
 ];
+// categorías viejas → nuevas (si alguna quedó guardada)
+const VIEJAS = { soldadura: "electricas", medicion: "manuales", obra: "manuales" };
 const sinTilde = (t) => (t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 export const textoBusqueda = sinTilde;
 export function categoriaDe(h) {
-  if (h.categoria && CATEGORIAS.some(([k]) => k === h.categoria)) return h.categoria;
+  const guardada = VIEJAS[h.categoria] || h.categoria;
+  if (guardada && CATEGORIAS.some(([k]) => k === guardada)) return guardada;
   const n = (h.nombre || "").toLowerCase();
   return (CATEGORIAS.find(([, , re]) => re.test(n) || re.test(sinTilde(n))) || ["otros"])[0];
 }
