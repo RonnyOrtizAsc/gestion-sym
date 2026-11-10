@@ -436,53 +436,33 @@ function techo(a, base, alto) {
 // El techo grande cubre las salas Chery y Nissan (N 870.00), sobre las columnas del plano (x 333 y 713).
 // Sobre la parte baja solo va el alero: un solo ancho de punta a punta (≈5.3 m, hasta la "proyección de techo" del AR-01 en x 238).
 const TECHO_EXISTENTE = [{ x0: 333, y0: 718, x1: 725, y1: 1256 }];
-const ALEROS = [{ x0: 238, y0: 718, x1: 333, y1: 1256 }];
+const ALEROS = [{ x0: 205, y0: 718, x1: 333, y1: 1256 }];   // G-01
 const ALTO_TECHO_EXISTENTE = 7;   // metros sobre el piso de la sala (N 870.00)
 function techoExistente() {
   const g = new THREE.Group(); g.userData.techo = true;
   const y = (MEDIO * EXAGERA + ALTO_TECHO_EXISTENTE) * M;
   const lamina = new THREE.MeshStandardMaterial({ color: 0xb9c0c6, metalness: 0.5, roughness: 0.45, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false });
   const amarillo = new THREE.MeshStandardMaterial({ color: 0xe8b81f, roughness: 0.6, metalness: 0.3 });
-  // dos aguas con linterna en la cumbrera (foto): las aguas suben hasta la linterna; ahí dos paredes cortas abiertas
-  // (para que entre aire y luz) y encima un techito de dos aguas que vuela un poco. Cerchas amarillas cada ~6 m.
-  const LINTERNA = 4, PARAL = 1.1, PICO = 0.6, VUELO = 0.5;   // metros: ancho, alto de la parte abierta, subida del techito, vuelo
-  const viga = (x0, y0, x1, y1, z, alto = 0.6, largo) => {   // viga de (x0,y0) a (x1,y1) en el corte, a la profundidad z (o a lo largo si "largo")
-    const L = Math.hypot(x1 - x0, y1 - y0), v = new THREE.Mesh(new THREE.BoxGeometry(L, alto, largo || 0.3), amarillo);
-    v.position.set((x0 + x1) / 2, (y0 + y1) / 2 - alto / 2, z); v.rotation.z = Math.atan2(y1 - y0, x1 - x0); v.castShadow = !largo; return v;
-  };
-  const agua = (x0, y0, x1, y1, z, h) => {
-    const L = Math.hypot(x1 - x0, y1 - y0), m = new THREE.Mesh(new THREE.BoxGeometry(L, 0.12, h), lamina);
-    m.position.set((x0 + x1) / 2, (y0 + y1) / 2, z); m.rotation.z = Math.atan2(y1 - y0, x1 - x0); m.receiveShadow = true; return m;
-  };
+  // Según G-01 (techos existentes): dos aguas al 9% con la cumbrera en x 527, cayendo hacia las filas de columnas
+  // (x 333 y 722); al oeste la franja del alero (x 205–333) cae al 4% hacia adentro, a la canal sobre la fila del oeste.
+  const P = (x, yy, h) => { const v = aEscena(x, yy); v.y = h; return v; };
+  const panel = (pts, mat) => { const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(pts.flatMap((p) => [p.x, p.y, p.z]), 3)); geo.setIndex([0, 1, 2, 0, 2, 3]); geo.computeVertexNormals(); const m = new THREE.Mesh(geo, mat); m.receiveShadow = true; g.add(m); };
+  const barra = (a, b, s) => { const v = new THREE.Vector3().subVectors(b, a), m = new THREE.Mesh(new THREE.BoxGeometry(s, s, v.length()), amarillo); m.position.copy(a).addScaledVector(v, 0.5); m.lookAt(b); m.castShadow = true; g.add(m); };
+  const m2 = (u) => u * 0.056 * M;
   for (const c of TECHO_EXISTENTE) {
-    const w = (c.x1 - c.x0) * ESC, h = (c.y1 - c.y0) * ESC, p = aEscena((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2);
-    const medio = w / 2, l = (LINTERNA / 2) * M, yL = y + 1.8 * M, yP = yL + PARAL * M, yC = yP + PICO * M, vu = VUELO * M;
-    for (const s of [-1, 1]) {
-      g.add(agua(p.x + s * medio, y, p.x + s * l, yL, p.z, h));                    // agua grande
-      g.add(agua(p.x + s * (l + vu), yP - (PICO * M * vu) / l, p.x, yC, p.z, h));   // techito de la linterna
-    }
-    const paso = 6 * M, n = Math.max(1, Math.round(h / paso));
-    for (let k = 0; k <= n; k++) {   // cerchas
-      const z = p.z - h / 2 + (h * k) / n;
-      for (const s of [-1, 1]) {
-        g.add(viga(p.x + s * medio, y, p.x + s * l, yL, z));          // cuerda de arriba del agua
-        g.add(viga(p.x + s * l, yL, p.x + s * l, yP, z, 0.25));       // paral de la linterna
-        g.add(viga(p.x + s * l, yP, p.x, yC, z, 0.4));                // techito
-      }
-      g.add(viga(p.x - medio, y - 0.6, p.x + medio, y - 0.6, z, 0.25));   // cuerda de abajo (tirante)
-      g.add(viga(p.x - l, yL - 0.6, p.x - l, yL, z, 0.2)); g.add(viga(p.x + l, yL - 0.6, p.x + l, yL, z, 0.2));
-    }
-    for (const s of [-1, 1]) {   // vigas a lo largo: orillas, base y tope de la linterna
-      g.add(viga(p.x + s * w / 2, y, p.x + s * w / 2 + 0.01, y, p.z, 0.7, h));
-      g.add(viga(p.x + s * l, yL, p.x + s * l + 0.01, yL, p.z, 0.3, h));
-      g.add(viga(p.x + s * l, yP, p.x + s * l + 0.01, yP, p.z, 0.3, h));
-    }
+    const XC = 527, hC = y + 0.09 * m2(XC - c.x0), yE = hC - 0.09 * m2(c.x1 - XC), y0 = c.y0, y1 = c.y1;
+    panel([P(c.x0, y0, y), P(XC, y0, hC), P(XC, y1, hC), P(c.x0, y1, y)], lamina);
+    panel([P(XC, y0, hC), P(c.x1, y0, yE), P(c.x1, y1, yE), P(XC, y1, hC)], lamina);
+    const n = Math.max(1, Math.round((y1 - y0) / 107));   // cerchas cada ~6 m
+    for (let k = 0; k <= n; k++) { const yy = y0 + ((y1 - y0) * k) / n;
+      barra(P(c.x0, yy, y - 0.35), P(XC, yy, hC - 0.35), 0.6); barra(P(XC, yy, hC - 0.35), P(c.x1, yy, yE - 0.35), 0.6); barra(P(c.x0, yy, y - 0.9), P(c.x1, yy, yE - 0.9), 0.25); }
+    for (const [x, h] of [[c.x0, y], [XC, hC], [c.x1, yE]]) barra(P(x, y0, h - 0.4), P(x, y1, h - 0.4), 0.35);
   }
-  // alero sobre la parte baja: sale del borde del techo y baja un poco hacia el boulevard
+  // alero (G-01): franja de x 205 a 333 que cae al 4% hacia adentro (a la canal de la fila de columnas del oeste)
   for (const c of ALEROS) {
-    const w = (c.x1 - c.x0) * ESC, h = (c.y1 - c.y0) * ESC, p = aEscena((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2), cae = 0.6 * M;
-    const m = new THREE.Mesh(new THREE.BoxGeometry(Math.hypot(w, cae), 0.12, h), lamina); m.position.set(p.x, y - cae / 2, p.z); m.rotation.z = Math.atan2(cae, w); g.add(m);
-    const v = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.5, h), amarillo); v.position.set(p.x - w / 2, y - cae - 0.25, p.z); g.add(v);
+    const hO = y + 0.04 * m2(c.x1 - c.x0);
+    panel([P(c.x0, c.y0, hO), P(c.x1, c.y0, y), P(c.x1, c.y1, y), P(c.x0, c.y1, hO)], lamina);
+    barra(P(c.x0, c.y0, hO - 0.3), P(c.x0, c.y1, hO - 0.3), 0.35);
   }
   // columnas existentes hasta el techo (la fila del oeste queda en el murito)
   for (const cx of [333, 713]) for (const cy of [739, 988, 1237]) {
