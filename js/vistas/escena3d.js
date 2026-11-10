@@ -755,17 +755,14 @@ function bodega(a, base) {
   const celosia = new THREE.MeshStandardMaterial({ color: 0x7c848b, metalness: 0.3, roughness: 0.6 }), oscuro = new THREE.MeshStandardMaterial({ color: 0x2b2f33 });
   const hueco = (mat, ancho, altoV, desde, z, lado) => {   // lado: -1 oeste, 1 este (paredes largas)
     const v = new THREE.Mesh(new THREE.BoxGeometry(0.12, altoV * M, ancho * M), mat); v.position.set(ctr.x + lado * (w / 2 + 0.04), yb + (desde + altoV / 2) * M, ctr.z + z); return v; };
-  const ventanas = [-0.15, 0.06, 0.24, 0.40].map((t) => hueco(celosia, 1.2, 1.0, 1.1, t * h, 1));   // lado de la rampa
-  // puerta: marco claro y hoja gris, separada de la esquina (antes parecía un pixel negro)
-  const marcoP = hueco(new THREE.MeshStandardMaterial({ color: 0xcfd2d4, roughness: 0.6 }), 1.1, 2.2, 0, -0.34 * h, 1);
-  const puerta = hueco(new THREE.MeshStandardMaterial({ color: 0x4b5157, roughness: 0.7 }), 0.9, 2.1, 0, -0.34 * h, 1); puerta.position.x += 0.03;
+  // lado de la rampa (foto), de sur a norte: ventana, puerta, ventana, ventana, ventana (celosías)
+  const ventanas = [[0.39, 1.5], [-0.03, 1.3], [-0.24, 1.1], [-0.42, 1.1]].map(([t, an]) => hueco(celosia, an, 1.1, 1.0, t * h, 1));
+  const marcoP = hueco(new THREE.MeshStandardMaterial({ color: 0xcfd2d4, roughness: 0.6 }), 1.1, 2.2, 0, 0.18 * h, 1);
+  const puerta = hueco(new THREE.MeshStandardMaterial({ color: 0x3a3f44, roughness: 0.7 }), 0.9, 2.1, 0, 0.18 * h, 1); puerta.position.x += 0.03;
   const otras = [-0.25, 0.05, 0.3].map((t) => hueco(celosia, 1.2, 1.0, 1.1, t * h, -1));
   const cubierta = new THREE.Mesh(new THREE.BoxGeometry(w + 0.2, 0.3, h + 0.2), new THREE.MeshStandardMaterial({ color: 0x8a6d50, roughness: 0.95 }));
   cubierta.position.set(ctr.x, yb + piso2 + 0.15, ctr.z); cubierta.castShadow = true;
-  // franja naranja = aquí es el receso
-  const franja = new THREE.Mesh(new THREE.BoxGeometry(w + 0.7, 0.6, h + 0.7), new THREE.MeshStandardMaterial({ color: NARANJA }));
-  franja.position.set(ctr.x, base + piso1 - 0.4, ctr.z);
-  g.add(losa, arriba, cubierta, franja, marcoP, puerta, ...ventanas, ...otras);
+  g.add(losa, arriba, cubierta, marcoP, puerta, ...ventanas, ...otras);
   return g;
 }
 
@@ -782,6 +779,7 @@ function rotulosNivel() {
 }
 
 // Pared dibujada a mano: block, lámina (con murito) o ventanal (murito + vidrio), con su alto y grueso
+const MAT_AMARILLO = new THREE.MeshStandardMaterial({ color: 0xe0c46c, roughness: 0.9 });
 const MAT_VIDRIO = new THREE.MeshStandardMaterial({ color: 0x9fd0ee, transparent: true, opacity: 0.38, metalness: 0.2, roughness: 0.1, depthWrite: false });
 function paredDibujada(e, areas) {
   const { a, b, L, solidos, huecos } = tramosPared(e), mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
@@ -804,7 +802,7 @@ function paredDibujada(e, areas) {
     m.position.set(((s0 + s1) / 2 - L / 2) * ESC, (desde + alto / 2) * M, 0);
     m.castShadow = material !== MAT.falta && material !== MAT_VIDRIO; m.receiveShadow = true; g.add(m);
   };
-  const tope = proceso ? altoM * 0.5 : altoM, macizo = falta ? MAT.falta : proceso ? MAT.en_proceso : MAT.existe;
+  const tope = proceso ? altoM * 0.5 : altoM, macizo = falta ? MAT.falta : proceso ? MAT.en_proceso : enBodega && !+e.alto ? MAT_AMARILLO : MAT.existe;   // la pared de abajo de la bodega está pintada de amarillo (foto)
   for (const [s0, s1] of solidos) {
     if (falta || proceso || mat === "block") trozo(s0, s1, 0, tope, macizo);
     else if (mat === "lamina") { trozo(s0, s1, 0, MURITO, MAT_MURITO, grueso * 1.4); trozo(s0, s1, MURITO, altoM - MURITO, MAT_LAMINA, grueso * 0.6); }
