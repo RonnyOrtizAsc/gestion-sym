@@ -33,10 +33,10 @@ export function render(V, ctx) {
   if (ui.vista === "prestar") {
     const h = S.herramientas.find((x) => x.id === ui.h), max = h ? disponibles(h) : 1;
     if (ui.q > max) ui.q = Math.max(1, max);
-    cuerpo = `<div class="step"><h3>1 · ¿A quién?</h3>${avatares(S.trabajadores, { attr: "data-pw", seleccionado: ui.w })}</div>
+    cuerpo = `<div class="prestar-grid"><div class="step"><h3>1 · ¿A quién?</h3>${avatares(S.trabajadores, { attr: "data-pw", seleccionado: ui.w })}</div>
     <div class="step"><h3>2 · ¿Qué herramienta?</h3>${S.herramientas.length
       ? buscador() + (filtradas().length ? porCategoria(filtradas(), (hs) => `<div class="tarjetas">${hs.map((x) => tarjeta(x, { attr: "data-ph", seleccionada: ui.h === x.id, disponibles: disponibles(x) })).join("")}</div>`) : nadaEncontrado())
-      : `<p class="note">Todavía no hay herramientas. Agrégalas en <button class="linkbtn" data-seg="inventario">Inventario</button>.</p>`}</div>
+      : `<p class="note">Todavía no hay herramientas. Agrégalas en <button class="linkbtn" data-seg="inventario">Inventario</button>.</p>`}</div></div>
     <div class="step"><h3>3 · ¿Cuántas?</h3><div class="qty"><button id="qm" aria-label="Menos">−</button><output>${ui.q}</output><button id="qp" aria-label="Más">+</button><span class="note" style="margin:0">${h ? `disponibles: ${max}` : ""}</span></div></div>
     <button class="btn primary big" id="prestar" ${ui.w && h && max > 0 ? "" : "disabled"}>${ui.w && h ? `Prestar ${ui.q} × ${esc(h.nombre)} a ${esc(primerNombre(trabajador(ui.w).nombre))}` : "Elige persona y herramienta"}</button>`;
   } else if (ui.vista === "prestadas") {

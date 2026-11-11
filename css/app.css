@@ -378,3 +378,15 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
 }
 .pista.receso{display:flex;align-items:center;gap:10px;justify-content:space-between}
 .pista.receso .btn{flex:none}
+
+/* Compu: más ancho útil (antes todo quedaba en una columna angosta al centro) */
+@media (min-width:1000px){
+  .wrap{max-width:1200px}
+  .hoja>*{max-width:1000px}
+  .list{max-width:900px}
+  .escena{height:calc(100vh - 250px);min-height:420px}
+  .mapa-scroll:not(.acercado) .mapa.z0{width:min(100%, calc((100vh - 250px) * 0.913))!important;margin:0 auto}
+  .prestar-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:12px;align-items:start}
+  .prestar-grid .step{margin-bottom:0}
+  .prestar-grid + .step{margin-top:10px}
+}
