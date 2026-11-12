@@ -399,12 +399,35 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
 .step-h h3{margin:0}
 .step-h .buscador{margin:0}
 
-/* Anticipos */
+/* Anticipos: identidad de Servicios y Más (verde y rojo), distinta de Receso (naranja) */
+:root{--sym-verde:#0f6a3c;--sym-verde-2:#14824a;--sym-verde-soft:#e1f1e7;--sym-rojo:#c8232c;--sym-rojo-soft:#fbe3e4}
+@media (prefers-color-scheme:dark){:root{--sym-verde:#1b8a50;--sym-verde-2:#22a05e;--sym-verde-soft:#17301f;--sym-rojo:#f0545b;--sym-rojo-soft:#3a1c1e}}
+.ant-hero{position:relative;overflow:hidden;background:var(--sym-verde);color:#fff;border-radius:18px;padding:16px 16px 18px;margin-bottom:12px}
+.ant-hero::before{content:"";position:absolute;inset:0 0 auto 0;height:6px;background:linear-gradient(90deg,var(--sym-verde-2) 0 72%,var(--sym-rojo) 72% 100%)}
+.ant-hero::after{content:"$";position:absolute;right:-6px;bottom:-34px;font:800 150px/1 var(--f-ui);color:#ffffff12;pointer-events:none}
+.ant-marca{font-family:var(--f-mono);font-size:11px;text-transform:uppercase;letter-spacing:.1em;margin:4px 0 2px;opacity:.8}
+.ant-hero h2{margin:0 0 12px;color:#fff}
+.ant-total{background:#ffffff14;border:1px solid #ffffff24;border-radius:14px;padding:10px 12px}
+.ant-total span,.ant-total small{display:block;font-size:12px;opacity:.85}
+.ant-total b{display:block;font-family:var(--f-mono);font-size:32px;font-weight:500;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin:2px 0}
+.ant-dar{border-top:3px solid var(--sym-verde)}
+.ant .chip[aria-pressed="true"]{background:var(--sym-verde);border-color:var(--sym-verde);color:#fff}
+.ant .avatar-btn[aria-pressed="true"] .avatar{border-color:var(--sym-verde);box-shadow:0 0 0 3px var(--sym-verde-soft)}
+.ant .btn.ant-btn{background:var(--sym-verde);border-color:var(--sym-verde);color:#fff}
+.ant .btn.ant-btn-sec{border-color:var(--sym-verde);color:var(--sym-verde)}
+.ant .linkbtn{color:var(--sym-verde-2)}
+.ant .eyebrow{color:var(--sym-verde-2)}
+.ant-lista{border-left:4px solid var(--sym-rojo)}
 .ant-fila{cursor:pointer}
-.ant-monto{font-family:var(--f-mono);font-size:17px;font-variant-numeric:tabular-nums;color:var(--break)}
+.ant-fila[aria-expanded="true"]{background:var(--sym-rojo-soft)}
+.ant-monto{font-family:var(--f-mono);font-size:17px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--sym-rojo)}
 .ant-monto.pagado{color:var(--muted);font-size:14px}
-.ant-detalle{padding:4px 14px 14px;background:var(--sunk)}
-.ant-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;flex-wrap:wrap}
+.ant-detalle{padding:10px 14px 14px;background:var(--sunk)}
+.ant-vale{background:var(--surface);border:1.5px dashed var(--line);border-radius:10px;padding:9px 12px;margin-bottom:6px;position:relative}
+.ant-vale::before,.ant-vale::after{content:"";position:absolute;top:50%;width:12px;height:12px;margin-top:-6px;border-radius:50%;background:var(--sunk)}
+.ant-vale::before{left:-7px}.ant-vale::after{right:-7px}
+.ant-item{display:flex;align-items:center;gap:10px;font-size:13px;flex-wrap:wrap}
 .ant-item span:first-child{flex:1 1 160px;color:var(--muted)}
-.ant-item b{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.ant-item b{font-family:var(--f-mono);font-variant-numeric:tabular-nums;color:var(--sym-rojo)}
+nav.tabs a[data-tab="anticipos"][aria-current="page"]{background:var(--sym-verde);color:#fff}
 nav.tabs a{font-size:11px;min-width:0;white-space:nowrap}

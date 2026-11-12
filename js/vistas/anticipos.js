@@ -22,13 +22,12 @@ export function render(V, { hacer, redibujar }) {
     (grupos[k] ||= { wid: x.trabajador_id, en: x.descontado_en, total: 0, n: 0 }); grupos[k].total += +x.monto; grupos[k].n++; });
   const historial = Object.values(grupos).sort((a, b) => (a.en < b.en ? 1 : -1));
 
-  V.innerHTML = `<p class="eyebrow">Efectivo</p><h2>Anticipos</h2>
-  <p class="lead" style="margin-top:0">Lo que se le adelanta a cada trabajador y hay que restarle de su pago.</p>
-  <div class="stats" style="grid-template-columns:repeat(2,1fr)">
-    <div class="stat b"><b>${dinero(total)}</b><span>por descontar</span></div>
-    <div class="stat"><b>${deudores.length}</b><span>${deudores.length === 1 ? "persona" : "personas"} con anticipo</span></div></div>
+  V.innerHTML = `<div class="ant">
+  <div class="ant-hero"><p class="ant-marca">Servicios y Más · Efectivo</p><h2>Anticipos</h2>
+    <div class="ant-total"><span>Por descontar en pagos</span><b>${dinero(total)}</b>
+      <small>${deudores.length ? `${deudores.length} ${deudores.length === 1 ? "persona debe" : "personas deben"}` : "Nadie debe nada"}</small></div></div>
 
-  <div class="step"><h3>Dar anticipo</h3>
+  <div class="step ant-dar"><h3>Dar anticipo</h3>
     <p class="note" style="margin:0 0 6px">¿A quién?</p>
     ${avatares(S.trabajadores, { attr: "data-aw", seleccionado: ui.w })}
     <p class="note" style="margin:12px 0 6px">¿Cuánto?</p>
@@ -36,25 +35,25 @@ export function render(V, { hacer, redibujar }) {
     <form class="addrow" id="fAnt">
       <input id="aMonto" type="number" inputmode="decimal" step="0.01" min="0.01" placeholder="Otro monto" value="${esc(ui.monto)}" aria-label="Monto en dólares" style="flex:0 0 120px">
       <input id="aNota" placeholder="Nota (opcional)" value="${esc(ui.nota)}" maxlength="80" aria-label="Nota" autocomplete="off">
-      <button class="btn primary" id="aOk" style="flex:1 1 100%" ${listo ? "" : "disabled"}>${listo ? `Anotar ${dinero(monto)} a ${esc(primerNombre(trabajador(ui.w).nombre))}` : "Anotar anticipo"}</button>
+      <button class="btn primary ant-btn" id="aOk" style="flex:1 1 100%" ${listo ? "" : "disabled"}>${listo ? `Anotar ${dinero(monto)} a ${esc(primerNombre(trabajador(ui.w).nombre))}` : "Anotar anticipo"}</button>
     </form>
     <p class="note" id="aDebe" style="margin:8px 0 0" ${ui.w && debeAnticipo(ui.w) ? "" : "hidden"}>${ui.w && debeAnticipo(ui.w) ? `${esc(primerNombre(trabajador(ui.w).nombre))} ya debe ${dinero(debeAnticipo(ui.w))}.` : ""}</p>
   </div>
 
-  <div class="section"><p class="eyebrow">Por descontar en el pago</p><div class="list">
+  <div class="section"><p class="eyebrow">Por descontar en el pago</p><div class="list ant-lista">
     ${deudores.length ? deudores.map(({ id, w, debe, lista }) => `
       <div class="li ant-fila" data-abrir="${id}" role="button" aria-expanded="${ui.abierto === id}">
         <span class="avatar chico">${cara(w)}</span>
         <div class="grow"><b>${esc(w.nombre)}</b><small>${lista.length} anticipo${lista.length > 1 ? "s" : ""} · desde ${fecha(lista.map((x) => x.dado_en).sort()[0])}</small></div>
-        <b class="ant-monto">${dinero(debe)}</b></div>
+        <b class="ant-monto">−${dinero(debe)}</b></div>
       ${ui.abierto === id ? `<div class="ant-detalle">
-        ${lista.map((x) => `<div class="ant-item"><span>${fecha(x.dado_en)} · ${hhmm(x.dado_en)}${x.nota ? ` · ${esc(x.nota)}` : ""}</span><b>${dinero(x.monto)}</b>
+        ${lista.map((x) => `<div class="ant-item ant-vale"><span>${fecha(x.dado_en)} · ${hhmm(x.dado_en)}${x.nota ? ` · ${esc(x.nota)}` : ""}</span><b>${dinero(x.monto)}</b>
           ${admin || x.registrado_por === S.usuario?.id ? ui.borrar === x.id
             ? `<span class="acts"><button class="btn small danger" data-borrar-si="${x.id}">Sí, borrar</button><button class="btn small" data-borrar-no>No</button></span>`
             : `<button class="linkbtn" data-borrar="${x.id}">Borrar</button>` : ""}</div>`).join("")}
         <div class="acts" style="margin-top:10px">${ui.confirmar === id
-          ? `<button class="btn primary" data-descontar-si="${id}">Sí, ya le desconté ${dinero(debe)}</button><button class="btn" data-descontar-no>No</button>`
-          : `<button class="btn" data-descontar="${id}">Ya lo desconté del pago</button>`}</div>
+          ? `<button class="btn primary ant-btn" data-descontar-si="${id}">Sí, ya le desconté ${dinero(debe)}</button><button class="btn" data-descontar-no>No</button>`
+          : `<button class="btn ant-btn-sec" data-descontar="${id}">Ya lo desconté del pago</button>`}</div>
       </div>` : ""}`).join("")
       : `<div class="empty">Nadie tiene anticipos pendientes.</div>`}
   </div></div>
@@ -62,7 +61,8 @@ export function render(V, { hacer, redibujar }) {
   ${historial.length ? `<div class="section"><button class="linkbtn" id="verHist">${ui.historial ? "Ocultar ya descontados ▴" : `Ya descontados (${historial.length}) ▾`}</button>
     ${ui.historial ? `<div class="list" style="margin-top:8px">${historial.map((g) => `<div class="li"><span class="avatar chico">${cara(trabajador(g.wid))}</span>
       <div class="grow"><b>${esc(trabajador(g.wid).nombre)}</b><small>Descontado el ${fecha(g.en)} · ${g.n} anticipo${g.n > 1 ? "s" : ""}</small></div>
-      <b class="ant-monto pagado">${dinero(g.total)}</b><button class="linkbtn" data-deshacer="${g.wid}|${g.en}">Deshacer</button></div>`).join("")}</div>` : ""}</div>` : ""}`;
+      <b class="ant-monto pagado">${dinero(g.total)} ✓</b><button class="linkbtn" data-deshacer="${g.wid}|${g.en}">Deshacer</button></div>`).join("")}</div>` : ""}</div>` : ""}
+  </div>`;
 
   // ---- Interacción ----
   const $$ = (s) => V.querySelectorAll(s);
