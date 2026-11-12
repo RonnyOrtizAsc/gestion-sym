@@ -65,7 +65,7 @@ export function render(V, { hacer, redibujar }) {
     const e = estadoAvisos(), si = e === "si" && (await avisosActivos());
     if (e === "no") { txt.textContent = iphone && !instalada ? "En iPhone primero instala la app (Compartir → Agregar a inicio) y ábrela desde el ícono." : "Este celular o navegador no permite avisos."; caja.innerHTML = ""; return; }
     if (e === "bloqueado") { txt.textContent = "Bloqueaste los avisos. Actívalos en los ajustes del celular: Notificaciones → Gestión SYM."; caja.innerHTML = ""; return; }
-    txt.textContent = si ? "Te llega un aviso cada 5 min mientras alguien siga en receso." : "Apagados en este celular.";
+    txt.textContent = si ? "Te avisa cuando a alguien se le acaba el receso, y cada 5 min si sigue sin regresar." : "Apagados en este celular.";
     caja.innerHTML = `<button class="btn small ${si ? "" : "primary"}">${si ? "Apagar" : "Activar"}</button>`;
     caja.firstChild.onclick = () => (si ? desactivarAvisos() : activarAvisos({ saludo: true })).then(pintar).catch((err) => { txt.textContent = "No se pudo: " + err.message; });
   };

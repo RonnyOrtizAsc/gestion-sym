@@ -347,7 +347,7 @@ export async function activarAvisos({ preguntar = true, saludo = false } = {}) {
   const sub = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: llave(VAPID_PUBLIC) }));
   const j = sub.toJSON();
   ok(await sb.from("push_suscripciones").upsert({ usuario_id: S.usuario.id, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }, { onConflict: "endpoint" }));
-  if (saludo) reg.showNotification("Avisos de receso activados", { body: "Mientras alguien esté en receso te llegará un aviso cada 5 minutos.", icon: "icons/icon-192.png", tag: "receso" });
+  if (saludo) reg.showNotification("Avisos de receso activados", { body: "Te avisaremos cuando a alguien se le acabe el receso.", icon: "icons/icon-192.png", tag: "receso" });
   return true;
 }
 export async function desactivarAvisos() {
