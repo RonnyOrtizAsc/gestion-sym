@@ -1,6 +1,6 @@
 // Conexión con Supabase: carga de datos y acciones que guardan en la base.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js";
+import { SUPABASE_URL, SUPABASE_KEY, VAPID_PUBLIC } from "./config.js";
 import { inicioDelDia, ms } from "./util.js";
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -329,4 +329,34 @@ export const nombreCategoria = (k) => (CATEGORIAS.find(([c]) => c === k) || [, "
 export async function cambiarCategoria(hid, categoria) {
   ok(await sb.from("herramientas").update({ categoria }).eq("id", hid));
   const h = S.herramientas.find((x) => x.id === hid); if (h) h.categoria = categoria;
+}
+
+// ---------- Avisos de receso al celular ----------
+// "no" = este celular no puede (en iPhone hay que instalar la app primero), "bloqueado" = se negó el permiso
+export function estadoAvisos() {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return "no";
+  return Notification.permission === "granted" ? "si" : Notification.permission === "denied" ? "bloqueado" : "preguntar";
+}
+const llave = (b64) => { const s = atob((b64 + "=".repeat((4 - (b64.length % 4)) % 4)).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(s, (c) => c.charCodeAt(0)); };
+// Guarda este celular para recibir avisos (pide permiso solo si hace falta)
+export async function activarAvisos({ preguntar = true, saludo = false } = {}) {
+  if (estadoAvisos() === "no") return false;
+  if (Notification.permission === "default" && preguntar) await Notification.requestPermission();
+  if (Notification.permission !== "granted") return false;
+  const reg = await navigator.serviceWorker.ready;
+  const sub = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: llave(VAPID_PUBLIC) }));
+  const j = sub.toJSON();
+  ok(await sb.from("push_suscripciones").upsert({ usuario_id: S.usuario.id, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }, { onConflict: "endpoint" }));
+  if (saludo) reg.showNotification("Avisos de receso activados", { body: "Mientras alguien esté en receso te llegará un aviso cada 5 minutos.", icon: "icons/icon-192.png", tag: "receso" });
+  return true;
+}
+export async function desactivarAvisos() {
+  if (estadoAvisos() === "no") return;
+  const sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription(); if (!sub) return;
+  await sb.from("push_suscripciones").delete().eq("endpoint", sub.endpoint);
+  await sub.unsubscribe();
+}
+export async function avisosActivos() {
+  if (estadoAvisos() !== "si") return false;
+  return !!(await (await navigator.serviceWorker.ready).pushManager.getSubscription());
 }

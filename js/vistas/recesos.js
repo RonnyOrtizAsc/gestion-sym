@@ -1,7 +1,8 @@
 // Vista "Receso": dos turnos por día (mañana y tarde) con su límite de minutos.
 // Cada turno suma todos los pedazos de receso; si alguien se pasa, se marca en rojo y cuenta como tiempo perdido.
 import { S, recesoAbierto, cambiarReceso, terminarReceso, trabajador, borrarRecesosHoy,
-  limiteReceso, turnoDe, turnoActual, recesoTurno, excesoHoy, esAlmuerzo, almuerzoHoy, excesoAlmuerzo, LIMITE_ALMUERZO, enReceso } from "../datos.js";
+  limiteReceso, turnoDe, turnoActual, recesoTurno, excesoHoy, esAlmuerzo, almuerzoHoy, excesoAlmuerzo, LIMITE_ALMUERZO, enReceso,
+  estadoAvisos, activarAvisos } from "../datos.js";
 import { cara } from "./fotos.js";
 import { esc, minutos, dur, hhmm, ms } from "../util.js";
 
@@ -79,10 +80,13 @@ export function render(V, { hacer, redibujar }) {
     : `<div class="acts" style="margin-top:10px"><button class="btn small danger" id="borrar">Borrar registros de hoy</button></div>`) : ""}
   <p class="note">El detalle de cada día se borra solo en la madrugada; quedan guardados los minutos de mañana, tarde, almuerzo y exceso de cada persona.</p></div>`;
 
-  V.querySelectorAll(".receso-card").forEach((b) => (b.onclick = () => hacer(async () => {
+  V.querySelectorAll(".receso-card").forEach((b) => (b.onclick = () => {
+    // La primera vez que mandas a alguien a receso, el celular pide permiso para avisarte cada 5 min mientras siga en receso
+    if (!recesoAbierto(b.dataset.w) && ui.tipo === "receso" && estadoAvisos() === "preguntar") activarAvisos({ saludo: true }).catch(() => {});
+    hacer(async () => {
     const r = recesoAbierto(b.dataset.w), sale = await cambiarReceso(b.dataset.w, r ? r.tipo || "receso" : ui.tipo);
     return `${trabajador(b.dataset.w).nombre} ${sale ? (ui.tipo === "almuerzo" ? "almorzando" : "en receso") : "regresó a trabajar"}`;
-  })));
+  }); }));
   V.querySelectorAll("[data-tipo]").forEach((b) => (b.onclick = () => { ui.tipo = b.dataset.tipo; redibujar(); }));
   V.querySelectorAll("[data-periodo]").forEach((b) => (b.onclick = () => { ui.periodo = b.dataset.periodo; redibujar(); }));
   const on = (id, f) => { const e = V.querySelector(id); if (e) e.onclick = f; };

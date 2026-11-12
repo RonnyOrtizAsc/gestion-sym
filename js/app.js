@@ -1,5 +1,5 @@
 // Gestión SYM: arranque, ingreso, navegación y tiempo real.
-import { sb, S, cargarPerfil, cargarTodo, enReceso, nuevoGrupo } from "./datos.js";
+import { sb, S, cargarPerfil, cargarTodo, enReceso, nuevoGrupo , estadoAvisos, activarAvisos, desactivarAvisos } from "./datos.js";
 import { esc, dur, pad, toast } from "./util.js";
 import * as obra from "./vistas/obra.js";
 import * as recesos from "./vistas/recesos.js";
@@ -139,8 +139,11 @@ function pantallaMensaje(titulo, texto, volver = false) {
       : `<button class="btn primary" id="refrescar">Ya me dieron acceso</button><button class="btn" id="salir">Cerrar sesión</button>`}</div></div>`;
   const v = V.querySelector("#volver"); if (v) v.onclick = () => pantallaIngreso("entrar");
   const r = V.querySelector("#refrescar"); if (r) r.onclick = () => entrar(S.usuario);
-  const s = V.querySelector("#salir"); if (s) s.onclick = () => sb.auth.signOut();
+  const s = V.querySelector("#salir"); if (s) s.onclick = salir;
 }
+
+// Al cerrar sesión, este celular deja de recibir los avisos de esa cuenta
+export async function salir() { try { await desactivarAvisos(); } catch (_) {} sb.auth.signOut(); }
 
 async function entrar(usuario) {
   S.usuario = usuario;
@@ -152,6 +155,7 @@ async function entrar(usuario) {
     mostrarApp(true);
     escucharCambios();
     redibujar();
+    if (estadoAvisos() === "si") activarAvisos({ preguntar: false }).catch(() => {});   // deja este celular anotado para los avisos de receso
   } catch (e) {
     V.innerHTML = `<div class="auth"><h2>No se pudo cargar</h2><p class="lead">${esc(e.message)}</p><button class="btn primary" id="re">Reintentar</button></div>`;
     V.querySelector("#re").onclick = () => entrar(usuario);

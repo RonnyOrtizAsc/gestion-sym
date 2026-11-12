@@ -1,5 +1,5 @@
 // Vista "Más": planificador, trabajadores, usuarios (admin) y cuenta.
-import { S, agregarTrabajador, editarTrabajador, editarPerfil, sb } from "../datos.js";
+import { S, agregarTrabajador, editarTrabajador, editarPerfil, sb, estadoAvisos, activarAvisos, desactivarAvisos, avisosActivos } from "../datos.js";
 import { esc } from "../util.js";
 import { cara, tomarFoto } from "./fotos.js";
 import { PLANIFICADOR_URL } from "../config.js";
@@ -35,7 +35,8 @@ export function render(V, { hacer, redibujar }) {
         : `<span class="pill out">Esperando</span><button class="btn small primary" data-aprobar="${p.id}">Dar acceso</button>`}</div>`).join("")}
   </div><p class="note">${pendientes.length ? `Hay ${pendientes.length} persona(s) esperando acceso.` : "Para sumar un encargado: que abra la app, toque “Crear cuenta” y luego tú le das acceso aquí."}</p></div>` : ""}
 
-  <div class="section"><p class="eyebrow">Tu cuenta</p><div class="list"><div class="li"><div class="grow"><b>${esc(S.perfil?.nombre || "")}</b><small>Usuario: ${esc(S.perfil?.usuario || "")} · ${esc(S.usuario?.email || "")}</small></div><button class="btn small" id="salir">Cerrar sesión</button></div></div>
+  <div class="section"><p class="eyebrow">Tu cuenta</p><div class="list"><div class="li"><div class="grow"><b>${esc(S.perfil?.nombre || "")}</b><small>Usuario: ${esc(S.perfil?.usuario || "")} · ${esc(S.usuario?.email || "")}</small></div><button class="btn small" id="salir">Cerrar sesión</button></div>
+    <div class="li"><div class="grow"><b>Avisos de receso</b><small id="avisoTxt">Revisando…</small></div><span id="avisoBtn"></span></div></div>
   <p class="note">Para instalarla en el celular: en Chrome toca ⋮ → “Agregar a pantalla de inicio”; en iPhone, en Safari toca Compartir → “Agregar a inicio”.</p></div>`;
 
   const $$ = (s) => V.querySelectorAll(s);
@@ -55,5 +56,18 @@ export function render(V, { hacer, redibujar }) {
   };
   $$("[data-aprobar]").forEach((b) => (b.onclick = () => hacer(async () => { await editarPerfil(b.dataset.aprobar, { aprobado: true }); return "Acceso dado"; })));
   $$("[data-revocar]").forEach((b) => (b.onclick = () => hacer(async () => { await editarPerfil(b.dataset.revocar, { aprobado: false }); return "Acceso quitado"; })));
-  V.querySelector("#salir").onclick = () => sb.auth.signOut();
+  V.querySelector("#salir").onclick = async () => { try { await desactivarAvisos(); } catch (_) {} sb.auth.signOut(); };
+
+  // Avisos al celular cada 5 min mientras alguien siga en receso
+  const txt = V.querySelector("#avisoTxt"), caja = V.querySelector("#avisoBtn");
+  const iphone = /iphone|ipad|ipod/i.test(navigator.userAgent), instalada = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+  const pintar = async () => {
+    const e = estadoAvisos(), si = e === "si" && (await avisosActivos());
+    if (e === "no") { txt.textContent = iphone && !instalada ? "En iPhone primero instala la app (Compartir → Agregar a inicio) y ábrela desde el ícono." : "Este celular o navegador no permite avisos."; caja.innerHTML = ""; return; }
+    if (e === "bloqueado") { txt.textContent = "Bloqueaste los avisos. Actívalos en los ajustes del celular: Notificaciones → Gestión SYM."; caja.innerHTML = ""; return; }
+    txt.textContent = si ? "Te llega un aviso cada 5 min mientras alguien siga en receso." : "Apagados en este celular.";
+    caja.innerHTML = `<button class="btn small ${si ? "" : "primary"}">${si ? "Apagar" : "Activar"}</button>`;
+    caja.firstChild.onclick = () => (si ? desactivarAvisos() : activarAvisos({ saludo: true })).then(pintar).catch((err) => { txt.textContent = "No se pudo: " + err.message; });
+  };
+  pintar();
 }
