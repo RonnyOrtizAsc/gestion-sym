@@ -21,8 +21,13 @@ function redibujar() {
   document.querySelectorAll("nav.tabs a").forEach((a) => a.setAttribute("aria-current", a.dataset.tab === tab ? "page" : "false"));
   const n = enReceso().length, b = document.getElementById("bBadge");
   b.hidden = !n; b.textContent = n;
+  // La pantalla se queda donde estaba: mientras se arma lo nuevo, la página no se encoge (si no, el navegador brinca hacia arriba)
+  const y = window.scrollY, alto = V.offsetHeight;
+  V.style.minHeight = alto + "px";
   VISTAS[tab].render(V, ctx);
   reloj();
+  if (window.scrollY !== y) window.scrollTo(0, y);
+  requestAnimationFrame(() => (V.style.minHeight = ""));
 }
 
 // Ejecuta una acción, recarga los datos y avisa el resultado

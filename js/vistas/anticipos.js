@@ -38,7 +38,7 @@ export function render(V, { hacer, redibujar }) {
       <input id="aNota" placeholder="Nota (opcional)" value="${esc(ui.nota)}" maxlength="80" aria-label="Nota" autocomplete="off">
       <button class="btn primary" id="aOk" style="flex:1 1 100%" ${listo ? "" : "disabled"}>${listo ? `Anotar ${dinero(monto)} a ${esc(primerNombre(trabajador(ui.w).nombre))}` : "Anotar anticipo"}</button>
     </form>
-    ${ui.w && debeAnticipo(ui.w) ? `<p class="note" style="margin:8px 0 0">${esc(primerNombre(trabajador(ui.w).nombre))} ya debe ${dinero(debeAnticipo(ui.w))}.</p>` : ""}
+    <p class="note" id="aDebe" style="margin:8px 0 0" ${ui.w && debeAnticipo(ui.w) ? "" : "hidden"}>${ui.w && debeAnticipo(ui.w) ? `${esc(primerNombre(trabajador(ui.w).nombre))} ya debe ${dinero(debeAnticipo(ui.w))}.` : ""}</p>
   </div>
 
   <div class="section"><p class="eyebrow">Por descontar en el pago</p><div class="list">
@@ -70,7 +70,11 @@ export function render(V, { hacer, redibujar }) {
   const refrescarBoton = () => { const m = parseFloat(ui.monto), si = ui.w && m > 0; ok.disabled = !si;
     ok.textContent = si ? `Anotar ${dinero(m)} a ${primerNombre(trabajador(ui.w).nombre)}` : "Anotar anticipo";
     $$("[data-rapido]").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.rapido === m))); };
-  $$("[data-aw]").forEach((b) => (b.onclick = () => { ui.w = ui.w === b.dataset.aw ? null : b.dataset.aw; redibujar(); }));
+  $$("[data-aw]").forEach((b) => (b.onclick = () => { ui.w = ui.w === b.dataset.aw ? null : b.dataset.aw;
+    $$("[data-aw]").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.aw === ui.w)));
+    const n = V.querySelector("#aDebe"), d = ui.w && debeAnticipo(ui.w);
+    n.hidden = !d; n.textContent = d ? `${primerNombre(trabajador(ui.w).nombre)} ya debe ${dinero(d)}.` : "";
+    refrescarBoton(); }));
   $$("[data-rapido]").forEach((b) => (b.onclick = () => { ui.monto = b.dataset.rapido; iM.value = ui.monto; refrescarBoton(); }));
   iM.oninput = () => { ui.monto = iM.value; refrescarBoton(); };
   iN.oninput = () => { ui.nota = iN.value; };

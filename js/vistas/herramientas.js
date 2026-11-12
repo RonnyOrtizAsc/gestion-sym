@@ -37,7 +37,7 @@ export function render(V, ctx) {
     <div class="step"><div class="step-h"><h3>2 · ¿Qué herramienta?</h3>${S.herramientas.length ? buscador() : ""}</div>${S.herramientas.length
       ? (filtradas().length ? porCategoria(filtradas(), (hs) => `<div class="tarjetas">${hs.map((x) => tarjeta(x, { attr: "data-ph", seleccionada: ui.h === x.id, disponibles: disponibles(x) })).join("")}</div>`) : nadaEncontrado())
       : `<p class="note">Todavía no hay herramientas. Agrégalas en <button class="linkbtn" data-seg="inventario">Inventario</button>.</p>`}</div></div>
-    <div class="step"><h3>3 · ¿Cuántas?</h3><div class="qty"><button id="qm" aria-label="Menos">−</button><output>${ui.q}</output><button id="qp" aria-label="Más">+</button><span class="note" style="margin:0">${h ? `disponibles: ${max}` : ""}</span></div></div>
+    <div class="step"><h3>3 · ¿Cuántas?</h3><div class="qty"><button id="qm" aria-label="Menos">−</button><output>${ui.q}</output><button id="qp" aria-label="Más">+</button><span class="note" id="qDisp" style="margin:0">${h ? `disponibles: ${max}` : ""}</span></div></div>
     <button class="btn primary big" id="prestar" ${ui.w && h && max > 0 ? "" : "disabled"}>${ui.w && h ? `Prestar ${ui.q} × ${esc(h.nombre)} a ${esc(primerNombre(trabajador(ui.w).nombre))}` : "Elige persona y herramienta"}</button>`;
   } else if (ui.vista === "prestadas") {
     const por = {};
@@ -68,7 +68,7 @@ export function render(V, ctx) {
   }
 
   V.innerHTML = `<p class="eyebrow">Préstamos de bodega</p><h2>Herramientas</h2>
-  <p class="lead">Anota qué prestas, a quién y cuánto. Así sabes quién tiene qué y quién la perdió.</p>
+  <p class="lead">Anota qué prestas, a quién y cuánto.</p>
   <div class="seg">${segs.map(([k, l]) => `<button data-seg="${k}" aria-pressed="${ui.vista === k}">${l}</button>`).join("")}</div>${cuerpo}`;
 
   const $$ = (s) => V.querySelectorAll(s);
@@ -77,12 +77,24 @@ export function render(V, ctx) {
   $$("[data-limpiar]").forEach((b) => (b.onclick = () => { ui.buscar = ""; ui.cat = null; redibujar(); }));
   $$("[data-catde]").forEach((b) => (b.onclick = () => { ui.catDe = ui.catDe === b.dataset.catde ? null : b.dataset.catde; redibujar(); }));
   $$("[data-ponercat]").forEach((b) => (b.onclick = () => { ui.catDe = null; hacer(async () => { await cambiarCategoria(b.dataset.h, b.dataset.ponercat); return `Movida a ${nombreCategoria(b.dataset.ponercat)}`; }); }));
-  $$("[data-pw]").forEach((b) => (b.onclick = () => { ui.w = b.dataset.pw; redibujar(); }));
-  $$("[data-ph]").forEach((b) => (b.onclick = () => { ui.h = b.dataset.ph; ui.q = 1; redibujar(); }));
+  // Elegir persona, herramienta y cantidad: se actualiza solo lo que cambia (sin redibujar), así la pantalla no brinca hacia arriba
+  const actualizar = () => {
+    const h = S.herramientas.find((x) => x.id === ui.h), max = h ? disponibles(h) : 1;
+    if (ui.q > max) ui.q = Math.max(1, max);
+    $$("[data-pw]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.pw === ui.w)));
+    $$("[data-ph]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.ph === ui.h)));
+    const o = V.querySelector(".qty output"); if (o) o.textContent = ui.q;
+    const d = V.querySelector("#qDisp"); if (d) d.textContent = h ? `disponibles: ${max}` : "";
+    const pb = V.querySelector("#prestar"); if (!pb) return;
+    pb.disabled = !(ui.w && h && max > 0);
+    pb.textContent = ui.w && h ? `Prestar ${ui.q} × ${h.nombre} a ${primerNombre(trabajador(ui.w).nombre)}` : "Elige persona y herramienta";
+  };
+  $$("[data-pw]").forEach((b) => (b.onclick = () => { ui.w = b.dataset.pw; actualizar(); }));
+  $$("[data-ph]").forEach((b) => (b.onclick = () => { ui.h = b.dataset.ph; ui.q = 1; actualizar(); }));
   const qm = V.querySelector("#qm");
   if (qm) {
-    qm.onclick = () => { ui.q = Math.max(1, ui.q - 1); redibujar(); };
-    V.querySelector("#qp").onclick = () => { const h = S.herramientas.find((x) => x.id === ui.h); ui.q = Math.min(h ? disponibles(h) : 1, ui.q + 1); redibujar(); };
+    qm.onclick = () => { ui.q = Math.max(1, ui.q - 1); actualizar(); };
+    V.querySelector("#qp").onclick = () => { const h = S.herramientas.find((x) => x.id === ui.h); ui.q = Math.min(h ? disponibles(h) : 1, ui.q + 1); actualizar(); };
   }
   const pb = V.querySelector("#prestar");
   if (pb) pb.onclick = () => hacer(async () => {
