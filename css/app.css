@@ -115,7 +115,7 @@ h2{font-size:26px;line-height:1.1;margin:0 0 6px;letter-spacing:-.02em;text-wrap
 /* ---------- Barra inferior ---------- */
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
   padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px));padding-top:6px;padding-bottom:calc(6px + env(safe-area-inset-bottom,0px))}
-nav.tabs .in{max-width:760px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+nav.tabs .in{max-width:760px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
 nav.tabs a{text-decoration:none;border-radius:12px;padding:8px 2px;font-size:12px;font-weight:700;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:3px}
 nav.tabs svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 nav.tabs a[aria-current="page"]{background:var(--lime);color:var(--lime-ink)}
@@ -398,3 +398,13 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
 .step-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
 .step-h h3{margin:0}
 .step-h .buscador{margin:0}
+
+/* Anticipos */
+.ant-fila{cursor:pointer}
+.ant-monto{font-family:var(--f-mono);font-size:17px;font-variant-numeric:tabular-nums;color:var(--break)}
+.ant-monto.pagado{color:var(--muted);font-size:14px}
+.ant-detalle{padding:4px 14px 14px;background:var(--sunk)}
+.ant-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;flex-wrap:wrap}
+.ant-item span:first-child{flex:1 1 160px;color:var(--muted)}
+.ant-item b{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+nav.tabs a{font-size:11px;min-width:0;white-space:nowrap}

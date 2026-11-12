@@ -5,9 +5,10 @@ import * as obra from "./vistas/obra.js";
 import * as recesos from "./vistas/recesos.js";
 import * as herramientas from "./vistas/herramientas.js";
 import * as mas from "./vistas/mas.js";
+import * as anticipos from "./vistas/anticipos.js";
 
 const V = document.getElementById("view");
-const VISTAS = { obra, recesos, herramientas, mas };
+const VISTAS = { obra, recesos, herramientas, anticipos, mas };
 const caminando = new Set();
 let canal = null, ocupado = false;
 

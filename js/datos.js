@@ -19,6 +19,7 @@ export const S = {
   areas: [],          // áreas de la obra sobre el plano
   elementos: [],      // gradas, jardineras, baños… con su estado
   piezas: {},
+  anticipos: [],      // pendientes de descontar + los descontados de los últimos 120 días
   resumen: [],        // minutos de receso por persona y día (últimos 62 días)         // estado marcado a mano de cada pieza del plano: { idx: estado }
 };
 
@@ -39,7 +40,7 @@ export async function cargarPerfil() {
 
 export async function cargarTodo() {
   const hoy = inicioDelDia().toISOString();
-  const [t, s, r, h, p, o, a, el, pz, rs] = await Promise.all([
+  const [t, s, r, h, p, o, a, el, pz, rs, an] = await Promise.all([
     sb.from("trabajadores").select("*").eq("activo", true).order("nombre"),
     sb.from("sesiones_receso").select("*").is("fin", null),
     sb.from("recesos").select("*").or(`inicio.gte.${hoy},fin.is.null`).order("inicio"),
@@ -50,11 +51,12 @@ export async function cargarTodo() {
     sb.from("elementos").select("*").order("creado_en"),
     sb.from("piezas").select("idx, estado, obra_id"),
     sb.from("resumen_recesos").select("*").gte("fecha", new Date(Date.now() - 62 * 864e5).toISOString().slice(0, 10)),
+    sb.from("anticipos").select("*").or(`descontado_en.is.null,descontado_en.gte.${new Date(Date.now() - 120 * 864e5).toISOString()}`).order("dado_en", { ascending: false }),
   ]);
   S.trabajadores = ok(t); S.sesiones = ok(s); S.recesos = ok(r); S.herramientas = ok(h); S.prestamos = ok(p);
   S.obra = ok(o); S.areas = ok(a).filter((x) => !S.obra || x.obra_id === S.obra.id);
   S.elementos = ok(el).filter((x) => !S.obra || x.obra_id === S.obra.id);
-  S.resumen = ok(rs);
+  S.resumen = ok(rs); S.anticipos = ok(an);
   S.piezas = Object.fromEntries(ok(pz).filter((x) => !S.obra || x.obra_id === S.obra.id).map((x) => [x.idx, x.estado]));
   FOTO.el = new Map(S.elementos.map((e) => [e.id, structuredClone(e)])); FOTO.pz = { ...S.piezas };
   if (S.perfil?.rol === "admin") S.perfiles = ok(await sb.from("perfiles").select("*").order("creado_en"));
@@ -213,6 +215,27 @@ export async function moverTrabajador(wid, areaId, pos = null) {
   const cambios = { area_id: areaId, pos_x: pos ? +pos[0].toFixed(2) : null, pos_y: pos ? +pos[1].toFixed(2) : null };
   const w = S.trabajadores.find((x) => x.id === wid); if (w) Object.assign(w, cambios);   // se ve al instante
   ok(await sb.from("trabajadores").update(cambios).eq("id", wid));
+}
+
+// ---------- Anticipos: efectivo adelantado que se resta del pago ----------
+export const anticiposPendientes = (wid) => S.anticipos.filter((x) => !x.descontado_en && (!wid || x.trabajador_id === wid));
+export const debeAnticipo = (wid) => anticiposPendientes(wid).reduce((s, x) => s + +x.monto, 0);
+export async function darAnticipo(wid, monto, nota) {
+  ok(await sb.from("anticipos").insert({ trabajador_id: wid, monto, nota: (nota || "").trim() || null }));
+}
+// Marca como ya descontados del pago todos los anticipos pendientes de una persona
+export async function descontarAnticipos(wid) {
+  const ids = anticiposPendientes(wid).map((x) => x.id); if (!ids.length) return;
+  ok(await sb.from("anticipos").update({ descontado_en: ahora(), descontado_por: S.usuario.id }).in("id", ids));
+}
+// Por si se marcó por error: los de ese mismo descuento vuelven a quedar pendientes
+export async function deshacerDescuento(wid, descontadoEn) {
+  ok(await sb.from("anticipos").update({ descontado_en: null, descontado_por: null }).eq("trabajador_id", wid).eq("descontado_en", descontadoEn));
+}
+export async function borrarAnticipo(id) {
+  const { data, error } = await sb.from("anticipos").delete().eq("id", id).select("id");
+  if (error) throw new Error(traducir(error));
+  if (!data?.length) throw new Error("Solo puedes borrar los anticipos que tú anotaste (el administrador puede borrar cualquiera).");
 }
 
 // ---------- Plano: estados y elementos ----------
