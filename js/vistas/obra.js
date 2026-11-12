@@ -43,7 +43,15 @@ export function resumen() {
 }
 
 // Reparte a las personas de un área en una cuadrícula dentro del rectángulo
+// Los que tienen lugar exacto (pos_x, pos_y dentro del área) van ahí; los demás se reparten.
+const enSuLugar = (w, a) => w.pos_x != null && w.pos_y != null && +w.pos_x >= +a.x && +w.pos_x <= +a.x + +a.w && +w.pos_y >= +a.y && +w.pos_y <= +a.y + +a.h;
 function posiciones(a, gente, prop) {
+  const fijos = gente.filter((w) => enSuLugar(w, a));
+  return [...fijos.map((w) => [w, +w.pos_x, +w.pos_y]), ...repartir(a, gente.filter((w) => !fijos.includes(w)), prop)];
+}
+// Área más chica que contiene un punto (en %), sin contar la bodega de receso
+const areaEn = (px, py) => S.areas.filter((a) => !a.es_receso && px >= a.x && px <= +a.x + +a.w && py >= a.y && py <= +a.y + +a.h).sort((p, q) => p.w * p.h - q.w * q.h)[0];
+function repartir(a, gente, prop) {
   const n = gente.length; if (!n) return [];
   const aspecto = (a.w * prop) / a.h;
   const cols = Math.max(1, Math.min(n, Math.round(Math.sqrt(n * aspecto)) || 1)), filas = Math.ceil(n / cols);
@@ -242,7 +250,7 @@ export function render(V, { hacer, redibujar }) {
   const sinArea = trabajando.filter((x) => !area(x.area_id));
   const tokens = [
     ...S.areas.flatMap((a) => posiciones(a, conArea.filter((x) => x.area_id === a.id), prop)),
-    ...(zr ? posiciones(zr, descansando, prop) : []),
+    ...(zr ? repartir(zr, descansando, prop) : []),
   ];
   const prev = V.querySelector("#mapaScroll"), scroll = prev ? [prev.scrollLeft, prev.scrollTop] : null;
   const es3d = ui.vista === "3d";
@@ -271,12 +279,12 @@ export function render(V, { hacer, redibujar }) {
     <h2>${ui.editar ? "Editando el plano" : alm ? "Modo almuerzo" : receso ? "Modo receso" : "Centro de mando"}</h2></div></div>
   ${ACCIONES}
   ${receso ? `<p class="pista receso ${alm ? "almuerzo" : ""}"><span>Modo ${alm ? "almuerzo" : "receso"}: cada toque manda o regresa a la persona. Mientras está activo no se asigna gente.</span> <button class="btn small" data-salir-modo>Salir</button></p>`
-    : ui.moviendo && w ? `<p class="pista mover">Toca el área a donde va <b>${esc(primerNombre(w.nombre))}</b> <button class="btn small" data-cancelar-mover>Cancelar</button></p>`
+    : ui.moviendo && w ? `<p class="pista mover">Toca el lugar exacto a donde va <b>${esc(primerNombre(w.nombre))}</b> <button class="btn small" data-cancelar-mover>Cancelar</button></p>`
     : ui.punta ? `<p class="pista mover">Toca a dónde llega la pared.</p>`
     : ui.nuevo?.tipo === "muro" ? `<p class="pista mover">${ui.nuevo.p1 ? "Ahora toca donde termina (o arrastra)." : "Toca donde empieza la pared, o arrástrala de punta a punta."}</p>`
     : ui.nuevo?.tipo ? `<p class="pista mover">${ui.nuevo.p1 ? "Toca la esquina opuesta." : "Toca una esquina."}</p>`
     : ui.editar ? `<p class="pista mover">Toca una pared, puerta o grada y márcala. Para alargar una pared, arrastra sus puntos verdes.</p>`
-    : `<p class="pista">Toca un área o a una persona.${es3d ? " Arrastra para moverte; con dos dedos giras." : ""}</p>`}
+    : `<p class="pista">Toca un área o a una persona.${es3d ? "" : " Arrastra a alguien para ponerlo en el lugar exacto donde trabaja."}${es3d ? " Arrastra para moverte; con dos dedos giras." : ""}</p>`}
   ${BARRA_MAPA}
   <div class="mapa-caja">
   ${es3d ? `<div class="escena" id="escena"><p class="cargando">Levantando la obra en 3D…</p></div>`
@@ -358,12 +366,13 @@ export function render(V, { hacer, redibujar }) {
   const tocarPieza = (i) => { const grupo = grupoDe(i); ui.mas = false; ui.pz = { tocada: i, grupo, nombre: queEs(grupo) }; ui.areaSel = null; ui.elSel = null; redibujar(); };
   const textoPieza = (grupo) => { const est = grupo.map((i) => estadoPieza(i, S.piezas));
     return `<b>${esc(queEs(grupo))}</b><span class="med">${medidasPieza(grupo)}</span><span>${est.every((e) => e === est[0]) ? NOMBRE_ESTADO[est[0]] : "Partes en distinto estado"}</span>`; };
-  const tocarArea = (aid) => {
+  const tocarArea = (aid, punto = null) => {
     if (receso || !aid) return;
     if (ui.editar) { ui.areaSel = aid; ui.elSel = null; ui.sel = null; ui.pz = null; return redibujar(); }
     if (ui.moviendo && ui.sel) {
-      const id = ui.sel, a = area(aid); ui.moviendo = false; ui.sel = null;
-      return hacer(async () => { await moverTrabajador(id, a.id); return `${primerNombre(trabajador(id).nombre)} → ${a.nombre}`; });
+      const id = ui.sel, a = (punto && areaEn(...punto)) || area(aid); ui.moviendo = false; ui.sel = null;
+      if (a.es_receso) punto = null;
+      return hacer(async () => { await moverTrabajador(id, a.id, punto); return `${primerNombre(trabajador(id).nombre)} → ${a.nombre}`; });
     }
     ui.areaSel = aid; ui.sel = null; redibujar();
   };
@@ -382,7 +391,7 @@ export function render(V, { hacer, redibujar }) {
           if (tocarPunto(px, py)) return;
           if (ui.editar) { const e = S.elementos.find((e) => px >= e.x && px <= +e.x + +e.w && py >= e.y && py <= +e.y + +e.h); if (e) { ui.elSel = e.id; ui.areaSel = null; return redibujar(); } }
           const a = S.areas.filter((a) => px >= a.x && px <= +a.x + +a.w && py >= a.y && py <= +a.y + +a.h).sort((p, q) => p.w * p.h - q.w * q.h)[0];
-          tocarArea(a?.id);
+          tocarArea(a?.id, [px, py]);
         } } });
       const c = V.querySelector("#centrar"); if (c) c.onclick = () => m.vistaInicial();
     }).catch(() => { const c = V.querySelector("#escena"); if (c) c.innerHTML = `<p class="cargando">No se pudo abrir el 3D en este celular. Usa la vista 2D.</p>`; });
@@ -415,7 +424,34 @@ export function render(V, { hacer, redibujar }) {
     mapa.addEventListener("touchend", () => { if (!pinza) return; const p = pinza; pinza = null; const m = mapa.querySelector(".mapa"); if (m) m.style.transform = ""; if (Math.abs(p.f - 1) > 0.12) zoomA(ui.zoom * p.f, p.x, p.y); });
     mapa.addEventListener("wheel", (e) => { if (!e.ctrlKey && !e.metaKey && ui.zoom === ZOOMS[0] && e.deltaY > 0) return; if (!e.ctrlKey && !e.metaKey && !ui.editar) return;
       e.preventDefault(); const i = ZOOMS.indexOf(ui.zoom) + (e.deltaY < 0 ? 1 : -1); if (i >= 0 && i < ZOOMS.length) zoomA(ZOOMS[i], e.clientX, e.clientY); }, { passive: false });
-    V.querySelectorAll("[data-area]").forEach((b) => (b.onclick = () => tocarArea(b.dataset.area)));
+    const enPct = (e) => { const r = V.querySelector(".mapa").getBoundingClientRect(); return [((e.clientX - r.left) / r.width) * 100, ((e.clientY - r.top) / r.height) * 100]; };
+    V.querySelectorAll("[data-area]").forEach((b) => (b.onclick = (e) => tocarArea(b.dataset.area, enPct(e))));
+    // Arrastrar a una persona al lugar exacto donde está trabajando (dentro de su área o en otra)
+    if (!receso && !ui.editar) V.querySelectorAll(".tok").forEach((t) => {
+      let ini = null, movio = false;
+      t.addEventListener("pointerdown", (e) => { if (e.button > 0) return; ini = [e.clientX, e.clientY]; movio = false; try { t.setPointerCapture(e.pointerId); } catch (_) {} });
+      t.addEventListener("pointermove", (e) => {
+        if (!ini) return;
+        if (!movio && Math.hypot(e.clientX - ini[0], e.clientY - ini[1]) < 8) return;
+        movio = true; t.classList.add("arrastrando"); tip.hidden = true;
+        const [x, y] = enPct(e); t.style.left = Math.max(0, Math.min(100, x)) + "%"; t.style.top = Math.max(0, Math.min(100, y)) + "%";
+        V.querySelectorAll(".area").forEach((b) => b.classList.toggle("destino", b.dataset.area === areaEn(x, y)?.id));
+      });
+      const soltar = (e) => {
+        if (!ini) return; ini = null; if (!movio) return;
+        t.classList.remove("arrastrando"); V.querySelectorAll(".area.destino").forEach((b) => b.classList.remove("destino"));
+        t.dataset.solto = "1"; setTimeout(() => delete t.dataset.solto, 0);
+        const id = t.dataset.w, p = enPct(e), a = areaEn(...p), w = S.trabajadores.find((q) => q.id === id) || trabajador(id);
+        if (!a || recesoAbierto(id)) { const [x, y] = t.dataset.to.split(",").map(Number); t.style.left = x + "%"; t.style.top = y + "%"; return; }   // fuera del plano o en receso: regresa
+        ultimas[id] = p; ui.sel = null; ui.areaSel = null; ui.moviendo = false;
+        Object.assign(w, { area_id: a.id, pos_x: +p[0].toFixed(2), pos_y: +p[1].toFixed(2) });   // se queda donde lo soltaste mientras se guarda
+        const mismo = w.area_id === a.id;
+        hacer(async () => { await moverTrabajador(id, a.id, p); return mismo ? `${primerNombre(w.nombre)} movido dentro de ${a.nombre}` : `${primerNombre(w.nombre)} → ${a.nombre}`; });
+        redibujar();
+      };
+      t.addEventListener("pointerup", soltar);
+      t.addEventListener("pointercancel", () => { if (!ini) return; ini = null; if (movio) redibujar(); });
+    });
     // Nombre flotante al pasar el mouse por cada lugar
     const tip = document.createElement("div"); tip.className = "tip"; tip.hidden = true; V.querySelector(".mapa").appendChild(tip);
     const mapaEl = V.querySelector(".mapa");
@@ -528,7 +564,7 @@ export function render(V, { hacer, redibujar }) {
   function cerrarTodo() { ui.hueco = null; ui.mas = false; ui.punta = null; ui.pz = null; ui.sel = null; ui.areaSel = null; ui.moviendo = false; ui.elSel = null; ui.nuevo = null; ui.borrar = false; ui.prestar = null; ui.verPrestamos = false; ui.perdida = null; }
   const cerrar = () => { ui.hueco = null; ui.mas = false; ui.punta = null; ui.pz = null; ui.sel = null; ui.areaSel = null; ui.moviendo = false; ui.elSel = null; ui.nuevo = null; ui.borrar = false; ui.prestar = null; ui.verPrestamos = false; ui.perdida = null; redibujar(); };
   $$("[data-vista]").forEach((b) => (b.onclick = () => { ui.vista = b.dataset.vista; try { localStorage.setItem("sym-vista", ui.vista); } catch (e) {} redibujar(); }));
-  $$("[data-w]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); tocarPersona(b.dataset.w); }));
+  $$("[data-w]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); if (b.dataset.solto) return; tocarPersona(b.dataset.w); }));
   $$("[data-cerrar]").forEach((b) => (b.onclick = cerrar));
   $$("[data-cancelar-mover]").forEach((b) => (b.onclick = () => { ui.moviendo = false; redibujar(); }));
   // Actividad del trabajador

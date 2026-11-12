@@ -207,8 +207,12 @@ export async function ponerActividad(wid, texto) {
 
 export const area = (id) => S.areas.find((a) => a.id === id) || null;
 export const enArea = (aid) => S.trabajadores.filter((w) => w.area_id === aid);
-export async function moverTrabajador(wid, areaId) {
-  ok(await sb.from("trabajadores").update({ area_id: areaId }).eq("id", wid));
+// pos = [x, y] en % del plano: el lugar exacto dentro del área (baños, gradas, una esquina…).
+// Sin pos, la persona se acomoda sola dentro del área.
+export async function moverTrabajador(wid, areaId, pos = null) {
+  const cambios = { area_id: areaId, pos_x: pos ? +pos[0].toFixed(2) : null, pos_y: pos ? +pos[1].toFixed(2) : null };
+  const w = S.trabajadores.find((x) => x.id === wid); if (w) Object.assign(w, cambios);   // se ve al instante
+  ok(await sb.from("trabajadores").update(cambios).eq("id", wid));
 }
 
 // ---------- Plano: estados y elementos ----------

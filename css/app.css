@@ -152,6 +152,10 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
 .mapa.en-receso .area.zr{animation:latido 1.6s ease-in-out infinite}
 @keyframes latido{50%{background:color-mix(in srgb,var(--lime) 40%,transparent)}}
 .tok{position:absolute;transform:translate(-50%,-50%);transition:left 1.2s cubic-bezier(.45,0,.2,1),top 1.2s cubic-bezier(.45,0,.2,1);background:none;border:0;padding:0;display:flex;flex-direction:column;align-items:center;gap:1px;z-index:2}
+.tok{touch-action:none;cursor:grab}
+.tok.arrastrando{transition:none;z-index:6;cursor:grabbing}
+.tok.arrastrando .av{transform:scale(1.25);box-shadow:0 6px 14px rgba(0,0,0,.35)}
+.area.destino{border-style:solid;border-color:var(--lime);background:color-mix(in srgb,var(--lime) 18%,transparent)}
 .tok .av{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:10px;background:var(--surface);color:var(--ink);border:2.5px solid var(--work);box-shadow:0 2px 4px rgba(0,0,0,.25)}
 .mapa.z2 .tok .av,.mapa.z3 .tok .av{width:36px;height:36px;font-size:12px}
 .tok .nm{font-size:9px;font-weight:800;white-space:nowrap;background:var(--surface);color:var(--ink);padding:0 3px;border-radius:3px;display:none}
