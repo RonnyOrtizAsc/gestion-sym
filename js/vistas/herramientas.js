@@ -13,10 +13,10 @@ function filtradas() {
   return S.herramientas.filter((h) => (!ui.cat || categoriaDe(h) === ui.cat) && (!q || q.split(/\s+/).every((p) => textoBusqueda(h.nombre).includes(p))));
 }
 function buscador() {
+  // Solo un desplegable de categoría (sin buscador)
   const hay = new Map(); for (const h of S.herramientas) { const c = categoriaDe(h); hay.set(c, (hay.get(c) || 0) + 1); }
-  const chips = CATEGORIAS.filter(([k]) => hay.has(k)).map(([k, l]) => `<button class="chip ${ui.cat === k ? "on" : ""}" data-cat="${k}">${l} <span>${hay.get(k)}</span></button>`).join("");
-  return `<div class="buscador"><input type="search" id="buscarH" placeholder="Buscar herramienta…" value="${esc(ui.buscar)}" autocomplete="off">
-    <div class="chips"><button class="chip ${ui.cat ? "" : "on"}" data-cat="">Todas <span>${S.herramientas.length}</span></button>${chips}</div></div>`;
+  const op = CATEGORIAS.filter(([k]) => hay.has(k)).map(([k, l]) => `<option value="${k}" ${ui.cat === k ? "selected" : ""}>${l} (${hay.get(k)})</option>`).join("");
+  return `<div class="buscador"><select id="catH" aria-label="Categoría"><option value="">Todas (${S.herramientas.length})</option>${op}</select></div>`;
 }
 // Agrupa por categoría (en el orden de CATEGORIAS); si hay un filtro o búsqueda, sin encabezados de más
 function porCategoria(lista, pinta) {
@@ -34,8 +34,8 @@ export function render(V, ctx) {
     const h = S.herramientas.find((x) => x.id === ui.h), max = h ? disponibles(h) : 1;
     if (ui.q > max) ui.q = Math.max(1, max);
     cuerpo = `<div class="prestar-grid"><div class="step"><h3>1 · ¿A quién?</h3>${avatares(S.trabajadores, { attr: "data-pw", seleccionado: ui.w })}</div>
-    <div class="step"><h3>2 · ¿Qué herramienta?</h3>${S.herramientas.length
-      ? buscador() + (filtradas().length ? porCategoria(filtradas(), (hs) => `<div class="tarjetas">${hs.map((x) => tarjeta(x, { attr: "data-ph", seleccionada: ui.h === x.id, disponibles: disponibles(x) })).join("")}</div>`) : nadaEncontrado())
+    <div class="step"><div class="step-h"><h3>2 · ¿Qué herramienta?</h3>${S.herramientas.length ? buscador() : ""}</div>${S.herramientas.length
+      ? (filtradas().length ? porCategoria(filtradas(), (hs) => `<div class="tarjetas">${hs.map((x) => tarjeta(x, { attr: "data-ph", seleccionada: ui.h === x.id, disponibles: disponibles(x) })).join("")}</div>`) : nadaEncontrado())
       : `<p class="note">Todavía no hay herramientas. Agrégalas en <button class="linkbtn" data-seg="inventario">Inventario</button>.</p>`}</div></div>
     <div class="step"><h3>3 · ¿Cuántas?</h3><div class="qty"><button id="qm" aria-label="Menos">−</button><output>${ui.q}</output><button id="qp" aria-label="Más">+</button><span class="note" style="margin:0">${h ? `disponibles: ${max}` : ""}</span></div></div>
     <button class="btn primary big" id="prestar" ${ui.w && h && max > 0 ? "" : "disabled"}>${ui.w && h ? `Prestar ${ui.q} × ${esc(h.nombre)} a ${esc(primerNombre(trabajador(ui.w).nombre))}` : "Elige persona y herramienta"}</button>`;
@@ -73,9 +73,7 @@ export function render(V, ctx) {
 
   const $$ = (s) => V.querySelectorAll(s);
   $$("[data-seg]").forEach((b) => (b.onclick = () => { ui.vista = b.dataset.seg; ui.confirmar = null; redibujar(); }));
-  const bi = V.querySelector("#buscarH");
-  if (bi) { bi.oninput = () => { ui.buscar = bi.value; const pos = bi.selectionStart; redibujar(); const n = V.querySelector("#buscarH"); if (n) { n.focus(); n.setSelectionRange(pos, pos); } }; }
-  $$("[data-cat]").forEach((b) => (b.onclick = () => { ui.cat = b.dataset.cat || null; redibujar(); }));
+  const sc = V.querySelector("#catH"); if (sc) sc.onchange = () => { ui.cat = sc.value || null; redibujar(); };
   $$("[data-limpiar]").forEach((b) => (b.onclick = () => { ui.buscar = ""; ui.cat = null; redibujar(); }));
   $$("[data-catde]").forEach((b) => (b.onclick = () => { ui.catDe = ui.catDe === b.dataset.catde ? null : b.dataset.catde; redibujar(); }));
   $$("[data-ponercat]").forEach((b) => (b.onclick = () => { ui.catDe = null; hacer(async () => { await cambiarCategoria(b.dataset.h, b.dataset.ponercat); return `Movida a ${nombreCategoria(b.dataset.ponercat)}`; }); }));
