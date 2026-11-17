@@ -4,11 +4,12 @@
 // - Receso: con "Iniciar receso", cada toque manda a la persona a la bodega (naranja) o la regresa a su área.
 import { S, recesoAbierto, enReceso, recesoTurno, turnoDe, turnoActual, limiteReceso, esAlmuerzo, almuerzoHoy, LIMITE_ALMUERZO, prestamosActivos, cambiarReceso, terminarReceso,
   trabajador, herramienta, area, enArea, moverTrabajador,
-  ESTADOS, NOMBRE_ESTADO, TIPOS_ELEMENTO, estadoArea, agregarElemento, editarElemento, borrarElemento,
+  ESTADOS, NOMBRE_ESTADO, TIPOS_ELEMENTO, estadoArea, agregarArea, editarArea, borrarArea, agregarElemento, editarElemento, borrarElemento,
   ponerActividad, prestarRapido, cerrarPrestamo, disponibles, METROS_POR_UNIDAD, usarComoBodega, estadoPiezas, deshacer, puedeDeshacer } from "../datos.js";
 import { esc, iniciales, primerNombre, ms, hhmm } from "../util.js";
+import { lugarEn, lugarDe, nombreArea, areaEn } from "./lugares.js";
 import { miniatura, tarjeta, avatares, cara } from "./fotos.js";
-import { FICHAS, esquinas, agarraderas, moverFigura, girar, correr, guardable, figuraNueva, medidasFigura, medidaCorta, altoDe, dentroDe, centro, U, altoPared } from "./figuras.js";
+import { FICHAS, esquinas, agarraderas, moverFigura, girar, correr, guardable, figuraNueva, medidasFigura, medidaCorta, altoDe, dentroDe, centro, U, altoPared, moverRect, rectPct } from "./figuras.js";
 import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, CAJAS, grupoDe, queEs, pegar, ANCHO, ALTO, MATERIALES, puntas, pared, largoPared, gruesoPared, enderezar, distPared, enLinea, sobrePared, ANCHO_HUECO, CHICAS, rampaDe, piezaEn, medidasPieza, medidasArea, medidasElemento } from "./mapa-svg.js";
 
 const ZOOMS = [1, 1.6, 2.4, 3.4];
@@ -36,9 +37,9 @@ const ICONO = {
 
 export function resumen() {
   const nb = enReceso().length, na = enReceso().filter(esAlmuerzo).length, nl = prestamosActivos().reduce((a, p) => a + p.cantidad, 0);
-  const sinArea = S.trabajadores.filter((w) => !w.area_id && !recesoAbierto(w.id)).length;
+  const sinArea = S.trabajadores.filter((w) => !w.area_id && w.pos_x == null && !recesoAbierto(w.id)).length;
   return `<div class="stats">
-    <div class="stat w"><b>${S.trabajadores.length - nb - sinArea}</b><span>en su área</span></div>
+    <div class="stat w"><b>${S.trabajadores.length - nb - sinArea}</b><span>ubicados</span></div>
     <div class="stat b"><b>${nb}</b><span>${na ? `en pausa (${na} almorzando)` : "en receso"}</span></div>
     <div class="stat"><b>${nl}</b><span>herramientas prestadas</span></div></div>`;
 }
@@ -50,8 +51,6 @@ function posiciones(a, gente, prop) {
   const fijos = gente.filter((w) => enSuLugar(w, a));
   return [...fijos.map((w) => [w, +w.pos_x, +w.pos_y]), ...repartir(a, gente.filter((w) => !fijos.includes(w)), prop)];
 }
-// Área más chica que contiene un punto (en %), sin contar la bodega de receso
-const areaEn = (px, py) => S.areas.filter((a) => !a.es_receso && px >= a.x && px <= +a.x + +a.w && py >= a.y && py <= +a.y + +a.h).sort((p, q) => p.w * p.h - q.w * q.h)[0];
 function repartir(a, gente, prop) {
   const n = gente.length; if (!n) return [];
   const aspecto = (a.w * prop) / a.h;
@@ -79,7 +78,7 @@ function hojaTrabajador(w) {
   return `<div class="hoja-h"><span class="av big ${r ? "on-break" : ""}">${cara(w)}</span>
       <div class="grow"><b>${esc(w.nombre)}</b><small>${esc(w.puesto || "")}${(w.habilidades || []).length ? " · " + esc(w.habilidades.join(", ")) : ""}</small></div>
       <button class="x" data-cerrar aria-label="Cerrar">×</button></div>
-    <p class="estado">${a ? `<span class="pill ok">Asignado</span> <b>${esc(a.nombre)}</b>` : `<span class="pill">Sin área</span> Toca “Mover de área” para asignarlo.`}
+    <p class="estado">${lugarDe(w) ? `<span class="pill ok">Está en</span> <b>${esc(lugarDe(w))}</b>` : `<span class="pill">Sin área</span> Toca “Mover de área” para asignarlo.`}
       ${r ? `<br><span class="pill out ${esAlmuerzo(r) ? "almuerzo" : ""}">${esAlmuerzo(r) ? "Almorzando" : "En receso"}</span> hace <span class="num" data-desde="${ms(r.inicio)}"></span>` : ""}</p>
     <form class="actividad" id="formAct"><label for="actTxt">Haciendo ahora${w.actividad && w.actividad_desde ? ` <span class="note">desde ${hhmm(w.actividad_desde)}</span>` : ""}</label>
       <div class="addrow" style="margin-top:4px"><input id="actTxt" value="${esc(w.actividad || "")}" placeholder="Ej. Repello de pared norte" autocomplete="off" maxlength="80">
@@ -140,11 +139,16 @@ const ESTADOS_HOYO = { falta: "Por excavar", en_proceso: "Excavando", existe: "E
 
 function hojaEditarArea(a) {
   const els = S.elementos.filter((e) => +e.x + e.w / 2 >= a.x && +e.x + e.w / 2 <= +a.x + +a.w && +e.y + e.h / 2 >= a.y && +e.y + e.h / 2 <= +a.y + +a.h);
-  return `<div class="hoja-h"><div class="grow"><p class="eyebrow" style="margin:0">Editar plano · área</p><b>${esc(a.nombre)}</b>
-      <small>¿Cómo está esta parte de la obra?</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
-    ${botonesEstado(a.estado, "data-estado-area")}
-    <p class="note" style="margin:10px 0 0">Medida aprox.: ${fmtM(metros(a.w, "x"))} × ${fmtM(metros(a.h, "y"))}</p>
-    ${a.es_receso ? `<p class="note"><span class="pill out">Bodega de receso</span> Aquí van los que salen a receso.</p>` : `<button class="btn small" data-bodega style="margin-top:8px">Usar como bodega de receso</button>`}
+  const admin = S.perfil?.rol === "admin";
+  return `<div class="hoja-h"><div class="grow"><p class="eyebrow" style="margin:0">Editar plano · área</p><b>${esc(nombreArea(a))}</b>
+      <small>${medidasArea(a)}</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
+    <p class="note pista-puntos"><i class="pt esquina"></i> esquinas y <i class="pt lado"></i> lados: agrandar o achicar · <i class="pt centro"></i> mover</p>
+    <form class="addrow" id="nomArea" style="margin:0 0 10px"><input id="areaNombre" value="${esc(a.nombre || "")}" placeholder="Nombre (opcional). Ej. Baños, Lockers, Caseta" aria-label="Nombre del área" autocomplete="off"><button class="btn">Guardar</button></form>
+    <div class="juego">${jbtn('data-dividir="v"', "◫", "Dividir en 2 ⇆")}${jbtn('data-dividir="h"', "⊟", "Dividir en 2 ⇅")}
+      ${a.es_receso ? "" : jbtn("data-bodega", "☕", "Bodega de receso")}${admin && !a.es_receso ? jbtn("data-borrar-area", "✕", "Borrar área", "borrar") : ""}</div>
+    ${ui.borrar === "area" ? `<div class="acts confirma-borrar"><span>¿Borrar “${esc(nombreArea(a))}”? La gente que estaba ahí se queda en su lugar.</span><button class="btn small danger" data-borrar-area-si>Sí, borrar</button><button class="btn small" data-borrar-no>No</button></div>` : ""}
+    ${a.es_receso ? `<p class="note"><span class="pill out">Bodega de receso</span> Aquí van los que salen a receso.</p>` : ""}
+    <p class="note" style="margin:12px 0 6px">¿Cómo está esta parte de la obra?</p>${botonesEstado(a.estado, "data-estado-area")}
     ${els.length ? `<p class="note" style="margin:12px 0 6px">Elementos en esta área:</p><div class="chips">${els.map((e) =>
       `<button class="chip" data-el="${e.id}">${esc(e.nombre || TIPOS_ELEMENTO[e.tipo])}<span class="n">${ESTADOS[e.estado]}</span></button>`).join("")}</div>` : ""}`;
 }
@@ -232,12 +236,14 @@ function asasActuales() {
   const e = ui.elSel && S.elementos.find((q) => q.id === ui.elSel);
   if (e?.trazo) return { e, puntas: puntas(e.trazo) };
   if (e) { const pts = esquinas(e); return { f: e, pts, puntas: agarraderas(pts).puntos }; }
+  const ar = !ui.pz && ui.areaSel && area(ui.areaSel);
+  if (ar) { const pts = esquinas(ar); return { f: ar, ar: true, pts, puntas: agarraderas(pts).puntos }; }
   if (ui.pz && esPared(ui.pz.grupo) && estadoPieza(ui.pz.tocada, S.piezas) !== "quitado") { const w = paredDePieza(ui.pz.grupo); return { w, puntas: [w.a, w.b] }; }
   return null;
 }
 // Mientras se arrastra una punta: la nueva punta pegada a lo cercano y enderezada respecto a la otra
 function moverAsa(asas, idx, x, y) {
-  if (asas.f) { const pts = moverFigura(asas.pts, idx, x, y); return { pts, asas: specFigura(pts), texto: medidaCorta(pts) }; }
+  if (asas.f) { const pts = (asas.ar ? moverRect : moverFigura)(asas.pts, idx, x, y); return { pts, asas: specFigura(pts), texto: medidaCorta(pts) }; }
   const fija = asas.puntas[1 - idx], otras = S.elementos.filter((q) => q.trazo && q !== asas.e).flatMap((q) => puntas(q.trazo));
   const p = enderezar(fija, pegar(x, y, 9, otras)), ab = idx === 0 ? [p, fija] : [fija, p];
   return { ab, texto: fmtM(Math.hypot(ab[1][0] - ab[0][0], ab[1][1] - ab[0][1]) * METROS_POR_UNIDAD) };
@@ -280,9 +286,11 @@ export function render(V, { hacer, redibujar }) {
   const descansando = S.trabajadores.filter((x) => recesoAbierto(x.id));
   const trabajando = S.trabajadores.filter((x) => !recesoAbierto(x.id));
   const conArea = trabajando.filter((x) => area(x.area_id));
-  const sinArea = trabajando.filter((x) => !area(x.area_id));
+  const sueltos = trabajando.filter((x) => !area(x.area_id) && x.pos_x != null && x.pos_y != null);   // puestos en cualquier lugar del plano
+  const sinArea = trabajando.filter((x) => !area(x.area_id) && !sueltos.includes(x));
   const tokens = [
     ...S.areas.flatMap((a) => posiciones(a, conArea.filter((x) => x.area_id === a.id), prop)),
+    ...sueltos.map((x) => [x, +x.pos_x, +x.pos_y]),
     ...(zr ? repartir(zr, descansando, prop) : []),
   ];
   const prev = V.querySelector("#mapaScroll"), scroll = prev ? [prev.scrollLeft, prev.scrollTop] : null;
@@ -337,12 +345,12 @@ export function render(V, { hacer, redibujar }) {
           <span class="medida" style="left:${((a[0] + b[0]) / 2 / ANCHO) * 100}%;top:${((a[1] + b[1]) / 2 / ALTO) * 100}%">${L}</span>
           <span class="asa" data-asa="0" style="${P(a)}" aria-label="Arrastra para alargar"></span><span class="asa" data-asa="1" style="${P(b)}" aria-label="Arrastra para alargar"></span>`; })()}
       ${ui.nuevo?.p1 ? `<span class="punto" style="left:${ui.nuevo.p1[0]}%;top:${ui.nuevo.p1[1]}%"></span>` : ""}
-      ${ui.nuevo?.tipo || ui.punta || ui.hueco ? `<div class="captura" id="captura"></div>` : ""}
+      ${ui.nuevo?.tipo || ui.punta || ui.hueco || (ui.moviendo && ui.sel) ? `<div class="captura ${ui.moviendo ? "mover" : ""}" id="captura"></div>` : ""}
     </div>
   </div>`}
   ${FLOTANTES}</div>
   <div class="section" style="margin-top:12px">${resumen()}</div>
-  ${sinArea.length ? `<div class="bandeja"><p class="eyebrow">Sin área asignada (${sinArea.length})</p><div class="chips">${sinArea.map(chipPersona).join("")}</div>
+  ${sinArea.length ? `<div class="bandeja"><p class="eyebrow">Sin lugar en el plano (${sinArea.length})</p><div class="chips">${sinArea.map(chipPersona).join("")}</div>
     ${receso ? "" : `<p class="note">Toca a alguien y luego “Mover de área”, o toca un área del mapa para asignar gente.</p>`}</div>` : ""}
   ${!zr && descansando.length ? `<div class="bandeja rest"><p class="eyebrow">En receso</p><div class="chips">${descansando.map(chipPersona).join("")}</div></div>` : ""}
   ${ui.editar && ui.pz ? `<div class="hoja" role="dialog" aria-label="Pieza del plano">${hojaPieza()}</div>`
@@ -400,8 +408,18 @@ export function render(V, { hacer, redibujar }) {
   const tocarPieza = (i) => { const grupo = grupoDe(i); ui.mas = false; ui.pz = { tocada: i, grupo, nombre: queEs(grupo) }; ui.areaSel = null; ui.elSel = null; redibujar(); };
   const textoPieza = (grupo) => { const est = grupo.map((i) => estadoPieza(i, S.piezas));
     return `<b>${esc(queEs(grupo))}</b><span class="med">${medidasPieza(grupo)}</span><span>${est.every((e) => e === est[0]) ? NOMBRE_ESTADO[est[0]] : "Partes en distinto estado"}</span>`; };
+  // Poner a alguien en un punto del mapa (en %): dentro de un área o en cualquier otro lugar
+  const ponerEn = (id, p) => {
+    const L = lugarEn(...p), w = S.trabajadores.find((q) => q.id === id) || trabajador(id), n = primerNombre(w.nombre);
+    ultimas[id] = p; ui.sel = null; ui.areaSel = null; ui.moviendo = false;
+    Object.assign(w, { area_id: L.area?.id || null, pos_x: +p[0].toFixed(2), pos_y: +p[1].toFixed(2) });   // se ve al instante
+    redibujar();
+    hacer(async () => { await moverTrabajador(id, L.area?.id || null, p); return `${n} → ${L.texto}`; });
+  };
   const tocarArea = (aid, punto = null) => {
-    if (receso || !aid) return;
+    if (receso) return;
+    if (ui.moviendo && ui.sel && punto) { const a = area(aid); if (!a?.es_receso) return ponerEn(ui.sel, punto); }
+    if (!aid) return;
     if (ui.editar) { ui.areaSel = aid; ui.elSel = null; ui.sel = null; ui.pz = null; return redibujar(); }
     if (ui.moviendo && ui.sel) {
       const id = ui.sel, a = (punto && areaEn(...punto)) || area(aid); ui.moviendo = false; ui.sel = null;
@@ -476,13 +494,10 @@ export function render(V, { hacer, redibujar }) {
         if (!ini) return; ini = null; if (!movio) return;
         t.classList.remove("arrastrando"); V.querySelectorAll(".area.destino").forEach((b) => b.classList.remove("destino"));
         t.dataset.solto = "1"; setTimeout(() => delete t.dataset.solto, 0);
-        const id = t.dataset.w, p = enPct(e), a = areaEn(...p), w = S.trabajadores.find((q) => q.id === id) || trabajador(id);
-        if (!a || recesoAbierto(id)) { const [x, y] = t.dataset.to.split(",").map(Number); t.style.left = x + "%"; t.style.top = y + "%"; return; }   // fuera del plano o en receso: regresa
-        ultimas[id] = p; ui.sel = null; ui.areaSel = null; ui.moviendo = false;
-        Object.assign(w, { area_id: a.id, pos_x: +p[0].toFixed(2), pos_y: +p[1].toFixed(2) });   // se queda donde lo soltaste mientras se guarda
-        const mismo = w.area_id === a.id;
-        hacer(async () => { await moverTrabajador(id, a.id, p); return mismo ? `${primerNombre(w.nombre)} movido dentro de ${a.nombre}` : `${primerNombre(w.nombre)} → ${a.nombre}`; });
-        redibujar();
+        const id = t.dataset.w, p = enPct(e);
+        const fuera = p[0] < 0 || p[0] > 100 || p[1] < 0 || p[1] > 100;
+        if (fuera || recesoAbierto(id)) { const [x, y] = t.dataset.to.split(",").map(Number); t.style.left = x + "%"; t.style.top = y + "%"; return; }   // fuera del plano o en receso: regresa
+        ponerEn(id, p);
       };
       t.addEventListener("pointerup", soltar);
       t.addEventListener("pointercancel", () => { if (!ini) return; ini = null; if (movio) redibujar(); });
@@ -550,11 +565,13 @@ export function render(V, { hacer, redibujar }) {
         if (eraNuevo && !movio) { redibujar(); return; }   // primer toque: queda marcado el inicio
         tocarPunto(...pct(e));
       });
-    } else if (cap) cap.onclick = (e) => tocarPunto(...pct(e));
+    } else if (cap && ui.moviendo && ui.sel) cap.onclick = (e) => ponerEn(ui.sel, pct(e));
+    else if (cap) cap.onclick = (e) => tocarPunto(...pct(e));
   }
 
   // ---- Alargar paredes arrastrando sus puntas ----
   soltarAsa = (A, ab, w0) => {
+    if (A?.ar) return guardarArea(A.f, ab);    // área: rectángulo nuevo
     if (A?.f) return guardarFigura(A.f, ab);   // figura: ab son las esquinas nuevas
     if (A?.e) return guardarPared(A.e, ab[0], ab[1]);   // pared dibujada: cambia su largo (y se junta si toca otra en la misma línea)
     const w = w0 || A.w, [a, b] = ab || [w.a, w.b], g = w.grupo;   // pared del plano → se vuelve pared editable
@@ -628,6 +645,15 @@ export function render(V, { hacer, redibujar }) {
     const cambios = { ...guardable(pts), ...extra }; Object.assign(e, cambios); redibujar();
     hacer(async () => { await editarElemento(e.id, cambios); return medidasFigura(e); });
   }
+  function guardarArea(a, pts) {
+    const cambios = rectPct(pts); Object.assign(a, cambios); redibujar();
+    hacer(async () => { await editarArea(a.id, cambios); return `${nombreArea(a)}: ${medidasArea(a)}`; });
+  }
+  function ponerArea(datos, aviso) {
+    const tmp = { id: "tmp" + Date.now(), nombre: "", tipo: "patio", estado: "existe", ...datos }; S.areas.push(tmp);
+    ui.areaSel = tmp.id; ui.elSel = null; ui.pz = null; ui.agregar = false; redibujar();
+    return hacer(async () => { const n = await agregarArea(datos), era = tmp.id; Object.assign(tmp, n); if (ui.areaSel === era) ui.areaSel = n.id; return aviso; });
+  }
   // Pone una figura nueva (o una copia) y la deja elegida, lista para deformar
   function ponerFigura(datos, aviso) {
     const tmp = { id: "tmp" + Date.now(), ...datos }; S.elementos.push(tmp); elegir(tmp.id);
@@ -639,6 +665,7 @@ export function render(V, { hacer, redibujar }) {
   async function agregarFicha(i) {
     const f = FICHAS[i], c = es3d ? (await import("./escena3d.js")).centroVista() : centro2d();
     ui.agregar = false;
+    if (f.tipo === "area") return ponerArea(rectPct(figuraNueva(f, c[0], c[1])), "Área nueva: estírala con los puntos y ponle nombre si quieres");
     if (f.tipo === "muro") return guardarPared(null, [c[0] - U(f.w) / 2, c[1]], [c[0] + U(f.w) / 2, c[1]], { tipo: "muro", estado: "falta", material: "block" });
     ponerFigura({ tipo: f.tipo, estado: "falta", ...guardable(figuraNueva(f, c[0], c[1])), alto: f.alto ?? null }, `${f.nombre}: arrastra sus puntos para darle forma`);
   }
@@ -687,6 +714,18 @@ export function render(V, { hacer, redibujar }) {
     const grueso = Math.round(Math.max(0.05, Math.min(1, gruesoPared(e) + +b.dataset.grueso * 0.05)) * 100) / 100;
     Object.assign(e, { grueso }); redibujar();
     hacer(async () => { await editarElemento(e.id, { grueso }); return `Grueso: ${Math.round(grueso * 100)} cm`; }); }));
+  const fna = V.querySelector("#nomArea"); if (fna) fna.onsubmit = (ev) => { ev.preventDefault(); const a = area(ui.areaSel), nombre = V.querySelector("#areaNombre").value.trim();
+    a.nombre = nombre; hacer(async () => { await editarArea(a.id, { nombre }); return nombre ? `Área: ${nombre}` : "Área sin nombre"; }); };
+  $$("[data-dividir]").forEach((b) => (b.onclick = () => { const a = area(ui.areaSel); if (!a) return; const v = b.dataset.dividir === "v";
+    const mitad = v ? { w: +(a.w / 2).toFixed(2) } : { h: +(a.h / 2).toFixed(2) };
+    const otra = v ? { x: +(+a.x + a.w / 2).toFixed(2), y: +a.y, w: +(a.w / 2).toFixed(2), h: +a.h } : { x: +a.x, y: +(+a.y + a.h / 2).toFixed(2), w: +a.w, h: +(a.h / 2).toFixed(2) };
+    Object.assign(a, mitad);
+    hacer(async () => { await editarArea(a.id, mitad); return ""; });
+    ponerArea({ ...otra, tipo: a.tipo, estado: a.estado }, "Dividida en 2: estira cada parte y ponles nombre"); }));
+  $$("[data-borrar-area]").forEach((b) => (b.onclick = () => { ui.borrar = "area"; redibujar(); }));
+  $$("[data-borrar-area-si]").forEach((b) => (b.onclick = () => { const a = area(ui.areaSel); ui.areaSel = null; ui.borrar = false;
+    S.areas = S.areas.filter((q) => q !== a); redibujar();
+    hacer(async () => { await borrarArea(a.id); return `Área borrada: ${nombreArea(a)}`; }); }));
   $$("[data-girar]").forEach((b) => (b.onclick = () => { const e = elegido(); if (e && !e.trazo) guardarFigura(e, girar(esquinas(e), +b.dataset.girar)); }));
   $$("[data-copiar]").forEach((b) => (b.onclick = () => { const e = elegido(); if (!e || e.trazo) return;
     ponerFigura({ tipo: e.tipo, estado: e.estado, nombre: e.nombre || null, alto: e.alto ?? null, ...guardable(correr(esquinas(e), U(1), U(1))) }, "Copia lista: muévela con el punto del centro"); }));

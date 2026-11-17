@@ -7,6 +7,7 @@ import { ESTADO_ACT, MOTIVOS, hoyISO, siguienteDia, avance, esperado, vencida, a
   fechaCorta, fechaLarga, textoAvance, fechaPlanificador, finPorDias } from "../plan.js";
 import { PLANIFICADOR_SHEETS } from "../config.js";
 import { cara } from "./fotos.js";
+import { lugarDe, nombreArea } from "./lugares.js";
 import { esc, primerNombre } from "../util.js";
 
 const UNIDADES = ["m²", "ml", "m³", "unidades", "kg", "qq", "bolsas"];
@@ -116,7 +117,7 @@ function formActividad(a = null) {
   return `<form class="act-panel act-form" id="fAct" data-a="${a?.id || ""}">
     <div class="field"><label for="fNombre">Actividad</label><input id="fNombre" data-f="nombre" list="dlNombres" value="${esc(f.nombre)}" placeholder="Ej. Repello de pared norte" required maxlength="100" autocomplete="off"></div>
     <div class="dos"><div class="field"><label for="fArea">Área</label><select id="fArea" data-f="area_id"><option value="">Sin área</option>
-        ${areasObra().map((x) => `<option value="${x.id}" ${f.area_id === x.id ? "selected" : ""}>${esc(x.nombre)}</option>`).join("")}</select></div>
+        ${areasObra().map((x) => `<option value="${x.id}" ${f.area_id === x.id ? "selected" : ""}>${esc(nombreArea(x))}</option>`).join("")}</select></div>
       <div class="field"><label for="fFase">Fase (opcional)</label><input id="fFase" data-f="fase" list="dlFases" value="${esc(f.fase)}" placeholder="Ej. Obra gris" autocomplete="off"></div></div>
     <div class="dos"><div class="field"><label for="fIni">Empieza</label><input id="fIni" type="date" data-f="inicio" value="${esc(f.inicio)}" required></div>
       <div class="field"><label for="fFin">Termina</label><input id="fFin" type="date" data-f="fin" value="${esc(f.fin)}" min="${esc(f.inicio)}" required></div></div>
@@ -135,8 +136,10 @@ function formActividad(a = null) {
 // ---------- Trabajadores por área, con su actividad ----------
 function seccionTrabajadores(deHoy, hoy) {
   const grupos = new Map();
-  for (const w of S.trabajadores) { const k = area(w.area_id)?.id || ""; (grupos.get(k) || grupos.set(k, []).get(k)).push(w); }
+  // por área; quien está fuera de las áreas va con el nombre de su lugar (gradas, caseta, jardinera…)
+  for (const w of S.trabajadores) { const k = area(w.area_id)?.id || (lugarDe(w) ? "@" + lugarDe(w) : ""); (grupos.get(k) || grupos.set(k, []).get(k)).push(w); }
   const orden = [...areasObra(), ...S.areas.filter((x) => x.es_receso)].map((x) => x.id).filter((id) => grupos.has(id));
+  orden.push(...[...grupos.keys()].filter((k) => k.startsWith("@")).sort());
   if (grupos.has("")) orden.push("");
   const opciones = (w) => {
     const libre = w.actividad && !w.actividad_id, otra = w.actividad_id && !deHoy.some((a) => a.id === w.actividad_id) ? actividadPlan(w.actividad_id) : null;
@@ -146,7 +149,7 @@ function seccionTrabajadores(deHoy, hoy) {
       ${deHoy.filter((a) => a.estado !== "detenida" || a.id === w.actividad_id).map((a) => `<option value="${a.id}" ${a.id === w.actividad_id ? "selected" : ""}>${esc(a.nombre)}${area(a.area_id) ? " · " + esc(area(a.area_id).nombre) : ""}</option>`).join("")}`;
   };
   return `<div class="section" id="dash-gente"><p class="eyebrow">Trabajadores · área y actividad</p>
-    ${S.trabajadores.length ? `<div class="list">${orden.map((k) => `<div class="person-h">${k ? esc(area(k).nombre) : "Sin área"}<span class="num" style="margin-left:auto">${grupos.get(k).length}</span></div>
+    ${S.trabajadores.length ? `<div class="list">${orden.map((k) => `<div class="person-h">${k.startsWith("@") ? esc(k.slice(1)) : k ? esc(nombreArea(area(k))) : "Sin lugar en el plano"}<span class="num" style="margin-left:auto">${grupos.get(k).length}</span></div>
       ${grupos.get(k).map((w) => { const r = recesoAbierto(w.id), sin = !w.actividad && !r;
         return `<div class="li dash-w ${sin ? "sin" : ""}"><span class="avatar chico">${cara(w)}</span>
           <div class="grow"><b>${esc(w.nombre)}</b><small>${r ? (esAlmuerzo(r) ? "Almorzando" : "En receso") : sin ? "Sin actividad" : esc(w.puesto || "")}</small></div>

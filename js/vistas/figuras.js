@@ -17,7 +17,20 @@ export const FICHAS = [
   { tipo: "jardinera", nombre: "Jardinera", icono: "✿", w: 2.5, h: 0.6 },
   { tipo: "monticulo", nombre: "Montón de tierra", icono: "▲", w: 2, h: 2, alto: 1 },
   { tipo: "techo", nombre: "Techo", icono: "⌂", w: 4, h: 4 },
+  { tipo: "area", nombre: "Área / zona", icono: "⬚", w: 6, h: 6 },
 ];
+// Áreas: siempre rectángulos derechos. Esquina = la opuesta queda fija; lado = se corre ese lado; centro = mover.
+export function moverRect(pts, idx, x, y) {
+  x = Math.max(0, Math.min(ANCHO, x)); y = Math.max(0, Math.min(ALTO, y));
+  if (idx >= 4) return moverFigura(pts, idx, x, y);
+  const o = pts[(idx + 2) % 4], x0 = Math.min(x, o[0]), x1 = Math.max(x, o[0], Math.min(x, o[0]) + MIN), y0 = Math.min(y, o[1]), y1 = Math.max(y, o[1], Math.min(y, o[1]) + MIN);
+  return [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+}
+// Rectángulo (unidades) → x, y, w, h en %
+export function rectPct(pts) {
+  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]), x0 = Math.min(...xs), y0 = Math.min(...ys);
+  return { x: +((x0 / ANCHO) * 100).toFixed(2), y: +((y0 / ALTO) * 100).toFixed(2), w: +Math.max(0.3, ((Math.max(...xs) - x0) / ANCHO) * 100).toFixed(2), h: +Math.max(0.3, ((Math.max(...ys) - y0) / ALTO) * 100).toFixed(2) };
+}
 // Alto (m) cuando no se ha cambiado. Hoyo: profundidad. Los demás: desde el piso.
 export const ALTO_DEF = { grada: 1.2, jardinera: 0.7, bano: 1.7, puerta: 1.7, columna: 3.4, bodega: 2.2, otro: 1.1, losa: 0.3, hoyo: 1, monticulo: 1, techo: 3.5 };
 export const altoDe = (e) => (+e.alto > 0 ? +e.alto : ALTO_DEF[e.tipo] ?? 1.1);

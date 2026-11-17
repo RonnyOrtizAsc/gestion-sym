@@ -313,6 +313,18 @@ export const TIPOS_ELEMENTO = { grada: "Gradas", jardinera: "Jardinera", bano: "
 export async function estadoArea(id, estado) {
   ok(await sb.from("areas").update({ estado }).eq("id", id));
 }
+// Áreas: se agregan, se estiran, se dividen y se borran desde "Editar plano". El nombre puede quedar vacío.
+export async function agregarArea(a) {
+  return ok(await sb.from("areas").insert({ tipo: "patio", estado: "existe", nombre: "", ...a, obra_id: S.obra.id, orden: 50 }).select().single());
+}
+export async function editarArea(id, cambios) {
+  ok(await sb.from("areas").update(cambios).eq("id", id));
+}
+// Al borrar un área, la gente que estaba ahí se queda en el mismo lugar del plano (sin área)
+export async function borrarArea(id) {
+  ok(await sb.from("trabajadores").update({ area_id: null }).eq("area_id", id));
+  ok(await sb.from("areas").delete().eq("id", id));
+}
 // Marcar piezas del plano (una o muchas a la vez)
 // ---------- Deshacer (plano) ----------
 // FOTO = cómo está guardado (no lo que se ve, que a veces se cambia antes de guardar). Cada cambio del plano guarda

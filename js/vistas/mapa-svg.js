@@ -267,6 +267,7 @@ export function queEs(grupo) {
   if (grupo.some((i) => TRAZO[i][0] === "fino" && /C/.test(TRAZO[i][3]))) return "Puerta";
   if (clases.includes("columna")) return "Columna";
   if (clases.includes("muro")) return "Pared";
+  if (clases.includes("jardin")) return "Jardinera";
   return "Detalle del plano";
 }
 
@@ -302,7 +303,7 @@ export function dibujarObra(areas, elementos = [], piezas = {}) {
 `).join("")}
   ${trazo}
   ${(elementos || []).map(elemento).join("")}
-  ${zonas.map((z) => etiqueta(z.a.es_receso ? z.a.uso_actual || "Bodega (receso)" : z.a.nombre, z.X, z.Y, z.W, z.H, false)).join("")}
+  ${zonas.filter((z) => z.a.es_receso || (z.a.nombre || "").trim()).map((z) => etiqueta(z.a.es_receso ? z.a.uso_actual || "Bodega (receso)" : z.a.nombre, z.X, z.Y, z.W, z.H, false)).join("")}
 </svg>`;
 }
 
