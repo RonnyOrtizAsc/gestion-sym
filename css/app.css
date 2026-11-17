@@ -463,3 +463,30 @@ nav.tabs .in{grid-template-columns:repeat(6,1fr)}
 .dash-w.sin{background:var(--lost-soft)}
 .dash-w.sin .grow small{color:var(--lost);font-weight:700}
 .dash-sel{flex:1 1 180px;max-width:100%;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:9px;font:inherit;font-size:13px}
+
+/* ---------- Editor tipo juego: figuras que se deforman ---------- */
+.asa.lado{width:20px;height:20px;margin:-10px 0 0 -10px;background:#fff;border-width:2.5px}
+.asa.centro{width:30px;height:30px;margin:-15px 0 0 -15px;background:#1d2125;border-color:#c4ee4a;cursor:move}
+.asa.centro::after{content:"✥";position:absolute;inset:0;display:grid;place-items:center;color:#c4ee4a;font-size:15px;line-height:1}
+.capa-edicion path.fig{stroke:#9fd400;stroke-width:4;stroke-opacity:.95;fill:#c4ee4a;fill-opacity:.18;stroke-linejoin:round}
+.el-btn.hoyo{z-index:4}
+.pista-puntos{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:0 0 10px}
+.pt{display:inline-block;width:13px;height:13px;border-radius:50%;border:2.5px solid #1d2125;vertical-align:-2px;flex:none}
+.pt.esquina{background:#c4ee4a}.pt.lado{background:#fff;width:11px;height:11px}.pt.centro{background:#1d2125;border-color:#c4ee4a}
+.juego{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px}
+.jbtn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:64px;padding:8px 4px;border:1.5px solid var(--line);
+  background:var(--bg);border-radius:14px;font-weight:800;font-size:12.5px;line-height:1.15;text-align:center;touch-action:manipulation}
+.jbtn b{font-size:22px;line-height:1;font-weight:700}
+.jbtn:active{transform:scale(.95);background:var(--lime);color:var(--lime-ink)}
+.jbtn.on{background:var(--lime);color:var(--lime-ink);border-color:var(--lime-ink)}
+.jbtn.borrar{color:var(--lost);border-color:color-mix(in srgb,var(--lost) 45%,var(--line))}
+.confirma-borrar{margin-top:10px;align-items:center;background:var(--lost-soft);border-radius:12px;padding:8px 10px}
+.confirma-borrar span{flex:1 1 140px;font-weight:700;font-size:13px}
+.fichas{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+@media (max-width:420px){.fichas{grid-template-columns:repeat(3,1fr)}}
+.ficha{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 4px 9px;border:1.5px solid var(--line);background:var(--bg);border-radius:14px;
+  font-weight:800;font-size:12.5px;line-height:1.15;text-align:center;touch-action:manipulation}
+.ficha:active{transform:scale(.95)}
+.ficha-ico{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:24px;background:var(--sunk);color:var(--ink)}
+.f-muro{background:#1d2125;color:#fff}.f-hoyo{background:#7a5230;color:#fff}.f-columna{background:#8d8a80;color:#fff}.f-losa{background:#c9c5ba}
+.f-grada{background:#8a8f96;color:#fff}.f-jardinera{background:#5f9a45;color:#fff}.f-monticulo{background:#b98d4f;color:#fff}.f-techo{background:#b9c0c6}

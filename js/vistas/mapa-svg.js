@@ -4,6 +4,7 @@
 // Unidades: el mapa mide 1388 × 1520 (desde la línea M1 hasta la calle); áreas y elementos vienen en %.
 import { esc } from "../util.js";
 import TRAZO from "../planos/automall-ar01.js";
+import { esquinas, centro, medidasFigura } from "./figuras.js";
 
 export const ANCHO = 1388, ALTO = 1520;
 const LOTE = { x: 85, y: 5, w: 1250, h: 1440 };
@@ -20,7 +21,8 @@ const ESTILO = {
   // lo que falta se ve transparente: es el proyecto final "en espera"
   falta:      { lamina: 'stroke="#8ea3b8" stroke-opacity=".5" stroke-width="2.4"', grada: 'stroke="#8ea3b8" stroke-opacity=".6" stroke-width="1.4"', muro: 'stroke="#8ea3b8" stroke-opacity=".5" stroke-width="2.4"', fino: 'stroke="#9fb0c2" stroke-opacity=".45" stroke-width="1"', borde: 'stroke="#8ea3b8" stroke-opacity=".5" stroke-width="1.8"', columna: 'stroke="#8ea3b8" stroke-opacity=".5" stroke-width="1.6" fill="#8ea3b8" fill-opacity=".2"', jardin: 'stroke="#7fae6c" stroke-opacity=".35" stroke-width="1"' },
 };
-const ELEM = { grada: "#8a8f96", jardinera: "#5f9a45", bano: "#4f9fd0", muro: "#1d2125", puerta: "#6c5a3d", columna: "#1d2125", bodega: "#ee8420", otro: "#7d6bb3" };
+const ELEM = { grada: "#8a8f96", jardinera: "#5f9a45", bano: "#4f9fd0", muro: "#1d2125", puerta: "#6c5a3d", columna: "#1d2125", bodega: "#ee8420", otro: "#7d6bb3",
+  hoyo: "#7a5230", monticulo: "#b98d4f", losa: "#8d8a80" };
 
 const px = (a) => ({ X: (a.x / 100) * ANCHO, Y: (a.y / 100) * ALTO, W: (a.w / 100) * ANCHO, H: (a.h / 100) * ALTO });
 const dentro = (x, y, r) => x >= r.X && x <= r.X + r.W && y >= r.Y && y <= r.Y + r.H;
@@ -98,23 +100,33 @@ function elemento(e) {
     return `<g class="elem">${d ? `<path stroke="${col}"${op} stroke-width="${w}" fill="none" d="${d}"/>` : ""}${e.material === "ventanal" && d ? `<path stroke="#fff" stroke-width="${w * 0.4}" fill="none" d="${d}"/>` : ""}
       ${vid ? `<path stroke="#3d8fd1" stroke-width="${Math.max(1.5, w * 0.35)}" fill="none" d="${vid}"/>` : ""}${pue ? `<path stroke="#6c5a3d" stroke-width="1.2" fill="none" d="${pue}"/>` : ""}</g>`;
   }
-  const { X, Y, W, H } = px(e), col = ELEM[e.tipo] || ELEM.otro;
+  // Todo lo demás es una figura de 4 esquinas (puede estar deformada)
+  const pts = esquinas(e), col = ELEM[e.tipo] || ELEM.otro, f = (p) => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`;
+  const d = "M" + pts.map(f).join("L") + "Z", entre = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  const L = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
   if (e.tipo === "techo") {   // techo: solo su contorno punteado con la cruz de proyección
     const c = e.estado === "existe" ? "#4d565e" : e.estado === "en_proceso" ? "#b26b00" : "#8ea3b8";
-    return `<g class="elem" stroke="${c}" stroke-width="2" stroke-dasharray="10 7" fill="none"><rect x="${X}" y="${Y}" width="${W}" height="${H}"/><path d="M${X} ${Y}L${X + W} ${Y + H}M${X + W} ${Y}L${X} ${Y + H}" stroke-opacity=".5"/></g>`;
+    return `<g class="elem" stroke="${c}" stroke-width="2" stroke-dasharray="10 7" fill="none"><path d="${d}"/><path d="M${f(pts[0])}L${f(pts[2])}M${f(pts[1])}L${f(pts[3])}" stroke-opacity=".5"/></g>`;
   }
   const falta = e.estado === "falta", proceso = e.estado === "en_proceso";
+  if (e.tipo === "hoyo") {   // hoyo: por excavar (punteado), excavando (rayado), excavado (tierra oscura)
+    const relleno = falta ? `fill="${col}" fill-opacity=".1"` : proceso ? `fill="url(#rayado)"` : `fill="#4a3322" fill-opacity=".8"`;
+    return `<g class="elem"><path d="${d}" stroke="${col}" stroke-width="2.5" ${falta ? 'stroke-dasharray="8 6"' : ""} ${relleno}/>
+      ${falta ? "" : `<path d="${d}" fill="none" stroke="#2b1d12" stroke-width="1.2" stroke-opacity=".6" transform="translate(${(centro(pts)[0] * 0.08).toFixed(1)} ${(centro(pts)[1] * 0.08).toFixed(1)}) scale(.92)"/>`}</g>`;
+  }
   const trazo = falta ? `stroke="${col}" stroke-width="2.5" stroke-dasharray="8 6" fill="${col}" fill-opacity=".08"`
-    : proceso ? `stroke="${col}" stroke-width="3" fill="url(#rayado)"` : `stroke="${col}" stroke-width="3" fill="${col}" fill-opacity=".28"`;
+    : proceso ? `stroke="${col}" stroke-width="3" fill="url(#rayado)"` : `stroke="${col}" stroke-width="3" fill="${col}" fill-opacity="${e.tipo === "monticulo" ? ".55" : ".28"}"`;
   let detalle = "";
-  if (e.tipo === "grada") { // escalones
-    const vertical = H > W, n = Math.max(3, Math.round((vertical ? H : W) / 14));
-    for (let i = 1; i < n; i++) detalle += vertical ? `<line x1="${X}" y1="${Y + (H * i) / n}" x2="${X + W}" y2="${Y + (H * i) / n}"/>` : `<line x1="${X + (W * i) / n}" y1="${Y}" x2="${X + (W * i) / n}" y2="${Y + H}"/>`;
+  if (e.tipo === "grada") {   // escalones a lo largo del lado más largo
+    const largo01 = L(pts[0], pts[1]) >= L(pts[1], pts[2]), [a0, a1, b0, b1] = largo01 ? [pts[0], pts[1], pts[3], pts[2]] : [pts[0], pts[3], pts[1], pts[2]];
+    const n = Math.max(3, Math.round(L(a0, a1) / 14));
+    for (let i = 1; i < n; i++) detalle += `<line x1="${entre(a0, a1, i / n)[0]}" y1="${entre(a0, a1, i / n)[1]}" x2="${entre(b0, b1, i / n)[0]}" y2="${entre(b0, b1, i / n)[1]}"/>`;
     detalle = `<g stroke="${col}" stroke-width="1.6" ${falta ? 'stroke-dasharray="4 4"' : ""}>${detalle}</g>`;
-  } else if (e.tipo === "bano") detalle = `<text class="et chico" x="${X + W / 2}" y="${Y + H / 2}" font-size="${Math.max(12, Math.min(26, Math.min(W, H) * 0.4))}" text-anchor="middle" dominant-baseline="middle">WC</text>`;
-  else if (e.tipo === "jardinera") { const n = Math.max(1, Math.round(W / 26));
-    detalle = `<g fill="${col}" opacity="${falta ? 0.35 : 0.85}">${Array.from({ length: n }, (_, i) => `<circle cx="${X + (W * (i + 0.5)) / n}" cy="${Y + H / 2}" r="${Math.min(10, H * 0.35)}"/>`).join("")}</g>`; }
-  return `<g class="elem"><rect x="${X}" y="${Y}" width="${W}" height="${H}" rx="2" ${trazo}/>${detalle}</g>`;
+  } else if (e.tipo === "bano") { const [cx, cy] = centro(pts); detalle = `<text class="et chico" x="${cx}" y="${cy}" font-size="16" text-anchor="middle" dominant-baseline="middle">WC</text>`; }
+  else if (e.tipo === "monticulo") { const [cx, cy] = centro(pts); detalle = `<g stroke="${col}" stroke-width="1.4" fill="none" opacity=".8">${pts.map((p) => `<line x1="${cx}" y1="${cy}" x2="${p[0]}" y2="${p[1]}"/>`).join("")}</g>`; }
+  else if (e.tipo === "jardinera") { const a = entre(pts[0], pts[3], 0.5), b = entre(pts[1], pts[2], 0.5), n = Math.max(1, Math.round(L(a, b) / 26)), r = Math.min(10, L(pts[0], pts[3]) * 0.35, L(pts[0], pts[1]) * 0.35);
+    detalle = `<g fill="${col}" opacity="${falta ? 0.35 : 0.85}">${Array.from({ length: n }, (_, i) => { const q = entre(a, b, (i + 0.5) / n); return `<circle cx="${q[0]}" cy="${q[1]}" r="${r}"/>`; }).join("")}</g>`; }
+  return `<g class="elem"><path d="${d}" stroke-linejoin="round" ${trazo}/>${detalle}</g>`;
 }
 
 const M = 0.056;   // metros por unidad del mapa
@@ -308,5 +320,5 @@ export function medidasPieza(grupo) {
 export function medidasArea(a) { const w = a.w / 100 * ANCHO * M, h = a.h / 100 * ALTO * M; return `${fm(w)} × ${fm(h)} · ${Math.round(w * h)} m²`; }
 export function medidasElemento(e) {
   if (e.trazo) return `Largo ${fm(largoPared(e))}${e.alto ? ` · alto ${fm(+e.alto)}` : ""}${e.grueso ? ` · grueso ${Math.round(e.grueso * 100)} cm` : ""}`;
-  return medidasArea(e) + (e.alto ? ` · alto ${fm(+e.alto)}` : "");
+  return medidasFigura(e);
 }

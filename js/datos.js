@@ -31,6 +31,7 @@ function traducir(e) {
   if (/duplicate key.*una_sesion_abierta/.test(m)) return "Ya hay un receso abierto.";
   if (/duplicate key.*un_receso_abierto/.test(m)) return "Esa persona ya está en receso.";
   if (/row-level security/.test(m)) return "Tu usuario no tiene permiso para esto.";
+  if (/elementos_tipo_check|column "?forma"?|'forma' column/.test(m)) return "Falta activar las figuras nuevas en la base de datos (migración 20261117_figuras).";
   if (/Failed to fetch|NetworkError/.test(m)) return "Sin conexión a internet. Intenta de nuevo.";
   return m;
 }
@@ -307,7 +308,8 @@ export async function borrarAnticipo(id) {
 // ---------- Plano: estados y elementos ----------
 export const ESTADOS = { existe: "Hecho", en_proceso: "En construcción", falta: "Falta" };
 export const NOMBRE_ESTADO = { ...ESTADOS, quitado: "No va" };   // "quitado" = pieza del plano que no va (no se dibuja ni se levanta)
-export const TIPOS_ELEMENTO = { grada: "Gradas", jardinera: "Jardinera", bano: "Baño", muro: "Pared", puerta: "Puerta", columna: "Columna", bodega: "Bodega", techo: "Techo", otro: "Otro" };
+export const TIPOS_ELEMENTO = { grada: "Gradas", jardinera: "Jardinera", bano: "Baño", muro: "Pared", puerta: "Puerta", columna: "Columna", bodega: "Bodega", techo: "Techo", otro: "Otro",
+  hoyo: "Hoyo / zanja", monticulo: "Montón de tierra", losa: "Bloque / losa" };
 export async function estadoArea(id, estado) {
   ok(await sb.from("areas").update({ estado }).eq("id", id));
 }

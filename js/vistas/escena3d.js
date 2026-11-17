@@ -2,6 +2,7 @@
 // y cada trabajador como un muñequito con casco que camina a su área (o a la bodega en el receso).
 import * as THREE from "three";
 import { MapControls } from "three/addons/controls/MapControls.js";
+import { esquinas, centro as centroFig, altoDe, ALTO_MURO } from "./figuras.js";
 import { medidasArea, ANCHO, ALTO, PIEZAS, CAJAS, estadoPieza, piezaEn, grupoDe, segmentos, puntas, gruesoPared, tramosPared, CHICAS, RAMPAS, rampaDe } from "./mapa-svg.js";
 
 const ESC = 0.1;                                   // unidades del plano → metros de la escena
@@ -12,7 +13,7 @@ let E = null;   // la escena vive mientras la app esté abierta; se reutiliza al
 const aEscena = (x, y) => new THREE.Vector3((x - ANCHO / 2) * ESC, 0, (y - ALTO / 2) * ESC);
 
 function crear() {
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, stencil: true });   // stencil: para abrir hoyos en el piso
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -41,6 +42,9 @@ function crear() {
 
   const piso = new THREE.Mesh(new THREE.PlaneGeometry(ANCHO * ESC, ALTO * ESC), new THREE.MeshLambertMaterial({ color: 0xffffff }));
   piso.rotation.x = -Math.PI / 2; piso.receiveShadow = true; scene.add(piso);
+  // Donde hay un hoyo, el piso no se pinta (los hoyos marcan esa parte de la pantalla antes que el piso)
+  for (const m of [piso.material, suelo.material]) Object.assign(m, { stencilWrite: true, stencilRef: 1, stencilFunc: THREE.NotEqualStencilFunc,
+    stencilFail: THREE.KeepStencilOp, stencilZFail: THREE.KeepStencilOp, stencilZPass: THREE.KeepStencilOp });
 
   const edificios = new THREE.Group(); scene.add(edificios);
   const gente = new THREE.Group(); scene.add(gente);
@@ -87,12 +91,15 @@ function crear() {
     p.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(p, camera);
     const h = ray.intersectObjects(asas.children.filter((o) => o.userData.asa !== undefined))[0]; if (!h) return;
     e.stopImmediatePropagation(); try { renderer.domElement.setPointerCapture(e.pointerId); } catch (_) {}
-    arrastre = { idx: h.object.userData.asa, fin: null }; plano.set(new THREE.Vector3(0, 1, 0), -h.object.position.y);
+    plano.set(new THREE.Vector3(0, 1, 0), -h.object.position.y);
+    arrastre = { idx: h.object.userData.asa, fin: null, ini: alPlano(e), base: h.object.userData.base };   // sigue al dedo desde donde se agarró
   }, { capture: true });
   renderer.domElement.addEventListener("pointermove", (e) => {
     if (!arrastre) return; e.stopImmediatePropagation();
-    const q = alPlano(e); if (!q) return; const m = E.handlers?.asaMueve?.(arrastre.idx, q[0], q[1]); if (!m) return;
-    arrastre.fin = q; ponerAsas(m.ab);
+    let q = alPlano(e); if (!q) return;
+    if (arrastre.ini && arrastre.base) q = [arrastre.base[0] + q[0] - arrastre.ini[0], arrastre.base[1] + q[1] - arrastre.ini[1]];
+    const m = E.handlers?.asaMueve?.(arrastre.idx, q[0], q[1]); if (!m) return;
+    arrastre.fin = q; ponerAsas(m.asas || m.ab);
     const r = renderer.domElement.getBoundingClientRect(); tip.innerHTML = `<b>${m.texto}</b>`; tip.hidden = false;
     tip.style.left = e.clientX - r.left + 16 + "px"; tip.style.top = e.clientY - r.top + 16 + "px";
   }, { capture: true });
@@ -133,6 +140,11 @@ function crear() {
     const r = renderer.domElement.getBoundingClientRect();
     p.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     if (E.editar) {
+      ray.setFromCamera(p, camera);   // primero: una pared o figura agregada (la que se ve primero)
+      const vis = (o) => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+      const hit = ray.intersectObjects(edificios.children, true).find((h) => !h.object.isSprite && vis(h.object) && !h.object.userData.mascara);
+      let o = hit?.object; while (o && !o.userData.elemento) o = o.parent;
+      if (o && E.handlers?.elemento?.(o.userData.elemento)) { tip.hidden = true; return; }
       const q = puntoBajo(e.clientX, e.clientY);
       if (q && E.handlers?.pared?.(q[0], q[1])) { tip.hidden = true; return; }
       const i = piezaBajo(e.clientX, e.clientY); if (i >= 0) { tip.hidden = true; return E.handlers?.pieza?.(i); }
@@ -281,7 +293,7 @@ function ponerTerreno() {
 // ---------- Paredes y columnas del plano (cada pieza con su estado: hecho, en construcción o falta) ----------
 // Alturas del AR-08: salas 6.45 (ventanería 3.00 + franja 1.25 + 2.20 a la fascia, fachada y sección A-A),
 // oficinas 3.72 (sección B-B), lavado 4.51 con techo al 8% (sección B-B). Taller: estructura propia (ver estructuraTaller).
-const ALTO_MURO = { sala: 6.45, taller: 6, oficinas: 3.72, servicio: 3.72, lavado: 4.51, receso: 4.74 };   // receso = ARRIBA × EXAGERA (la bodega llega al nivel de arriba)   // metros
+// ALTO_MURO (metros por tipo de área) viene de figuras.js; receso = ARRIBA × EXAGERA (la bodega llega al nivel de arriba)
 function tipoEn(areas, x, y) {
   const a = areas.filter((a) => { const c = caja(a); return x >= c.x0 && x <= c.x1 && y >= c.y0 && y <= c.y1; }).sort((p, q) => p.w * p.h - q.w * q.h)[0];
   return a ? (a.es_receso ? "receso" : a.tipo) : null;
@@ -656,6 +668,64 @@ function techoElemento(e) {
     const lam = e.estado === "falta" ? MAT.falta : new THREE.MeshStandardMaterial({ color: 0xb9c0c6, metalness: 0.5, roughness: 0.45, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false });
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.12, h), lam); m.position.set(c.x, y + 0.1, c.z); g.add(m);
   }
+  return g;
+}
+
+// ---------- Figuras agregadas (se pueden deformar): bloque, columna, gradas, hoyo, montón de tierra, techo ----------
+const COL_FIG = { grada: 0x8a8f96, jardinera: 0x5f9a45, bano: 0x4f9fd0, muro: 0x3b4046, puerta: 0x6c5a3d, columna: 0x8d8a80, bodega: 0xee8420, otro: 0x7d6bb3,
+  losa: 0xa5a196, monticulo: 0xb98d4f, techo: 0xb9c0c6 };
+const MAT_TIERRA = new THREE.MeshLambertMaterial({ color: 0x7a5636, side: THREE.DoubleSide });
+const MAT_FONDO = new THREE.MeshLambertMaterial({ color: 0x5a3e27 });
+const MAT_MASCARA = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, stencilWrite: true, stencilRef: 1,
+  stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp, stencilZFail: THREE.ReplaceStencilOp });
+const forma2d = (pts) => new THREE.Shape(pts.map(([x, y]) => { const v = aEscena(x, y); return new THREE.Vector2(v.x, -v.z); }));
+// Una tapa plana con la forma de la figura a la altura y
+function tapa(pts, y, mat) { const g = new THREE.ShapeGeometry(forma2d(pts)); g.rotateX(-Math.PI / 2); const m = new THREE.Mesh(g, mat); m.position.y = y; return m; }
+
+function figura3d(e) {
+  const pts = esquinas(e), g = new THREE.Group(); g.userData.elemento = e.id;
+  const pisos = pts.map(([x, y]) => E.altura(x, y) * M), base = Math.min(...pisos), arriba = Math.max(...pisos);
+  const falta = e.estado === "falta", proceso = e.estado === "en_proceso";
+  if (e.tipo === "hoyo") {
+    const hondo = altoDe(e) * M * (proceso ? 0.5 : 1);
+    if (falta) {   // por excavar: solo se marca en el piso
+      const m = tapa(pts, arriba + 0.06, new THREE.MeshBasicMaterial({ color: 0x7a5230, transparent: true, opacity: 0.35, depthWrite: false })); g.add(m);
+    } else {
+      const masc = tapa(pts, arriba + 0.04, MAT_MASCARA); masc.renderOrder = -10; masc.userData.mascara = true; g.add(masc);   // abre el piso
+      const fondo = base - hondo, pos = [];
+      pts.forEach(([x, y], i) => {   // paredes de tierra, de la orilla al fondo
+        const [x2, y2] = pts[(i + 1) % pts.length], a = aEscena(x, y), b = aEscena(x2, y2), ha = pisos[i], hb = pisos[(i + 1) % pts.length];
+        pos.push(a.x, ha, a.z, b.x, hb, b.z, b.x, fondo, b.z, a.x, ha, a.z, b.x, fondo, b.z, a.x, fondo, a.z);
+      });
+      const gp = new THREE.BufferGeometry(); gp.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); gp.computeVertexNormals();
+      const paredes = new THREE.Mesh(gp, MAT_TIERRA); paredes.receiveShadow = true; g.add(paredes);
+      const f = tapa(pts, fondo, MAT_FONDO); f.receiveShadow = true; g.add(f);
+    }
+    return g;
+  }
+  const alto = altoDe(e) * M * (proceso ? 0.5 : 1);
+  const mat = new THREE.MeshStandardMaterial({ color: proceso ? 0xc98a2c : COL_FIG[e.tipo] || 0x7d6bb3, roughness: 0.9,
+    transparent: falta || e.tipo === "techo", opacity: falta ? 0.2 : e.tipo === "techo" ? 0.6 : 1, depthWrite: !falta && e.tipo !== "techo",
+    flatShading: e.tipo === "monticulo", side: e.tipo === "techo" ? THREE.DoubleSide : THREE.FrontSide });
+  if (e.tipo === "monticulo") {   // pirámide de tierra: cada esquina sube a la punta en el centro
+    const c = centroFig(pts), cv = aEscena(c[0], c[1]), top = arriba + alto, pos = [];
+    pts.forEach(([x, y], i) => { const [x2, y2] = pts[(i + 1) % pts.length], a = aEscena(x, y), b = aEscena(x2, y2);
+      pos.push(a.x, pisos[i], a.z, cv.x, top, cv.z, b.x, pisos[(i + 1) % pts.length], b.z); });
+    const gm = new THREE.BufferGeometry(); gm.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); gm.computeVertexNormals();
+    mat.side = THREE.DoubleSide; const m = new THREE.Mesh(gm, mat); m.castShadow = !falta; m.receiveShadow = true; g.add(m); return g;
+  }
+  if (e.tipo === "techo") {   // lámina a la altura del techo, con vigas en las orillas
+    const y = base + alto, viga = falta ? MAT.falta : proceso ? MAT.en_proceso : new THREE.MeshStandardMaterial({ color: 0x8b949b, metalness: 0.4, roughness: 0.5 });
+    g.userData.techo = true;
+    if (!proceso) g.add(tapa(pts, y + 0.1, mat));
+    pts.forEach(([x, yy], i) => { const [x2, y2] = pts[(i + 1) % pts.length], a = aEscena(x, yy), b = aEscena(x2, y2), L = a.distanceTo(b);
+      const v = new THREE.Mesh(new THREE.BoxGeometry(L, 0.45, 0.3), viga); v.position.set((a.x + b.x) / 2, y - 0.3, (a.z + b.z) / 2); v.rotation.y = -Math.atan2(b.z - a.z, b.x - a.x); g.add(v); });
+    return g;
+  }
+  // bloque: la forma levantada desde lo más bajo del piso (para no flotar) hasta su alto sobre lo más alto
+  const geo = new THREE.ExtrudeGeometry(forma2d(pts), { depth: alto + (arriba - base), bevelEnabled: false });
+  geo.rotateX(-Math.PI / 2);
+  const m = new THREE.Mesh(geo, mat); m.position.y = base; m.castShadow = !falta; m.receiveShadow = true; g.add(m);
   return g;
 }
 
@@ -1123,16 +1193,10 @@ function ponerEdificios(areas, elementos = [], piezas = {}) {
   ponerJardineras(piezas);
   rotulosNivel();
   // Elementos agregados (gradas, jardineras, baños…)
-  const ALTO_EL = { grada: 2.2, jardinera: 1.2, bano: 3, muro: 3.5, puerta: 3, columna: 6, bodega: 4, otro: 2 };
-  const COL_EL = { grada: 0x8a8f96, jardinera: 0x5f9a45, bano: 0x4f9fd0, muro: 0x3b4046, puerta: 0x6c5a3d, columna: 0x8d8a80, bodega: 0xee8420, techo: 0x8b949b, otro: 0x7d6bb3 };
   for (const e of elementos) {
     if (e.trazo) { const [[ax, ay], [bx, by]] = puntas(e.trazo); if (!enSupervisor((ax + bx) / 2, (ay + by) / 2)) E.edificios.add(paredDibujada(e, areas)); continue; }
-    if (e.tipo === "techo") { E.edificios.add(techoElemento(e)); continue; }
-    const X = (e.x / 100) * ANCHO, Y = (e.y / 100) * ALTO, W = Math.max(2, (e.w / 100) * ANCHO), H = Math.max(2, (e.h / 100) * ALTO);
-    const alto = (+e.alto ? e.alto * M : ALTO_EL[e.tipo] || 2) * (e.estado === "en_proceso" ? 0.5 : 1), c = aEscena(X + W / 2, Y + H / 2);
-    const m = new THREE.Mesh(new THREE.BoxGeometry(W * ESC, alto, H * ESC), new THREE.MeshStandardMaterial({
-      color: e.estado === "en_proceso" ? 0xc98a2c : COL_EL[e.tipo] || 0x7d6bb3, transparent: e.estado === "falta", opacity: e.estado === "falta" ? 0.18 : 1 }));
-    m.position.set(c.x, E.altura(X + W / 2, Y + H / 2) * M + alto / 2, c.z); m.castShadow = e.estado !== "falta"; m.receiveShadow = true; E.edificios.add(m);
+    if (e.tipo === "techo" && !e.forma) { E.edificios.add(techoElemento(e)); continue; }
+    E.edificios.add(figura3d(e));
   }
   // Árboles del boulevard (a nivel de calle)
   const tronco = new THREE.MeshLambertMaterial({ color: 0x7a5a3a }), copa = new THREE.MeshLambertMaterial({ color: 0x5f8f3e }), yc = CALLE * M;
@@ -1146,14 +1210,27 @@ function ponerEdificios(areas, elementos = [], piezas = {}) {
 // Dos esferas verdes en las puntas de la pared elegida y una línea entre ellas
 const MAT_ASA = new THREE.MeshBasicMaterial({ color: 0x9fd400, depthTest: false });
 const MAT_LINEA = new THREE.MeshBasicMaterial({ color: 0xc4ee4a, transparent: true, opacity: 0.8, depthTest: false });
+const MAT_ASA_LADO = new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false });
+const MAT_ASA_CENTRO = new THREE.MeshBasicMaterial({ color: 0x16181a, depthTest: false });
+// ab = [a, b] (pared: dos puntas) o { puntos, tipos, n } (figura: esquinas, lados y centro; las primeras n forman el contorno)
 function ponerAsas(ab) {
   E.asas.children.forEach((o) => o.geometry?.dispose()); E.asas.clear();
   if (!ab) return;
-  const pts = ab.map(([x, y]) => { const v = aEscena(x, y); v.y = E.altura(x, y) * M + 0.6; return v; });
-  pts.forEach((v, i) => { const s = new THREE.Mesh(new THREE.SphereGeometry(1.3, 16, 12), MAT_ASA); s.position.copy(v); s.renderOrder = 10; s.userData.asa = i; E.asas.add(s); });
-  const L = pts[0].distanceTo(pts[1]); if (L < 0.1) return;
-  const l = new THREE.Mesh(new THREE.BoxGeometry(L, 0.25, 0.25), MAT_LINEA); l.position.copy(pts[0]).add(pts[1]).multiplyScalar(0.5);
-  l.rotation.y = -Math.atan2(pts[1].z - pts[0].z, pts[1].x - pts[0].x); l.renderOrder = 9; E.asas.add(l);
+  const lista = Array.isArray(ab) ? ab : ab.puntos, tipos = Array.isArray(ab) ? ab.map(() => "esquina") : ab.tipos;
+  const pts = lista.map(([x, y]) => { const v = aEscena(x, y); v.y = E.altura(x, y) * M + 0.6; return v; });
+  const c = tipos.at(-1) === "centro" ? pts.at(-1) : null;
+  pts.forEach((v, i) => { const t = tipos[i], r = t === "esquina" ? 1.3 : t === "centro" ? 1.5 : 0.95;
+    const s = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12), t === "lado" ? MAT_ASA_LADO : t === "centro" ? MAT_ASA_CENTRO : MAT_ASA);
+    // figura chiquita: las bolitas se separan del centro para poder agarrarlas
+    const pos = v.clone(), min = c && t !== "centro" ? (t === "esquina" ? 3.4 : 2.4) : 0, dx = pos.x - (c?.x || 0), dz = pos.z - (c?.z || 0), d = Math.hypot(dx, dz);
+    if (min && d < min) { if (d < 1e-6) pos.x = c.x + min; else { pos.x = c.x + (dx / d) * min; pos.z = c.z + (dz / d) * min; } }
+    s.position.copy(pos); s.renderOrder = 10; s.userData.asa = i; s.userData.base = lista[i]; E.asas.add(s); });
+  const n = Array.isArray(ab) ? 2 : ab.n, cerrado = !Array.isArray(ab);
+  for (let i = 0; i < (cerrado ? n : 1); i++) {
+    const a = pts[i], b = pts[(i + 1) % n], L = a.distanceTo(b); if (L < 0.1) continue;
+    const l = new THREE.Mesh(new THREE.BoxGeometry(L, 0.25, 0.25), MAT_LINEA); l.position.copy(a).add(b).multiplyScalar(0.5);
+    l.rotation.y = -Math.atan2(b.z - a.z, b.x - a.x); l.renderOrder = 9; E.asas.add(l);
+  }
 }
 
 // Resalta en verde las piezas de un grupo (hover o seleccionada): paredes a su altura, lo demás como franja en el piso
@@ -1284,4 +1361,10 @@ export function vistaInicial() { if (!E) return; E.camera.position.set(-35, 120,
 export function enfocar(x, y, dist = 30) {
   if (!E) return; const p = aEscena(x, y); p.y = E.altura(x, y) * M;
   E.controls.target.copy(p); E.camera.position.set(p.x - dist * 0.6, p.y + dist * 0.7, p.z + dist);
+}
+
+// Punto del plano que está en el centro de la vista (ahí aparece lo que se agrega)
+export function centroVista() {
+  if (!E) return [ANCHO / 2, ALTO / 2];
+  const t = E.controls.target; return [t.x / ESC + ANCHO / 2, t.z / ESC + ALTO / 2];
 }
