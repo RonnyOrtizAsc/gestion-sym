@@ -490,3 +490,20 @@ nav.tabs .in{grid-template-columns:repeat(6,1fr)}
 .ficha-ico{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:24px;background:var(--sunk);color:var(--ink)}
 .f-muro{background:#1d2125;color:#fff}.f-hoyo{background:#7a5230;color:#fff}.f-columna{background:#8d8a80;color:#fff}.f-losa{background:#c9c5ba}
 .f-grada{background:#8a8f96;color:#fff}.f-jardinera{background:#5f9a45;color:#fff}.f-monticulo{background:#b98d4f;color:#fff}.f-techo{background:#b9c0c6}
+
+/* ---------- Herramientas del editor (como app de dibujo) ---------- */
+.herr-barra{position:sticky;top:6px;z-index:12;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:6px;margin-bottom:8px;box-shadow:0 4px 14px rgba(0,0,0,.08)}
+.herr-fila{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+.herr{display:flex;flex-direction:column;align-items:center;gap:2px;border:0;background:none;border-radius:12px;padding:7px 2px;font-weight:800;font-size:11.5px;color:var(--muted);touch-action:manipulation}
+.herr b{font-size:22px;line-height:1.1;filter:grayscale(.3)}
+.herr.on{background:var(--lime);color:var(--lime-ink)}
+.herr.on b{filter:none}
+.grosores{display:flex;align-items:center;gap:6px;overflow-x:auto;padding:6px 2px 2px;scrollbar-width:none}
+.grosores>span{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;flex:none}
+.grosores .chip{display:flex;align-items:center;gap:6px;flex:none;padding:6px 10px}
+.grosores .chip i{display:inline-block;width:18px;border-radius:3px;background:currentColor}
+.captura.dibujar{cursor:crosshair;touch-action:none}
+.captura.dibujar .capa-edicion path{stroke-linecap:round;fill:none}
+.captura .trazo-lapiz{stroke:#7fb800;stroke-opacity:.85}
+.captura .trazo-cortar{stroke:#7a5230;stroke-opacity:.75;stroke-dasharray:none}
+.captura .trazo-zona{stroke:#7fb800;stroke-width:3!important;fill:#c4ee4a!important;fill-opacity:.25}

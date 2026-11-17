@@ -9,7 +9,7 @@ import { S, recesoAbierto, enReceso, recesoTurno, turnoDe, turnoActual, limiteRe
 import { esc, iniciales, primerNombre, ms, hhmm } from "../util.js";
 import { lugarEn, lugarDe, nombreArea, areaEn } from "./lugares.js";
 import { miniatura, tarjeta, avatares, cara } from "./fotos.js";
-import { FICHAS, esquinas, agarraderas, moverFigura, girar, correr, guardable, figuraNueva, medidasFigura, medidaCorta, altoDe, dentroDe, centro, U, altoPared, moverRect, rectPct } from "./figuras.js";
+import { FICHAS, esquinas, agarraderas, moverFigura, girar, correr, guardable, figuraNueva, medidasFigura, medidaCorta, altoDe, dentroDe, centro, U, altoPared, moverRect, rectPct, cercaDe } from "./figuras.js";
 import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, CAJAS, grupoDe, queEs, pegar, ANCHO, ALTO, MATERIALES, puntas, pared, largoPared, gruesoPared, enderezar, distPared, enLinea, sobrePared, ANCHO_HUECO, CHICAS, rampaDe, piezaEn, medidasPieza, medidasArea, medidasElemento } from "./mapa-svg.js";
 
 const ZOOMS = [1, 1.6, 2.4, 3.4];
@@ -19,7 +19,8 @@ const ui = { vista: vistaGuardada, sinGente: sinGenteGuardado, zoom: 1, sel: nul
   editar: false, elSel: null, nuevo: null, borrar: false,
   prestar: null, verPrestamos: false, perdida: null,
   pz: null,
-  modo: null, mas: false, agregar: false };   // agregar: hoja con las fichas para agregar algo   // modo rápido: "receso" o "almuerzo"; cada toque manda/regresa a esa pausa   // modo rápido: cada toque manda/regresa de receso   // pz = { grupo: [índices], nombre } pieza del plano seleccionada en Editar plano   // prestar = { h, nuevo, w, q }   // nuevo = { tipo, p1 } mientras se dibuja un elemento
+  modo: null, mas: false, agregar: false,
+  herr: "mano", grosor: { lapiz: 0.15, cortar: 0.6 } };   // herramienta del editor y grosor del lápiz / del corte (m)   // agregar: hoja con las fichas para agregar algo   // modo rápido: "receso" o "almuerzo"; cada toque manda/regresa a esa pausa   // modo rápido: cada toque manda/regresa de receso   // pz = { grupo: [índices], nombre } pieza del plano seleccionada en Editar plano   // prestar = { h, nuevo, w, q }   // nuevo = { tipo, p1 } mientras se dibuja un elemento
 let ultimas = {};
 let dibujo = { clave: "", svg: "" };
 const ICONO = {
@@ -136,6 +137,13 @@ function hojaPrestamos() {
 const botonesEstado = (actual, attr, nombres = ESTADOS) => `<div class="estados">${Object.entries(ESTADOS).map(([k, l]) =>
   `<button class="est ${k}" ${attr}="${k}" aria-pressed="${actual === k}">${nombres[k] || l}</button>`).join("")}</div>`;
 const ESTADOS_HOYO = { falta: "Por excavar", en_proceso: "Excavando", existe: "Excavado" };
+// Editor como juego de dibujo: se escoge una herramienta y se usa el dedo. Nada de escoger "qué es".
+const HERRAMIENTAS = [["mano", "✋", "Mover"], ["lapiz", "✏️", "Construir"], ["cortar", "✂️", "Cortar"], ["borrar", "🧽", "Borrar"], ["zona", "⬚", "Zona"]];
+const GROSORES = { lapiz: [[0.1, "10 cm"], [0.15, "15 cm"], [0.3, "30 cm"], [0.6, "60 cm"], [1, "1 m"]], cortar: [[0.3, "30 cm"], [0.6, "60 cm"], [1, "1 m"], [2, "2 m"], [4, "4 m"]] };
+const PISTA_HERR = { mano: "Toca algo para moverlo o estirarlo con sus puntos.", lapiz: "Arrastra el dedo: sale una pared. Un toque: una columna.",
+  cortar: "Arrastra el dedo: se abre una zanja. Si cruza una pared, le abre un hueco.", borrar: "Toca lo que quieras quitar. Con ↶ regresa.",
+  zona: "Arrastra para marcar una zona donde pueda estar la gente." };
+const DIBUJA = new Set(["lapiz", "cortar", "zona"]);
 
 function hojaEditarArea(a) {
   const els = S.elementos.filter((e) => +e.x + e.w / 2 >= a.x && +e.x + e.w / 2 <= +a.x + +a.w && +e.y + e.h / 2 >= a.y && +e.y + e.h / 2 <= +a.y + +a.h);
@@ -308,11 +316,14 @@ export function render(V, { hacer, redibujar }) {
   </div>`;
   const BARRA_MAPA = `<div class="barra-mapa">
       <div class="flot-grupo"><button class="flot-btn ${ui.editar ? "on" : ""}" id="hudEditar">${ui.editar ? "✓" : ICONO.lapiz}<span>${ui.editar ? "Listo" : "Editar"}</span></button>
-        ${ui.editar ? `<button class="flot-btn ${ui.agregar ? "on" : ""}" id="hudAgregar"><b aria-hidden="true">＋</b><span>Agregar</span></button>
-          <button class="flot-btn icono" id="hudDeshacer" aria-label="Deshacer lo último" title="Deshacer" ${puedeDeshacer() ? "" : "disabled"}>${ICONO.deshacer}</button>` : ""}</div>
+        ${ui.editar ? `<button class="flot-btn icono" id="hudDeshacer" aria-label="Deshacer lo último" title="Deshacer" ${puedeDeshacer() ? "" : "disabled"}>${ICONO.deshacer}</button>` : ""}</div>
       <div class="flot-grupo">${ui.editar ? "" : `<button class="flot-btn icono ${ui.sinGente ? "on" : ""}" id="verGente" aria-pressed="${ui.sinGente}" aria-label="${ui.sinGente ? "Mostrar a los trabajadores" : "Ocultar a los trabajadores y ver solo el plano"}" title="${ui.sinGente ? "Mostrar trabajadores" : "Solo el plano"}">${ui.sinGente ? ICONO.ojoNo : ICONO.ojo}</button>`}
       <div class="seg mini flot-vista" role="group" aria-label="Vista"><button data-vista="2d" aria-pressed="${!es3d}">2D</button><button data-vista="3d" aria-pressed="${es3d}">3D</button></div></div>
     </div>`;
+  const HERR = ui.editar ? `<div class="herr-barra" role="toolbar" aria-label="Herramientas">
+      <div class="herr-fila">${HERRAMIENTAS.map(([k, ico, txt]) => `<button class="herr ${ui.herr === k ? "on" : ""}" data-herr="${k}" aria-pressed="${ui.herr === k}"><b aria-hidden="true">${ico}</b>${txt}</button>`).join("")}</div>
+      ${GROSORES[ui.herr] ? `<div class="grosores"><span>Grosor</span>${GROSORES[ui.herr].map(([g, t]) => `<button class="chip ${ui.grosor[ui.herr] === g ? "" : ""}" data-grosor="${g}" aria-pressed="${ui.grosor[ui.herr] === g}"><i style="height:${Math.max(2, Math.min(14, g * 12))}px"></i>${t}</button>`).join("")}</div>` : ""}
+    </div>` : "";
   const FLOTANTES = `<div class="flot flot-abajo">${es3d ? `<button class="flot-btn icono" id="centrar" aria-label="Volver a la vista inicial">${ICONO.centrar}</button>`
       : `<button class="flot-btn icono" data-z="1" aria-label="Acercar" ${ui.zoom === ZOOMS.at(-1) ? "disabled" : ""}>+</button><button class="flot-btn icono" data-z="-1" aria-label="Alejar" ${ui.zoom === ZOOMS[0] ? "disabled" : ""}>−</button>`}</div>`;
 
@@ -324,9 +335,10 @@ export function render(V, { hacer, redibujar }) {
     : ui.punta ? `<p class="pista mover">Toca a dónde llega la pared.</p>`
     : ui.nuevo?.tipo === "muro" ? `<p class="pista mover">${ui.nuevo.p1 ? "Ahora toca donde termina (o arrastra)." : "Toca donde empieza la pared, o arrástrala de punta a punta."}</p>`
     : ui.nuevo?.tipo ? `<p class="pista mover">${ui.nuevo.p1 ? "Toca la esquina opuesta." : "Toca una esquina."}</p>`
-    : ui.editar ? `<p class="pista mover">Toca algo para cambiarlo, o “＋ Agregar”. Arrastra sus puntos para deformarlo.</p>`
+    : ui.editar ? `<p class="pista mover">${PISTA_HERR[ui.herr]}</p>`
     : `<p class="pista">Toca un área o a una persona.${es3d ? "" : " Arrastra a alguien para ponerlo en el lugar exacto donde trabaja."}${es3d ? " Arrastra para moverte; con dos dedos giras." : ""}</p>`}
   ${BARRA_MAPA}
+  ${HERR}
   <div class="mapa-caja">
   ${es3d ? `<div class="escena" id="escena"><p class="cargando">Levantando la obra en 3D…</p></div>`
   : `<div class="mapa-scroll ${ui.zoom > 1 ? "acercado" : ""}" id="mapaScroll">
@@ -345,7 +357,7 @@ export function render(V, { hacer, redibujar }) {
           <span class="medida" style="left:${((a[0] + b[0]) / 2 / ANCHO) * 100}%;top:${((a[1] + b[1]) / 2 / ALTO) * 100}%">${L}</span>
           <span class="asa" data-asa="0" style="${P(a)}" aria-label="Arrastra para alargar"></span><span class="asa" data-asa="1" style="${P(b)}" aria-label="Arrastra para alargar"></span>`; })()}
       ${ui.nuevo?.p1 ? `<span class="punto" style="left:${ui.nuevo.p1[0]}%;top:${ui.nuevo.p1[1]}%"></span>` : ""}
-      ${ui.nuevo?.tipo || ui.punta || ui.hueco || (ui.moviendo && ui.sel) ? `<div class="captura ${ui.moviendo ? "mover" : ""}" id="captura"></div>` : ""}
+      ${ui.nuevo?.tipo || ui.punta || ui.hueco || (ui.moviendo && ui.sel) || (ui.editar && DIBUJA.has(ui.herr)) ? `<div class="captura ${ui.moviendo ? "mover" : ""} ${ui.editar && DIBUJA.has(ui.herr) ? "dibujar " + ui.herr : ""}" id="captura"></div>` : ""}
     </div>
   </div>`}
   ${FLOTANTES}</div>
@@ -405,7 +417,9 @@ export function render(V, { hacer, redibujar }) {
     hacer(async () => { const n = await agregarElemento(el); ui.elSel = n.id; ui.areaSel = null; return `${TIPOS_ELEMENTO[tipo]} agregado al plano`; });
     return true;
   };
-  const tocarPieza = (i) => { const grupo = grupoDe(i); ui.mas = false; ui.pz = { tocada: i, grupo, nombre: queEs(grupo) }; ui.areaSel = null; ui.elSel = null; redibujar(); };
+  const tocarPieza = (i) => { const grupo = grupoDe(i);
+    if (ui.editar && ui.herr === "borrar") { grupo.forEach((k) => (S.piezas[k] = "quitado")); redibujar();
+      return hacer(async () => { await estadoPiezas(grupo, "quitado"); return `${queEs(grupo)}: quitada (↶ la regresa)`; }); } ui.mas = false; ui.pz = { tocada: i, grupo, nombre: queEs(grupo) }; ui.areaSel = null; ui.elSel = null; redibujar(); };
   const textoPieza = (grupo) => { const est = grupo.map((i) => estadoPieza(i, S.piezas));
     return `<b>${esc(queEs(grupo))}</b><span class="med">${medidasPieza(grupo)}</span><span>${est.every((e) => e === est[0]) ? NOMBRE_ESTADO[est[0]] : "Partes en distinto estado"}</span>`; };
   // Poner a alguien en un punto del mapa (en %): dentro de un área o en cualquier otro lugar
@@ -420,6 +434,7 @@ export function render(V, { hacer, redibujar }) {
     if (receso) return;
     if (ui.moviendo && ui.sel && punto) { const a = area(aid); if (!a?.es_receso) return ponerEn(ui.sel, punto); }
     if (!aid) return;
+    if (ui.editar && ui.herr === "borrar") { if (S.perfil?.rol !== "admin") return; ui.areaSel = aid; ui.borrar = "area"; ui.elSel = null; ui.pz = null; return redibujar(); }
     if (ui.editar) { ui.areaSel = aid; ui.elSel = null; ui.sel = null; ui.pz = null; return redibujar(); }
     if (ui.moviendo && ui.sel) {
       const id = ui.sel, a = (punto && areaEn(...punto)) || area(aid); ui.moviendo = false; ui.sel = null;
@@ -434,15 +449,17 @@ export function render(V, { hacer, redibujar }) {
     import("./escena3d.js").then((m) => {
       const cont = V.querySelector("#escena"); if (!cont) return;
       cont.querySelector(".cargando")?.remove();
-      m.montar(cont, { svg: dibujo.svg, clave: dibujo.clave, areas: S.areas, elementos: S.elementos, piezas: S.piezas, personas, editar: ui.editar && !ui.nuevo && !ui.punta && !ui.hueco, seleccion: ui.pz?.grupo, asas: specAsas(asasActuales()), handlers: {
+      m.montar(cont, { dibujo: ui.editar && DIBUJA.has(ui.herr) ? { tipo: ui.herr, grosor: ui.grosor[ui.herr] || 0.3 } : null, svg: dibujo.svg, clave: dibujo.clave, areas: S.areas, elementos: S.elementos, piezas: S.piezas, personas, editar: ui.editar && !ui.nuevo && !ui.punta && !ui.hueco, seleccion: ui.pz?.grupo, asas: specAsas(asasActuales()), handlers: {
         asaMueve: (idx, x, y) => { const A = asasActuales(); return A ? moverAsa(A, idx, x, y) : null; },
         asaSuelta: (idx, x, y) => { const A = asasActuales(); if (!A) return; const m = moverAsa(A, idx, x, y); soltarAsa(A, A.f ? m.pts : m.ab); },
-        elemento: (id) => { if (!ui.editar || ui.hueco || ui.punta || !S.elementos.some((q) => q.id === id)) return false; elegir(id); return true; },
+        elemento: (id) => { if (!ui.editar || ui.hueco || ui.punta || !S.elementos.some((q) => q.id === id)) return false; tocarElemento(id); return true; },
+        trazoMueve: (a, q) => { const [a2, b] = ajustarTrazo(a, q); return { a: a2, b, texto: textoTrazo(a2, b) }; },
+        trazo: (a, b) => hacerTrazo(a, b),
         persona: tocarPersona, pieza: tocarPieza, textoPieza,
-        pared: (x, y) => { const e = S.elementos.filter((q) => q.trazo).find((q) => distPared(x, y, q) < 8); if (!e) return false; ui.mas = false; ui.elSel = e.id; ui.pz = null; ui.areaSel = null; ui.borrar = false; redibujar(); return true; },
+        pared: (x, y) => { const e = S.elementos.filter((q) => q.trazo).find((q) => distPared(x, y, q) < 8); if (!e) return false; tocarElemento(e.id); return true; },
         punto: (px, py) => { // el área más pequeña que contiene el punto tocado
           if (tocarPunto(px, py)) return;
-          if (ui.editar) { const X = (px / 100) * ANCHO, Y = (py / 100) * ALTO, e = S.elementos.find((q) => !q.trazo && dentroDe(esquinas(q), X, Y)); if (e) return elegir(e.id); }
+          if (ui.editar) { const X = (px / 100) * ANCHO, Y = (py / 100) * ALTO, e = S.elementos.find((q) => !q.trazo && cercaDe(esquinas(q), X, Y, 8)); if (e) return tocarElemento(e.id); }
           const a = S.areas.filter((a) => px >= a.x && px <= +a.x + +a.w && py >= a.y && py <= +a.y + +a.h).sort((p, q) => p.w * p.h - q.w * q.h)[0];
           tocarArea(a?.id, [px, py]);
         } } });
@@ -525,7 +542,13 @@ export function render(V, { hacer, redibujar }) {
     let hov = [];
     const quitarHov = () => { hov.forEach((el) => el.classList.remove("hov")); hov = []; tip.hidden = true; };
     pzs.forEach((el) => {
-      el.addEventListener("click", (e) => { e.stopPropagation(); tocarPieza(+el.dataset.pz); });
+      el.addEventListener("click", (e) => { e.stopPropagation();
+        // si en ese punto hay algo agregado (columna, zanja, pared dibujada), eso va primero que el plano
+        const r = mapaEl.getBoundingClientRect(), X = ((e.clientX - r.left) / r.width) * ANCHO, Y = ((e.clientY - r.top) / r.height) * ALTO;
+        const tol = 14 / (r.width / ANCHO);   // ~14 px de margen en la pantalla
+        const propio = S.elementos.find((q) => !q.trazo && q.tipo !== "techo" && cercaDe(esquinas(q), X, Y, tol)) || S.elementos.find((q) => q.trazo && distPared(X, Y, q) < tol);
+        if (propio) return tocarElemento(propio.id);
+        tocarPieza(+el.dataset.pz); });
       // al pasar el mouse se resalta la pieza completa (toda la pared, todas las gradas…)
       el.addEventListener("pointerenter", (e) => {
         if (e.pointerType !== "mouse") return;
@@ -581,7 +604,7 @@ export function render(V, { hacer, redibujar }) {
   };
   // Guarda una pared de a → b. Si hay otras en la misma línea que la tocan o se enciman, quedan como una sola pared.
   // base = pared que se está cambiando (o null si es nueva, con sus datos en "nueva").
-  function guardarPared(base, a, b, nueva = {}, antes = null) {
+  function guardarPared(base, a, b, nueva = {}, antes = null, elegirla = true) {
     const otras = S.elementos.filter((q) => q.trazo && q !== base);
     const r = enLinea(a, b, otras), quien = base || r.juntas[0] || null, sobran = r.juntas.filter((q) => q !== quien);
     const huecos = [...(quien?.huecos || []), ...sobran.flatMap((q) => q.huecos || [])];
@@ -589,7 +612,7 @@ export function render(V, { hacer, redibujar }) {
     S.elementos = S.elementos.filter((q) => !sobran.includes(q));
     let tmp = null;
     if (quien) Object.assign(quien, cambios); else { tmp = { id: "tmp" + Date.now(), ...nueva, ...cambios }; S.elementos.push(tmp); }
-    ui.mas = false; ui.areaSel = null; ui.elSel = (quien || tmp).id; redibujar();   // se ve al instante
+    ui.mas = false; ui.areaSel = null; ui.elSel = elegirla ? (quien || tmp).id : null; redibujar();   // se ve al instante
     hacer(async () => {
       if (antes) await antes();
       if (quien) await editarElemento(quien.id, cambios); else { const n = await agregarElemento({ ...nueva, ...cambios }); if (ui.elSel === tmp.id) ui.elSel = n.id; }
@@ -655,8 +678,8 @@ export function render(V, { hacer, redibujar }) {
     return hacer(async () => { const n = await agregarArea(datos), era = tmp.id; Object.assign(tmp, n); if (ui.areaSel === era) ui.areaSel = n.id; return aviso; });
   }
   // Pone una figura nueva (o una copia) y la deja elegida, lista para deformar
-  function ponerFigura(datos, aviso) {
-    const tmp = { id: "tmp" + Date.now(), ...datos }; S.elementos.push(tmp); elegir(tmp.id);
+  function ponerFigura(datos, aviso, elegirla = true) {
+    const tmp = { id: "tmp" + Date.now(), ...datos }; S.elementos.push(tmp); if (elegirla) elegir(tmp.id); else redibujar();
     hacer(async () => { const n = await agregarElemento(datos), era = tmp.id; Object.assign(tmp, n); if (ui.elSel === era) ui.elSel = n.id; return aviso; });
   }
   // Centro de lo que se ve del plano 2D (un poco arriba, porque abajo está la hoja)
@@ -670,8 +693,80 @@ export function render(V, { hacer, redibujar }) {
     ponerFigura({ tipo: f.tipo, estado: "falta", ...guardable(figuraNueva(f, c[0], c[1])), alto: f.alto ?? null }, `${f.nombre}: arrastra sus puntos para darle forma`);
   }
 
+  // ---- Herramientas de dibujo (lo mismo en 2D y en 3D) ----
+  // Tocar algo: con el borrador se quita (y ↶ lo regresa); con la mano se elige para moverlo y estirarlo
+  function tocarElemento(id) {
+    if (ui.herr !== "borrar") return elegir(id);
+    const e = S.elementos.find((q) => q.id === id); if (!e) return;
+    S.elementos = S.elementos.filter((q) => q !== e); ui.elSel = null; redibujar();
+    hacer(async () => { await borrarElemento(id); return `${e.nombre || TIPOS_ELEMENTO[e.tipo] || "Elemento"} quitado (↶ lo regresa)`; });
+  }
+  // De dónde a dónde va el trazo: la pared se pega a otras puntas y se endereza; el corte y la zona, libres
+  function ajustarTrazo(a, q) {
+    if (ui.herr === "lapiz") { const otras = S.elementos.filter((e) => e.trazo).flatMap((e) => puntas(e.trazo)); const a2 = pegar(a[0], a[1], 9, otras); return [a2, enderezar(a2, pegar(q[0], q[1], 9, otras))]; }
+    if (ui.herr === "cortar") return [a, enderezar(a, q)];
+    return [a, q];
+  }
+  const largoM = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]) * METROS_POR_UNIDAD;
+  const textoTrazo = (a, b) => ui.herr === "zona" ? `${fmtM(Math.abs(b[0] - a[0]) * METROS_POR_UNIDAD)} × ${fmtM(Math.abs(b[1] - a[1]) * METROS_POR_UNIDAD)}` : fmtM(largoM(a, b));
+  // Banda de grosor g (m) de a a b: las 4 esquinas
+  function banda(a, b, g) {
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, h = U(g) / 2, n = [(-(b[1] - a[1]) / L) * h, ((b[0] - a[0]) / L) * h];
+    return [[a[0] + n[0], a[1] + n[1]], [b[0] + n[0], b[1] + n[1]], [b[0] - n[0], b[1] - n[1]], [a[0] - n[0], a[1] - n[1]]];
+  }
+  // Punto donde el segmento a-b cruza el segmento p-q (o null)
+  function cruce(a, b, p, q) {
+    const d = (b[0] - a[0]) * (q[1] - p[1]) - (b[1] - a[1]) * (q[0] - p[0]); if (Math.abs(d) < 1e-9) return null;
+    const t = ((p[0] - a[0]) * (q[1] - p[1]) - (p[1] - a[1]) * (q[0] - p[0])) / d, u = ((p[0] - a[0]) * (b[1] - a[1]) - (p[1] - a[1]) * (b[0] - a[0])) / d;
+    return t >= 0 && t <= 1 && u >= 0 && u <= 1 ? [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t] : null;
+  }
+  // Lo que pasa al soltar el dedo
+  function hacerTrazo(a0, q) {
+    const [a, b] = ajustarTrazo(a0, q), toque = largoM(a, b) < 0.3, h = ui.herr;
+    if (h === "zona") {
+      if (toque) return;
+      ui.herr = "mano";   // para que se pueda estirar y ponerle nombre enseguida
+      return ponerArea(rectPct([a, [b[0], a[1]], b, [a[0], b[1]]]), "Zona nueva: ponle nombre si quieres");
+    }
+    if (h === "lapiz") {
+      const g = ui.grosor.lapiz;
+      if (toque) { const s = Math.max(g, 0.3); return ponerFigura({ tipo: "columna", estado: "existe", ...guardable(figuraNueva({ w: s, h: s }, a[0], a[1])) }, "Columna", false); }
+      return guardarPared(null, a, b, { tipo: "muro", estado: "existe", material: "block", grueso: g }, null, false);
+    }
+    if (h === "cortar") {
+      const g = ui.grosor.cortar, paredes = S.elementos.filter((e) => e.trazo);
+      // si cruza paredes, a cada una se le abre un hueco del ancho del corte
+      const cortes = toque ? [] : paredes.map((e) => { const [p1, p2] = puntas(e.trazo), c = cruce(a, b, p1, p2); return c && { e, c }; }).filter(Boolean);
+      for (const { e, c } of cortes) {
+        const huecos = [...(e.huecos || []), { t: "puerta", c: [+c[0].toFixed(1), +c[1].toFixed(1)], w: +Math.min(g, largoPared(e) * 0.9).toFixed(2) }];
+        e.huecos = huecos; hacer(async () => { await editarElemento(e.id, { huecos }); return `Hueco de ${fmtM(g)} en la pared`; });
+      }
+      if (cortes.length && largoM(a, b) < 3) return redibujar();   // pasar el dedo por una pared: solo el hueco
+      const pts = toque ? figuraNueva({ w: g, h: g }, a[0], a[1]) : banda(a, b, g);
+      return ponerFigura({ tipo: "hoyo", estado: "existe", alto: 1, ...guardable(pts) }, toque ? `Hoyo de ${fmtM(g)}` : `Zanja de ${fmtM(largoM(a, b))} × ${fmtM(g)}`, false);
+    }
+  }
+  // 2D: dibujar con el dedo sobre el plano
+  const capD = V.querySelector("#captura.dibujar");
+  if (!es3d && capD) {
+    const g = (ui.grosor[ui.herr] || 0.3);
+    capD.innerHTML = `<svg class="capa-edicion" viewBox="0 0 ${ANCHO} ${ALTO}" preserveAspectRatio="none"><path class="trazo-${ui.herr}" d="" stroke-width="${Math.max(3, U(g))}"/></svg><div class="tip" hidden></div>`;
+    const path = capD.querySelector("path"), tipD = capD.querySelector(".tip");
+    const pto = (e) => { const r = capD.getBoundingClientRect(); return [((e.clientX - r.left) / r.width) * ANCHO, ((e.clientY - r.top) / r.height) * ALTO]; };
+    let a = null;
+    const ver = (e) => { const [a2, b] = ajustarTrazo(a, pto(e)), r = capD.getBoundingClientRect();
+      path.setAttribute("d", ui.herr === "zona" ? `M${a2[0]} ${a2[1]}H${b[0]}V${b[1]}H${a2[0]}Z` : `M${a2[0]} ${a2[1]}L${b[0]} ${b[1]}`);
+      tipD.hidden = false; tipD.innerHTML = `<b>${textoTrazo(a2, b)}</b>`; tipD.style.left = Math.min(r.width - 90, e.clientX - r.left + 18) + "px"; tipD.style.top = Math.max(0, e.clientY - r.top - 44) + "px"; };
+    capD.addEventListener("pointerdown", (e) => { if (e.button > 0) return; e.preventDefault(); try { capD.setPointerCapture(e.pointerId); } catch (_) {} a = pto(e); ver(e); });
+    capD.addEventListener("pointermove", (e) => { if (a) ver(e); });
+    const fin = (e) => { if (!a) return; const a0 = a; a = null; tipD.hidden = true; path.setAttribute("d", ""); hacerTrazo(a0, pto(e)); };
+    capD.addEventListener("pointerup", fin); capD.addEventListener("pointercancel", () => { a = null; tipD.hidden = true; path.setAttribute("d", ""); });
+  }
+
   // ---- Interacción ----
   const $$ = (s) => V.querySelectorAll(s);
+  $$("[data-herr]").forEach((b) => (b.onclick = () => { ui.herr = b.dataset.herr; ui.elSel = null; ui.areaSel = null; ui.pz = null; ui.borrar = false; ui.hueco = null; ui.agregar = false; redibujar(); }));
+  $$("[data-grosor]").forEach((b) => (b.onclick = () => { ui.grosor[ui.herr] = +b.dataset.grosor; redibujar(); }));
   function cerrarTodo() { ui.agregar = false; ui.hueco = null; ui.mas = false; ui.punta = null; ui.pz = null; ui.sel = null; ui.areaSel = null; ui.moviendo = false; ui.elSel = null; ui.nuevo = null; ui.borrar = false; ui.prestar = null; ui.verPrestamos = false; ui.perdida = null; }
   const cerrar = () => { ui.agregar = false; ui.hueco = null; ui.mas = false; ui.punta = null; ui.pz = null; ui.sel = null; ui.areaSel = null; ui.moviendo = false; ui.elSel = null; ui.nuevo = null; ui.borrar = false; ui.prestar = null; ui.verPrestamos = false; ui.perdida = null; redibujar(); };
   $$("[data-vista]").forEach((b) => (b.onclick = () => { ui.vista = b.dataset.vista; try { localStorage.setItem("sym-vista", ui.vista); } catch (e) {} redibujar(); }));
@@ -693,7 +788,7 @@ export function render(V, { hacer, redibujar }) {
   $$("[data-traer]").forEach((b) => (b.onclick = () => { const id = b.dataset.traer, a = area(ui.areaSel);
     hacer(async () => { await moverTrabajador(id, a.id); return `${primerNombre(trabajador(id).nombre)} → ${a.nombre}`; }); }));
   const he = V.querySelector("#hudEditar");
-  if (he) he.onclick = () => { ui.modo = null; ui.pz = null; ui.editar = !ui.editar; ui.agregar = false; if (!es3d && innerWidth < 700) ui.zoom = ui.editar ? ZOOMS[1] : ZOOMS[0]; ui.nuevo = null; ui.elSel = null; ui.areaSel = null; ui.sel = null; ui.moviendo = false; redibujar(); };
+  if (he) he.onclick = () => { ui.modo = null; ui.pz = null; ui.editar = !ui.editar; ui.agregar = false; ui.herr = "mano"; if (!es3d && innerWidth < 700) ui.zoom = ui.editar ? ZOOMS[1] : ZOOMS[0]; ui.nuevo = null; ui.elSel = null; ui.areaSel = null; ui.sel = null; ui.moviendo = false; redibujar(); };
   $$("[data-hueco]").forEach((b) => (b.onclick = () => { ui.hueco = ui.hueco?.t === b.dataset.hueco ? null : { t: b.dataset.hueco }; redibujar(); }));
   $$("[data-quitar-hueco]").forEach((b) => (b.onclick = () => { const e = S.elementos.find((q) => q.id === ui.elSel), k = +b.dataset.quitarHueco;
     const huecos = (e.huecos || []).filter((_, i) => i !== k); e.huecos = huecos; redibujar();
@@ -735,7 +830,7 @@ export function render(V, { hacer, redibujar }) {
     hacer(async () => { await editarElemento(id, { material }); return `Material: ${MATERIALES[material]}`; }); }));
   const pp = V.querySelector("[data-punta]"); if (pp) pp.onclick = () => { ui.punta = ui.punta ? null : ui.elSel; redibujar(); };
   const ap = V.querySelector("[data-a-pared]"); if (ap) ap.onclick = () => { const w = paredDePieza(ui.pz.grupo); soltarAsa(null, null, w); };
-  $$("[data-el]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); if (ui.punta || ui.hueco) return; elegir(b.dataset.el); }));
+  $$("[data-el]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); if (ui.punta || ui.hueco) return; tocarElemento(b.dataset.el); }));
   $$("[data-estado-area]").forEach((b) => (b.onclick = () => { const a = area(ui.areaSel), est = b.dataset.estadoArea;
     const X0 = (a.x / 100) * ANCHO, Y0 = (a.y / 100) * ALTO, X1 = X0 + (a.w / 100) * ANCHO, Y1 = Y0 + (a.h / 100) * ALTO;
     const dentro = PIEZAS.map((p, i) => [p, i]).filter(([p, i]) => p[0] !== "jardin" && S.piezas[i] !== "quitado" && p[1] >= X0 && p[1] <= X1 && p[2] >= Y0 && p[2] <= Y1).map(([, i]) => i);

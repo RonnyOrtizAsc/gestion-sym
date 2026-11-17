@@ -123,3 +123,10 @@ export function altoPared(e, areas = []) {
   const ar = areas.filter((q) => x >= q.x && x <= +q.x + +q.w && y >= q.y && y <= +q.y + +q.h).sort((p, q) => p.w * p.h - q.w * q.h)[0];
   return ALTO_MURO[ar ? (ar.es_receso ? "receso" : ar.tipo) : ""] || 3;
 }
+
+// ¿El punto está dentro de la figura o a menos de "tol" unidades de su orilla? (para tocar cosas chiquitas)
+export function cercaDe(pts, x, y, tol) {
+  if (dentroDe(pts, x, y)) return true;
+  return pts.some((a, i) => { const b = pts[(i + 1) % pts.length], dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy || 1;
+    const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / L)); return Math.hypot(x - a[0] - t * dx, y - a[1] - t * dy) < tol; });
+}

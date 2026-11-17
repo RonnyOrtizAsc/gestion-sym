@@ -108,6 +108,42 @@ function crear() {
   renderer.domElement.addEventListener("pointerup", soltar, { capture: true });
   renderer.domElement.addEventListener("pointercancel", soltar, { capture: true });
 
+  // Dibujar con el dedo (Construir, Cortar, Zona): un dedo dibuja sobre el piso; la cámara se queda quieta
+  let trazo = null; const planoT = new THREE.Plane(), golpeT = new THREE.Vector3();
+  const prev = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0x9fd400, transparent: true, opacity: 0.75, depthTest: false }));
+  prev.renderOrder = 11; prev.visible = false; scene.add(prev);
+  const enPlanoT = (e) => { const r = renderer.domElement.getBoundingClientRect();
+    p.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(p, camera);
+    return ray.ray.intersectPlane(planoT, golpeT) ? [golpeT.x / ESC + ANCHO / 2, golpeT.z / ESC + ALTO / 2] : null; };
+  const verTrazo = (a, b, e) => {
+    const d = E.dibujo, A = aEscena(...a), B = aEscena(...b), y = trazo.y + 0.15;
+    prev.material.color.set(d.tipo === "cortar" ? 0x7a5230 : 0x9fd400);
+    if (d.tipo === "zona") { prev.scale.set(Math.max(0.2, Math.abs(B.x - A.x)), 0.12, Math.max(0.2, Math.abs(B.z - A.z))); prev.rotation.set(0, 0, 0); prev.position.set((A.x + B.x) / 2, y, (A.z + B.z) / 2); }
+    else { const L = Math.max(0.2, A.distanceTo(B)), g = Math.max(0.15, d.grosor * M);
+      prev.scale.set(L, d.tipo === "cortar" ? 0.12 : Math.min(2.5 * M, 4), g); prev.rotation.set(0, -Math.atan2(B.z - A.z, B.x - A.x), 0); prev.position.set((A.x + B.x) / 2, y + (d.tipo === "cortar" ? 0 : prev.scale.y / 2), (A.z + B.z) / 2); }
+    prev.visible = true;
+    const t = E.handlers?.trazoMueve?.(a, b); if (t?.texto && e) { const r = renderer.domElement.getBoundingClientRect(); tip.innerHTML = `<b>${t.texto}</b>`; tip.hidden = false;
+      tip.style.left = e.clientX - r.left + 16 + "px"; tip.style.top = e.clientY - r.top - 40 + "px"; }
+  };
+  renderer.domElement.addEventListener("pointerdown", (e) => {
+    if (!E.dibujo || e.button > 0 || arrastre || trazo) return;
+    const r = renderer.domElement.getBoundingClientRect();
+    p.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(p, camera);
+    const h = ray.intersectObject(piso)[0]; if (!h) return;
+    e.stopImmediatePropagation(); try { renderer.domElement.setPointerCapture(e.pointerId); } catch (_) {}
+    const a = [h.point.x / ESC + ANCHO / 2, h.point.z / ESC + ALTO / 2];
+    planoT.set(new THREE.Vector3(0, 1, 0), -h.point.y); trazo = { a, b: a, y: h.point.y }; controls.enabled = false; verTrazo(a, a, e);
+  }, { capture: true });
+  renderer.domElement.addEventListener("pointermove", (e) => {
+    if (!trazo) return; e.stopImmediatePropagation();
+    const q = enPlanoT(e); if (!q) return; const t = E.handlers?.trazoMueve?.(trazo.a, q);
+    trazo.b = q; verTrazo(t?.a || trazo.a, t?.b || q, e);
+  }, { capture: true });
+  const finTrazo = (e, vale = true) => { if (!trazo) return; e.stopImmediatePropagation(); const t = trazo; trazo = null; prev.visible = false; tip.hidden = true; controls.enabled = true;
+    if (vale) E.handlers?.trazo?.(t.a, t.b); };
+  renderer.domElement.addEventListener("pointerup", (e) => finTrazo(e), { capture: true });
+  renderer.domElement.addEventListener("pointercancel", (e) => finTrazo(e, false), { capture: true });
+
   let pendiente = null;
   renderer.domElement.addEventListener("pointermove", (e) => {
     if (e.pointerType !== "mouse") return;
@@ -1338,9 +1374,9 @@ function animar() {
 }
 
 // Pone la escena dentro del contenedor y la actualiza con los datos actuales
-export function montar(contenedor, { svg, clave, areas, elementos, piezas, personas, handlers, editar = false, seleccion = null, asas = null }) {
+export function montar(contenedor, { dibujo = null, svg, clave, areas, elementos, piezas, personas, handlers, editar = false, seleccion = null, asas = null }) {
   if (!E) crear();
-  E.handlers = handlers;
+  E.handlers = handlers; E.dibujo = dibujo;
   contenedor.appendChild(E.renderer.domElement); contenedor.appendChild(E.tip); E.tip.hidden = true;
   ajustar();
   E.areasUlt = areas;
