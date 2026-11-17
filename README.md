@@ -8,6 +8,7 @@ App de gestión de la empresa, pensada para usarse desde el celular en la obra.
 - **Recesos**: iniciar receso, tocar a cada persona (naranja = receso, verde = trabajando), resumen y registro del día.
 - **Herramientas**: prestar (persona → herramienta → cantidad), ver quién tiene qué, marcar devuelta o perdida, inventario de bodega.
 - **Más**: planificador de obra, lista de trabajadores con puesto y habilidades, usuarios de la app (solo administrador) y cuenta.
+- **Dashboard**: plan de trabajo del día. Actividades de hoy con su avance contra lo programado, lo que necesita atención (detenidas, atrasadas, sin nadie asignado, personas sin actividad), lo de mañana y cada trabajador con su área y actividad. Se puede agregar el plan a mano o importarlo del Planificador (Google Sheets). Necesita la migración `supabase/migrations/20261117_actividades_del_plan.sql`.
 
 ## Cómo está hecha
 

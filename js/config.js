@@ -6,6 +6,8 @@ export const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdX
 
 // Planificador de obra existente (se integrará como sección más adelante)
 export const PLANIFICADOR_URL = "https://ronnyortizasc.github.io/Planificador-2/";
+// Datos del Planificador en Google Sheets (para importar su plan al Dashboard)
+export const PLANIFICADOR_SHEETS = "https://script.google.com/macros/s/AKfycbxjMSqsRzFsDyKbHjw6mOeq8GgTtvm5DSgd8PMPV5pEb-lF_SCdfhJnASn6IFZsHFjhDg/exec";
 
 // Llave pública para los avisos de receso al celular (la privada vive solo en el servidor)
 export const VAPID_PUBLIC = "BFTUcZXDn-ysmueAFYwXJz8mUo1PCxW4CkaTv9uCQx6_iYV9GcMpNGaJbkAezNMB8BxrnVxPOePLenWFbSh7N4o";

@@ -20,7 +20,9 @@ export const S = {
   elementos: [],      // gradas, jardineras, baños… con su estado
   piezas: {},
   anticipos: [],      // pendientes de descontar + los descontados de los últimos 120 días
-  resumen: [],        // minutos de receso por persona y día (últimos 62 días)         // estado marcado a mano de cada pieza del plano: { idx: estado }
+  resumen: [],        // minutos de receso por persona y día (últimos 62 días)
+  actividades: [],    // plan de obra: actividades con fechas y avance real
+  planListo: false,   // false = la tabla "actividades" todavía no existe en la base (falta aplicar la migración)         // estado marcado a mano de cada pieza del plano: { idx: estado }
 };
 
 const ok = ({ data, error }) => { if (error) throw new Error(traducir(error)); return data; };
@@ -60,6 +62,14 @@ export async function cargarTodo() {
   S.piezas = Object.fromEntries(ok(pz).filter((x) => !S.obra || x.obra_id === S.obra.id).map((x) => [x.idx, x.estado]));
   FOTO.el = new Map(S.elementos.map((e) => [e.id, structuredClone(e)])); FOTO.pz = { ...S.piezas };
   if (S.perfil?.rol === "admin") S.perfiles = ok(await sb.from("perfiles").select("*").order("creado_en"));
+  await cargarPlan();
+}
+
+// El plan se carga aparte: si la tabla todavía no existe, el resto de la app sigue funcionando
+async function cargarPlan() {
+  const { data, error } = await sb.from("actividades").select("*").order("inicio").order("nombre");
+  S.planListo = !error;
+  S.actividades = error ? [] : data.filter((x) => !S.obra || !x.obra_id || x.obra_id === S.obra.id);
 }
 
 // ---------- Consultas sobre el estado ----------
@@ -203,8 +213,64 @@ export async function editarTrabajador(id, cambios) {
 }
 // Actividad que está haciendo un trabajador ahora (texto libre; vacío = sin actividad)
 export async function ponerActividad(wid, texto) {
-  const actividad = (texto || "").trim() || null;
-  ok(await sb.from("trabajadores").update({ actividad, actividad_desde: actividad ? ahora() : null }).eq("id", wid));
+  const actividad = (texto || "").trim() || null, cambios = { actividad, actividad_desde: actividad ? ahora() : null };
+  // Si escribe algo distinto a la actividad del plan que tenía, deja de contar para esa actividad
+  const w = S.trabajadores.find((x) => x.id === wid), del = w?.actividad_id && actividadPlan(w.actividad_id);
+  if (S.planListo && w?.actividad_id && (!del || del.nombre !== actividad)) cambios.actividad_id = null;
+  ok(await sb.from("trabajadores").update(cambios).eq("id", wid));
+}
+
+// ---------- Plan de obra (Dashboard) ----------
+export const actividadPlan = (id) => S.actividades.find((a) => a.id === id) || null;
+export const asignados = (aid) => S.trabajadores.filter((w) => w.actividad_id === aid);
+const sello = () => ({ actualizado_en: ahora(), actualizado_por: yo() });
+
+// datos = { nombre, fase, area_id, inicio, fin, cantidad, unidad, encargado }
+export async function guardarActividad(datos, id = null) {
+  if (id) ok(await sb.from("actividades").update({ ...datos, ...sello() }).eq("id", id));
+  else ok(await sb.from("actividades").insert({ ...datos, obra_id: S.obra?.id || null }));
+}
+export async function borrarActividad(id) {
+  ok(await sb.from("actividades").delete().eq("id", id));
+}
+// Avance: cantidad hecha hasta hoy (o % si no tiene cantidad). Al llegar al total queda terminada.
+export async function ponerAvance(id, hecho) {
+  const a = actividadPlan(id); if (!a) return;
+  const total = a.cantidad ? +a.cantidad : 100, h = Math.max(0, Math.min(total, +hecho || 0));
+  const estado = h >= total ? "terminada" : h > 0 && a.estado === "pendiente" ? "en_proceso" : a.estado === "terminada" ? "en_proceso" : a.estado;
+  ok(await sb.from("actividades").update({ hecho: h, estado, motivo: estado === "detenida" ? a.motivo : null, ...sello() }).eq("id", id));
+  if (estado === "terminada") await soltarAsignados(id);
+}
+// estado = "pendiente" | "en_proceso" | "detenida" | "terminada"; motivo solo para "detenida"
+export async function cambiarEstadoActividad(id, estado, motivo = null) {
+  const a = actividadPlan(id), cambios = { estado, motivo: estado === "detenida" ? motivo : null, ...sello() };
+  if (estado === "terminada" && a) cambios.hecho = a.cantidad || 100;
+  ok(await sb.from("actividades").update(cambios).eq("id", id));
+  if (estado === "terminada") await soltarAsignados(id);
+}
+// Quien estaba en una actividad terminada queda "sin actividad" (para que se le dé la siguiente)
+async function soltarAsignados(aid) {
+  if (!asignados(aid).length) return;
+  ok(await sb.from("trabajadores").update({ actividad_id: null, actividad: null, actividad_desde: null }).eq("actividad_id", aid));
+}
+// Pone a un trabajador en una actividad del plan (o en ninguna con aid = null).
+// También escribe el nombre en "actividad" para que se vea en el plano, y si la actividad
+// tiene área, lo mueve a esa área.
+export async function asignarActividad(wid, aid) {
+  const a = aid ? actividadPlan(aid) : null, w = S.trabajadores.find((x) => x.id === wid);
+  const cambios = { actividad_id: a?.id || null, actividad: a?.nombre || null, actividad_desde: a ? ahora() : null };
+  if (a?.area_id && w?.area_id !== a.area_id) Object.assign(cambios, { area_id: a.area_id, pos_x: null, pos_y: null });
+  ok(await sb.from("trabajadores").update(cambios).eq("id", wid));
+  if (a && a.estado === "pendiente") ok(await sb.from("actividades").update({ estado: "en_proceso", ...sello() }).eq("id", a.id));
+}
+// Importa (o actualiza) actividades del Planificador. Al actualizar no toca el avance ni el estado.
+export async function importarActividades(filas) {
+  const obra_id = S.obra?.id || null, ya = new Map(S.actividades.filter((a) => a.origen).map((a) => [a.origen, a]));
+  const nuevas = filas.filter((f) => !ya.has(f.origen)).map((f) => ({ ...f, obra_id }));
+  if (nuevas.length) ok(await sb.from("actividades").insert(nuevas));
+  const cambiadas = filas.filter((f) => ya.has(f.origen));
+  for (const f of cambiadas) ok(await sb.from("actividades").update({ ...f, ...sello() }).eq("id", ya.get(f.origen).id));
+  return { nuevas: nuevas.length, actualizadas: cambiadas.length };
 }
 
 export const area = (id) => S.areas.find((a) => a.id === id) || null;
