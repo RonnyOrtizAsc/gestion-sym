@@ -2,7 +2,7 @@
 // Responde de un vistazo: qué toca hoy, cómo va cada actividad contra lo programado,
 // quién está en qué (y en qué área), qué necesita atención y qué viene mañana.
 import { S, area, trabajador, recesoAbierto, esAlmuerzo, actividadPlan, asignados,
-  guardarActividad, borrarActividad, ponerAvance, cambiarEstadoActividad, asignarActividad, importarActividades } from "../datos.js";
+  guardarActividad, borrarActividad, ponerAvance, cambiarEstadoActividad, asignarActividad, importarActividades, ponerActividad } from "../datos.js";
 import { ESTADO_ACT, MOTIVOS, hoyISO, siguienteDia, avance, esperado, vencida, atrasada, tocaHoy, tocaEl, prioridad,
   fechaCorta, fechaLarga, textoAvance, fechaPlanificador, finPorDias } from "../plan.js";
 import { PLANIFICADOR_SHEETS } from "../config.js";
@@ -12,7 +12,7 @@ import { esc, primerNombre } from "../util.js";
 
 const UNIDADES = ["m²", "ml", "m³", "unidades", "kg", "qq", "bolsas"];
 // abierta = { id, modo: "avance" | "detener" | "editar" }; form = valores del formulario mientras se escribe
-const ui = { abierta: null, form: null, motivo: "", necesita: "", hecho: "", verPlan: false, borrar: null, imp: null };
+const ui = { escribir: null, texto: "", abierta: null, form: null, motivo: "", necesita: "", hecho: "", verPlan: false, borrar: null, imp: null };
 
 const PILL = { pendiente: "", en_proceso: "ok", detenida: "lost", terminada: "ok" };
 const pill = (a) => `<span class="pill ${PILL[a.estado]}">${a.estado === "terminada" ? "✓ " : ""}${ESTADO_ACT[a.estado]}</span>`;
@@ -141,12 +141,16 @@ function seccionTrabajadores(deHoy, hoy) {
   const orden = [...areasObra(), ...S.areas.filter((x) => x.es_receso)].map((x) => x.id).filter((id) => grupos.has(id));
   orden.push(...[...grupos.keys()].filter((k) => k.startsWith("@")).sort());
   if (grupos.has("")) orden.push("");
+  // actividades escritas a mano que ya está usando alguien (para elegirlas con un toque)
+  const libres = [...new Set(S.trabajadores.filter((x) => x.actividad && !x.actividad_id).map((x) => x.actividad.trim()))].sort();
   const opciones = (w) => {
     const libre = w.actividad && !w.actividad_id, otra = w.actividad_id && !deHoy.some((a) => a.id === w.actividad_id) ? actividadPlan(w.actividad_id) : null;
     return `<option value="">— Sin actividad —</option>
       ${libre ? `<option value="__libre" selected>✎ ${esc(w.actividad)} (fuera del plan)</option>` : ""}
       ${otra ? `<option value="${otra.id}" selected>${esc(otra.nombre)} (no toca hoy)</option>` : ""}
-      ${deHoy.filter((a) => a.estado !== "detenida" || a.id === w.actividad_id).map((a) => `<option value="${a.id}" ${a.id === w.actividad_id ? "selected" : ""}>${esc(a.nombre)}${area(a.area_id) ? " · " + esc(area(a.area_id).nombre) : ""}</option>`).join("")}`;
+      ${deHoy.filter((a) => a.estado !== "detenida" || a.id === w.actividad_id).map((a) => `<option value="${a.id}" ${a.id === w.actividad_id ? "selected" : ""}>${esc(a.nombre)}${area(a.area_id) ? " · " + esc(area(a.area_id).nombre) : ""}</option>`).join("")}
+      ${libres.filter((t) => t !== w.actividad).map((t) => `<option value="txt:${esc(t)}">✎ ${esc(t)}</option>`).join("")}
+      <option value="__nueva">✎ Escribir otra actividad…</option>`;
   };
   return `<div class="section" id="dash-gente"><p class="eyebrow">Trabajadores · área y actividad</p>
     ${S.trabajadores.length ? `<div class="list">${orden.map((k) => `<div class="person-h">${k.startsWith("@") ? esc(k.slice(1)) : k ? esc(nombreArea(area(k))) : "Sin lugar en el plano"}<span class="num" style="margin-left:auto">${grupos.get(k).length}</span></div>
@@ -154,7 +158,9 @@ function seccionTrabajadores(deHoy, hoy) {
         return `<div class="li dash-w ${sin ? "sin" : ""}"><span class="avatar chico">${cara(w)}</span>
           <div class="grow"><b>${esc(w.nombre)}</b><small>${r ? (esAlmuerzo(r) ? "Almorzando" : "En receso") : sin ? "Sin actividad" : esc(w.puesto || "")}</small></div>
           ${S.planListo ? `<select class="dash-sel" data-asignar="${w.id}" aria-label="Actividad de ${esc(w.nombre)}">${opciones(w)}</select>`
-            : `<span class="note" style="margin:0">${esc(w.actividad || "—")}</span>`}</div>`; }).join("")}`).join("")}</div>`
+            : `<span class="note" style="margin:0">${esc(w.actividad || "—")}</span>`}</div>
+          ${ui.escribir === w.id ? `<form class="li dash-escribir" data-escribir="${w.id}"><input id="txtAct" value="${esc(ui.texto)}" placeholder="¿Qué está haciendo ${esc(primerNombre(w.nombre))}? Ej. Cortando piso" maxlength="80" autocomplete="off">
+            <button class="btn primary">Guardar</button><button type="button" class="btn" data-no-escribir>Cancelar</button></form>` : ""}`; }).join("")}`).join("")}</div>`
       : `<div class="list"><div class="empty">Todavía no hay trabajadores. Agrégalos en “Más”.</div></div>`}
     ${S.planListo ? `<p class="note">Al elegir una actividad que tiene área, la persona se mueve a esa área en el plano.</p>` : ""}</div>`;
 }
@@ -269,8 +275,17 @@ function conectar(V, { hacer, redibujar }) {
 
   // Asignar trabajador a una actividad
   $$("[data-asignar]").forEach((s) => (s.onchange = () => { const wid = s.dataset.asignar, v = s.value; if (v === "__libre") return;
+    if (v === "__nueva") { ui.escribir = wid; ui.texto = ""; redibujar(); V.querySelector("#txtAct")?.focus(); return; }
+    if (v.startsWith("txt:")) { const t = v.slice(4), n = primerNombre(trabajador(wid).nombre); return hacer(async () => { await ponerActividad(wid, t); return `${n}: ${t}`; }); }
     const n = primerNombre(trabajador(wid).nombre), a = v ? actividadPlan(v) : null;
     hacer(async () => { await asignarActividad(wid, v || null); return a ? `${n} → ${a.nombre}` : `${n} sin actividad`; }); }));
+
+  // Escribir una actividad a mano
+  const fe = V.querySelector("[data-escribir]");
+  if (fe) { const inp = fe.querySelector("#txtAct"); inp.oninput = () => (ui.texto = inp.value);
+    fe.onsubmit = (e) => { e.preventDefault(); const wid = fe.dataset.escribir, t = inp.value.trim(), n = primerNombre(trabajador(wid).nombre); if (!t) return;
+      ui.escribir = null; ui.texto = ""; hacer(async () => { await ponerActividad(wid, t); return `${n}: ${t}`; }); };
+    fe.querySelector("[data-no-escribir]").onclick = () => { ui.escribir = null; ui.texto = ""; redibujar(); }; }
 
   // Importar del Planificador
   $$("[data-importar]").forEach((b) => (b.onclick = async () => {

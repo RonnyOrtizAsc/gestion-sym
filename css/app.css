@@ -507,3 +507,5 @@ nav.tabs .in{grid-template-columns:repeat(6,1fr)}
 .captura .trazo-lapiz{stroke:#7fb800;stroke-opacity:.85}
 .captura .trazo-cortar{stroke:#7a5230;stroke-opacity:.75;stroke-dasharray:none}
 .captura .trazo-zona{stroke:#7fb800;stroke-width:3!important;fill:#c4ee4a!important;fill-opacity:.25}
+.dash-escribir{background:var(--work-soft)}
+.dash-escribir input{flex:1 1 200px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:11px;font:inherit;min-width:0}
