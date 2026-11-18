@@ -680,7 +680,7 @@ export function render(V, { hacer, redibujar }) {
     hacer(async () => { await editarArea(a.id, cambios); return `${nombreArea(a)}: ${medidasArea(a)}`; });
   }
   function ponerArea(datos, aviso) {
-    const tmp = { id: "tmp" + Date.now(), nombre: "", tipo: "patio", estado: "existe", ...datos }; S.areas.push(tmp);
+    const tmp = { id: "tmp" + Date.now(), nombre: "", tipo: "patio", estado: "existe", orden: 50, ...datos }; S.areas.push(tmp);
     ui.areaSel = tmp.id; ui.elSel = null; ui.pz = null; ui.agregar = false; redibujar();
     return hacer(async () => { const n = await agregarArea(datos), era = tmp.id; Object.assign(tmp, n); if (ui.areaSel === era) ui.areaSel = n.id; return aviso; });
   }

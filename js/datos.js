@@ -314,7 +314,7 @@ export async function estadoArea(id, estado) {
   ok(await sb.from("areas").update({ estado }).eq("id", id));
 }
 // Áreas: se agregan, se estiran, se dividen y se borran desde "Editar plano". El nombre puede quedar vacío.
-export const agregarArea = (a) => arInsertar({ tipo: "patio", estado: "existe", nombre: "", ...a, obra_id: S.obra.id, orden: 50 });
+export const agregarArea = (a) => arInsertar({ tipo: "patio", estado: "existe", nombre: "", ...a, obra_id: S.obra.id, orden: 50 });   // 50 = zona agregada (ver ORDEN_ZONA en figuras.js)
 export const editarArea = (id, cambios) => arCambiar(id, cambios);
 // Al borrar un área, la gente que estaba ahí se queda en el mismo lugar del plano (sin área)
 export async function borrarArea(id) {

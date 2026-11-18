@@ -113,6 +113,10 @@ export function dentroDe(pts, x, y) {
   return dentro;
 }
 
+// Zonas agregadas desde la app (herramienta Zona o Dividir): sirven para ubicar gente; no cambian el piso
+// ni la altura de las paredes en 3D. Se marcan con orden = 50 (las del plano original usan otros números).
+export const ORDEN_ZONA = 50;
+export const esZona = (a) => +a.orden === ORDEN_ZONA;
 // Alto de las paredes según el tipo de área (metros) — lo usa también la maqueta 3D
 export const ALTO_MURO = { sala: 6.45, taller: 6, oficinas: 3.72, servicio: 3.72, lavado: 4.51, receso: 4.74 };
 // Alto que tiene ahora una pared dibujada: el que se le puso, o el automático según el área donde está
@@ -120,7 +124,7 @@ export function altoPared(e, areas = []) {
   if (+e.alto > 0) return +e.alto;
   if (e.material === "lamina") return 6;
   const [a, b] = puntas(e.trazo), x = ((a[0] + b[0]) / 2 / ANCHO) * 100, y = ((a[1] + b[1]) / 2 / ALTO) * 100;
-  const ar = areas.filter((q) => x >= q.x && x <= +q.x + +q.w && y >= q.y && y <= +q.y + +q.h).sort((p, q) => p.w * p.h - q.w * q.h)[0];
+  const ar = areas.filter((q) => !esZona(q) && x >= q.x && x <= +q.x + +q.w && y >= q.y && y <= +q.y + +q.h).sort((p, q) => p.w * p.h - q.w * q.h)[0];
   return ALTO_MURO[ar ? (ar.es_receso ? "receso" : ar.tipo) : ""] || 3;
 }
 

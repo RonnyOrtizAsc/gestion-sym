@@ -2,7 +2,7 @@
 // y cada trabajador como un muñequito con casco que camina a su área (o a la bodega en el receso).
 import * as THREE from "three";
 import { MapControls } from "three/addons/controls/MapControls.js";
-import { esquinas, centro as centroFig, altoDe, ALTO_MURO } from "./figuras.js";
+import { esquinas, centro as centroFig, altoDe, ALTO_MURO, esZona } from "./figuras.js";
 import { medidasArea, ANCHO, ALTO, PIEZAS, CAJAS, estadoPieza, piezaEn, grupoDe, segmentos, puntas, gruesoPared, tramosPared, CHICAS, RAMPAS, rampaDe } from "./mapa-svg.js";
 
 const ESC = 0.1;                                   // unidades del plano → metros de la escena
@@ -262,7 +262,7 @@ function losaRampa(r, mat, alza = 0.04) {
 }
 // Prepara la función de altura del terreno: cada área a su nivel; las rampas suben de un nivel al otro
 function prepararNiveles(areas, piezas = {}) {
-  const planas = areas.filter((a) => !esRampa(a)).map((a) => ({ a, c: caja(a), n: nivelFijo(a) }));
+  const planas = areas.filter((a) => !esRampa(a) && !esZona(a)).map((a) => ({ a, c: caja(a), n: nivelFijo(a) }));   // las zonas agregadas no cambian el piso
   const fuera = (x, y) => x < 0.06 * ANCHO || y > 0.955 * ALTO;   // calle y acera
   const plano = (x, y) => {
     if (fuera(x, y)) return CALLE;
@@ -331,7 +331,7 @@ function ponerTerreno() {
 // oficinas 3.72 (sección B-B), lavado 4.51 con techo al 8% (sección B-B). Taller: estructura propia (ver estructuraTaller).
 // ALTO_MURO (metros por tipo de área) viene de figuras.js; receso = ARRIBA × EXAGERA (la bodega llega al nivel de arriba)
 function tipoEn(areas, x, y) {
-  const a = areas.filter((a) => { const c = caja(a); return x >= c.x0 && x <= c.x1 && y >= c.y0 && y <= c.y1; }).sort((p, q) => p.w * p.h - q.w * q.h)[0];
+  const a = areas.filter((a) => { const c = caja(a); return !esZona(a) && x >= c.x0 && x <= c.x1 && y >= c.y0 && y <= c.y1; }).sort((p, q) => p.w * p.h - q.w * q.h)[0];
   return a ? (a.es_receso ? "receso" : a.tipo) : null;
 }
 function polilineas(d) {
@@ -1212,6 +1212,7 @@ function ponerEdificios(areas, elementos = [], piezas = {}) {
   const eRampa = estadoRampa(RAMPA_CHERY, piezas);
   if (eRampa === "falta" || eRampa === "en_proceso") E.edificios.add(losaRampa(RAMPA_CHERY, MAT[eRampa].clone()));
   for (const a of areas) {
+    if (esZona(a)) continue;   // zona para ubicar gente: no lleva edificio ni techo
     const c = caja(a), base = E.altura((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2) * M;
     if (a.es_receso) { E.edificios.add(bodega(a, base)); continue; }
     if (/^taller$/i.test(a.nombre || "")) { E.edificios.add(estructuraTaller(base)); continue; }
