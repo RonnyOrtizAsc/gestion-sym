@@ -61,7 +61,7 @@ export async function cargarTodo() {
   S.elementos = ok(el).filter((x) => !S.obra || x.obra_id === S.obra.id);
   S.resumen = ok(rs); S.anticipos = ok(an);
   S.piezas = Object.fromEntries(ok(pz).filter((x) => !S.obra || x.obra_id === S.obra.id).map((x) => [x.idx, x.estado]));
-  FOTO.el = new Map(S.elementos.map((e) => [e.id, structuredClone(e)])); FOTO.pz = { ...S.piezas };
+  FOTO.el = new Map(S.elementos.map((e) => [e.id, structuredClone(e)])); FOTO.pz = { ...S.piezas }; FOTO.ar = new Map(S.areas.map((a) => [a.id, structuredClone(a)]));
   if (S.perfil?.rol === "admin") S.perfiles = ok(await sb.from("perfiles").select("*").order("creado_en"));
   await cargarPlan();
 }
@@ -314,72 +314,98 @@ export async function estadoArea(id, estado) {
   ok(await sb.from("areas").update({ estado }).eq("id", id));
 }
 // Áreas: se agregan, se estiran, se dividen y se borran desde "Editar plano". El nombre puede quedar vacío.
-export async function agregarArea(a) {
-  return ok(await sb.from("areas").insert({ tipo: "patio", estado: "existe", nombre: "", ...a, obra_id: S.obra.id, orden: 50 }).select().single());
-}
-export async function editarArea(id, cambios) {
-  ok(await sb.from("areas").update(cambios).eq("id", id));
-}
+export const agregarArea = (a) => arInsertar({ tipo: "patio", estado: "existe", nombre: "", ...a, obra_id: S.obra.id, orden: 50 });
+export const editarArea = (id, cambios) => arCambiar(id, cambios);
 // Al borrar un área, la gente que estaba ahí se queda en el mismo lugar del plano (sin área)
 export async function borrarArea(id) {
   ok(await sb.from("trabajadores").update({ area_id: null }).eq("area_id", id));
   ok(await sb.from("areas").delete().eq("id", id));
 }
 // Marcar piezas del plano (una o muchas a la vez)
-// ---------- Deshacer (plano) ----------
-// FOTO = cómo está guardado (no lo que se ve, que a veces se cambia antes de guardar). Cada cambio del plano guarda
-// cómo deshacerse; lo que se hace en una sola acción (p. ej. una pared que se une con otras) se deshace junto.
-const FOTO = { el: new Map(), pz: {} };
-const PILA = [];   // [{ grupo, deshacer }]
-let grupoActual = 0;
+// ---------- Deshacer y rehacer (plano) ----------
+// FOTO = cómo está guardado (no lo que se ve, que a veces se cambia antes de guardar). Cada cambio del plano anota
+// cómo regresarse; lo que se hace en una sola acción (p. ej. una pared que se une con otras) se deshace junto.
+// Deshacer corre esas notas; cada una, al correr, anota a su vez cómo volver a hacerse (eso es "rehacer").
+const FOTO = { el: new Map(), pz: {}, ar: new Map() };
+const PILA = [], REHACER = [];   // [{ grupo, fn }]
+let grupoActual = 0, destino = null, grupoForzado = null;
 export const nuevoGrupo = () => ++grupoActual;
 export const puedeDeshacer = () => PILA.length > 0;
-const anotar = (deshacer) => { PILA.push({ grupo: grupoActual, deshacer }); if (PILA.length > 60) PILA.shift(); };
-export async function deshacer() {
-  if (!PILA.length) return false;
-  const g = PILA[PILA.length - 1].grupo;
-  while (PILA.length && PILA[PILA.length - 1].grupo === g) await PILA.pop().deshacer();
+export const puedeRehacer = () => REHACER.length > 0;
+const anotar = (fn) => {
+  const pila = destino || PILA; pila.push({ grupo: grupoForzado ?? grupoActual, fn }); if (pila.length > 60) pila.shift();
+  if (!destino) REHACER.length = 0;   // un cambio nuevo borra lo que se podía rehacer
+};
+async function correr(desde, hacia) {
+  if (!desde.length) return false;
+  const g = desde[desde.length - 1].grupo; destino = hacia; grupoForzado = g;
+  try { while (desde.length && desde[desde.length - 1].grupo === g) await desde.pop().fn(); }
+  finally { destino = null; grupoForzado = null; }
   return true;
 }
-const filaPieza = (idx, estado) => ({ obra_id: S.obra.id, idx, estado, actualizado_en: ahora(), actualizado_por: yo() });
-async function guardarPiezas(indices, estado) {
-  const filas = indices.map((idx) => filaPieza(idx, estado));
-  for (let i = 0; i < filas.length; i += 500) ok(await sb.from("piezas").upsert(filas.slice(i, i + 500), { onConflict: "obra_id,idx" }));
-  for (const i of indices) FOTO.pz[i] = estado;
-}
-// Marcar piezas del plano (una o muchas a la vez)
-export async function estadoPiezas(indices, estado) {
-  if (!indices.length) return;
-  const antes = indices.map((i) => [i, FOTO.pz[i] ?? null]);
-  await guardarPiezas(indices, estado);
-  anotar(async () => {
-    const porEstado = {}; for (const [i, e] of antes) (porEstado[e] ||= []).push(i);
-    for (const [e, lista] of Object.entries(porEstado)) {
-      if (e === "null") { ok(await sb.from("piezas").delete().eq("obra_id", S.obra.id).in("idx", lista)); lista.forEach((i) => { delete FOTO.pz[i]; delete S.piezas[i]; }); }
-      else { await guardarPiezas(lista, e); lista.forEach((i) => (S.piezas[i] = e)); }
-    }
-  });
-}
-export async function agregarElemento(e) {
-  const n = ok(await sb.from("elementos").insert({ ...e, obra_id: S.obra.id, actualizado_por: yo() }).select().single());
+export const deshacer = () => correr(PILA, REHACER);
+export const rehacer = () => correr(REHACER, PILA);
+const quitarDeS = (lista, id) => lista.filter((q) => q.id !== id);
+
+// Elementos (paredes, figuras)
+async function elInsertar(fila, enS = false) {
+  const n = ok(await sb.from("elementos").insert(fila).select().single());
   FOTO.el.set(n.id, structuredClone(n));
-  anotar(async () => { ok(await sb.from("elementos").delete().eq("id", n.id)); FOTO.el.delete(n.id); S.elementos = S.elementos.filter((q) => q.id !== n.id); });
+  if (enS && !S.elementos.some((q) => q.id === n.id)) S.elementos.push(structuredClone(n));
+  anotar(() => elBorrar(n.id, true));
   return n;
 }
-export async function editarElemento(id, cambios) {
+async function elBorrar(id, enS = false) {
+  const viejo = FOTO.el.get(id);
+  ok(await sb.from("elementos").delete().eq("id", id));
+  FOTO.el.delete(id); if (enS) S.elementos = quitarDeS(S.elementos, id);
+  if (viejo) anotar(() => elInsertar(viejo, true));
+}
+async function elCambiar(id, cambios, enS = false) {
   const viejo = FOTO.el.get(id), antes = viejo ? Object.fromEntries(Object.keys(cambios).map((k) => [k, viejo[k] ?? null])) : null;
   ok(await sb.from("elementos").update({ ...cambios, actualizado_en: ahora(), actualizado_por: yo() }).eq("id", id));
   if (viejo) Object.assign(viejo, structuredClone(cambios));
-  if (antes) anotar(async () => {
-    ok(await sb.from("elementos").update({ ...antes, actualizado_en: ahora(), actualizado_por: yo() }).eq("id", id));
-    Object.assign(FOTO.el.get(id) || {}, antes); const e = S.elementos.find((q) => q.id === id); if (e) Object.assign(e, antes);
+  if (enS) { const e = S.elementos.find((q) => q.id === id); if (e) Object.assign(e, structuredClone(cambios)); }
+  if (antes) anotar(() => elCambiar(id, antes, true));
+}
+export const agregarElemento = (e) => elInsertar({ ...e, obra_id: S.obra.id, actualizado_por: yo() });
+export const editarElemento = (id, cambios) => elCambiar(id, cambios);
+export const borrarElemento = (id) => elBorrar(id);
+
+// Piezas del plano (estado null = como venía en el plano)
+const filaPieza = (idx, estado) => ({ obra_id: S.obra.id, idx, estado, actualizado_en: ahora(), actualizado_por: yo() });
+async function piezasPoner(indices, estado) {
+  if (!indices.length) return;
+  const antes = indices.map((i) => [i, FOTO.pz[i] ?? null]);
+  if (estado === null) { ok(await sb.from("piezas").delete().eq("obra_id", S.obra.id).in("idx", indices)); indices.forEach((i) => { delete FOTO.pz[i]; delete S.piezas[i]; }); }
+  else {
+    const filas = indices.map((idx) => filaPieza(idx, estado));
+    for (let i = 0; i < filas.length; i += 500) ok(await sb.from("piezas").upsert(filas.slice(i, i + 500), { onConflict: "obra_id,idx" }));
+    indices.forEach((i) => { FOTO.pz[i] = estado; S.piezas[i] = estado; });
+  }
+  anotar(async () => {
+    const porEstado = new Map(); for (const [i, e] of antes) (porEstado.get(e) || porEstado.set(e, []).get(e)).push(i);
+    for (const [e, lista] of porEstado) await piezasPoner(lista, e);
   });
 }
-export async function borrarElemento(id) {
-  const viejo = FOTO.el.get(id);
-  ok(await sb.from("elementos").delete().eq("id", id));
-  FOTO.el.delete(id);
-  if (viejo) anotar(async () => { const n = ok(await sb.from("elementos").insert(viejo).select().single()); FOTO.el.set(n.id, structuredClone(n)); S.elementos.push(n); });
+// Marcar piezas del plano (una o muchas a la vez)
+export const estadoPiezas = (indices, estado) => piezasPoner(indices, estado);
+
+// Áreas (zonas): agregar y cambiar también se deshacen
+async function arInsertar(fila, enS = false) {
+  const n = ok(await sb.from("areas").insert(fila).select().single());
+  FOTO.ar.set(n.id, structuredClone(n));
+  if (enS && !S.areas.some((q) => q.id === n.id)) S.areas.push(structuredClone(n));
+  anotar(async () => { ok(await sb.from("areas").delete().eq("id", n.id)); FOTO.ar.delete(n.id); S.areas = quitarDeS(S.areas, n.id);
+    anotar(() => arInsertar(n, true)); });
+  return n;
+}
+async function arCambiar(id, cambios, enS = false) {
+  const viejo = FOTO.ar.get(id), antes = viejo ? Object.fromEntries(Object.keys(cambios).map((k) => [k, viejo[k] ?? null])) : null;
+  ok(await sb.from("areas").update(cambios).eq("id", id));
+  if (viejo) Object.assign(viejo, structuredClone(cambios));
+  if (enS) { const a = S.areas.find((q) => q.id === id); if (a) Object.assign(a, structuredClone(cambios)); }
+  if (antes) anotar(() => arCambiar(id, antes, true));
 }
 
 export async function editarPerfil(id, cambios) {

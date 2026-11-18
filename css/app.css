@@ -508,3 +508,5 @@ nav.tabs a{font-size:11px;min-width:0;white-space:nowrap}
 .dash-escribir{background:var(--work-soft)}
 .dash-escribir input{flex:1 1 200px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:11px;font:inherit;min-width:0}
 .plan-dia{margin-top:28px;padding-top:18px;border-top:2px solid var(--line)}
+.asa.inicio{pointer-events:none;animation:latido 1s ease-in-out infinite}
+@keyframes latido{50%{transform:scale(1.35)}}

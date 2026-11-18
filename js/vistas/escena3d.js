@@ -86,7 +86,7 @@ function crear() {
     p.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(p, camera);
     return ray.ray.intersectPlane(plano, golpeP) ? [golpeP.x / ESC + ANCHO / 2, golpeP.z / ESC + ALTO / 2] : null; };
   renderer.domElement.addEventListener("pointerdown", (e) => {
-    if (!asas.children.length) return;
+    if (!asas.children.length || E.dibujo) return;   // dibujando, las bolitas solo marcan (no se arrastran)
     const r = renderer.domElement.getBoundingClientRect();
     p.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(p, camera);
     const h = ray.intersectObjects(asas.children.filter((o) => o.userData.asa !== undefined))[0]; if (!h) return;
