@@ -6,10 +6,9 @@ import * as recesos from "./vistas/recesos.js";
 import * as herramientas from "./vistas/herramientas.js";
 import * as mas from "./vistas/mas.js";
 import * as anticipos from "./vistas/anticipos.js";
-import * as dashboard from "./vistas/dashboard.js";
 
 const V = document.getElementById("view");
-const VISTAS = { obra, recesos, herramientas, anticipos, mas, dashboard };
+const VISTAS = { obra, recesos, herramientas, anticipos, mas };
 const caminando = new Set();
 let canal = null, ocupado = false;
 

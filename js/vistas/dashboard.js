@@ -1,4 +1,4 @@
-// Vista "Dashboard": el plan de trabajo del día para el supervisor.
+// Plan del día (va abajo en la pestaña Obra): el plan de trabajo del día para el supervisor.
 // Responde de un vistazo: qué toca hoy, cómo va cada actividad contra lo programado,
 // quién está en qué (y en qué área), qué necesita atención y qué viene mañana.
 import { S, area, trabajador, recesoAbierto, esAlmuerzo, actividadPlan, asignados,
@@ -21,7 +21,7 @@ const areasObra = () => S.areas.filter((x) => !x.es_receso);
 
 export function render(V, ctx) {
   const hoy = hoyISO(), manana = siguienteDia(hoy);
-  if (!S.planListo) return V.innerHTML = `<p class="eyebrow">${esc(fechaLarga(hoy))}</p><h2>Dashboard</h2>
+  if (!S.planListo) return V.innerHTML = `<p class="eyebrow">${esc(fechaLarga(hoy))}</p><h2>Plan del día</h2>
     <div class="step"><h3>Falta activar el plan de trabajo</h3><p class="note" style="margin:0">La base de datos todavía no tiene la tabla de actividades.
     Hay que aplicar una vez el cambio <b>supabase/migrations/20261117_actividades_del_plan.sql</b> y luego recargar.</p></div>
     ${seccionTrabajadores([], hoy)}`, conectar(V, ctx);
@@ -46,7 +46,7 @@ export function render(V, ctx) {
   }
   alertas.sort((x, y) => (x[1] === "lost" ? 0 : 1) - (y[1] === "lost" ? 0 : 1));
 
-  V.innerHTML = `<p class="eyebrow">${esc(fechaLarga(hoy))}${S.obra ? " · " + esc(S.obra.nombre) : ""}</p><h2>Dashboard</h2>
+  V.innerHTML = `<p class="eyebrow">${esc(fechaLarga(hoy))}</p><h2>Plan del día</h2>
   <div class="stats">
     <div class="stat"><b>${deHoy.length}</b><span>actividades hoy</span></div>
     <div class="stat w"><b>${enPlan.length}<small class="de">/${S.trabajadores.length}</small></b><span>en el plan de hoy</span></div>

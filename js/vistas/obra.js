@@ -8,6 +8,7 @@ import { S, recesoAbierto, enReceso, recesoTurno, turnoDe, turnoActual, limiteRe
   ponerActividad, prestarRapido, cerrarPrestamo, disponibles, METROS_POR_UNIDAD, usarComoBodega, estadoPiezas, deshacer, puedeDeshacer } from "../datos.js";
 import { esc, iniciales, primerNombre, ms, hhmm } from "../util.js";
 import { lugarEn, lugarDe, nombreArea, areaEn } from "./lugares.js";
+import * as planDia from "./dashboard.js";
 import { miniatura, tarjeta, avatares, cara } from "./fotos.js";
 import { FICHAS, esquinas, agarraderas, moverFigura, girar, correr, guardable, figuraNueva, medidasFigura, medidaCorta, altoDe, dentroDe, centro, U, altoPared, moverRect, rectPct, cercaDe } from "./figuras.js";
 import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, CAJAS, grupoDe, queEs, pegar, ANCHO, ALTO, MATERIALES, puntas, pared, largoPared, gruesoPared, enderezar, distPared, enLinea, sobrePared, ANCHO_HUECO, CHICAS, rampaDe, piezaEn, medidasPieza, medidasArea, medidasElemento } from "./mapa-svg.js";
@@ -365,6 +366,7 @@ export function render(V, { hacer, redibujar }) {
   ${sinArea.length ? `<div class="bandeja"><p class="eyebrow">Sin lugar en el plano (${sinArea.length})</p><div class="chips">${sinArea.map(chipPersona).join("")}</div>
     ${receso ? "" : `<p class="note">Toca a alguien y luego “Mover de área”, o toca un área del mapa para asignar gente.</p>`}</div>` : ""}
   ${!zr && descansando.length ? `<div class="bandeja rest"><p class="eyebrow">En receso</p><div class="chips">${descansando.map(chipPersona).join("")}</div></div>` : ""}
+  ${ui.editar ? "" : `<section class="plan-dia" id="planDia" aria-label="Plan del día"></section>`}
   ${ui.editar && ui.pz ? `<div class="hoja" role="dialog" aria-label="Pieza del plano">${hojaPieza()}</div>`
     : ui.prestar ? `<div class="hoja" role="dialog" aria-label="Prestar">${hojaPrestar()}</div>`
     : ui.verPrestamos ? `<div class="hoja" role="dialog" aria-label="Préstamos">${hojaPrestamos()}</div>`
@@ -890,4 +892,6 @@ export function render(V, { hacer, redibujar }) {
   const hal = V.querySelector("#hudAlmuerzo"); if (hal) hal.onclick = () => modoPausa("almuerzo");
   const rw = V.querySelector("[data-receso-w]"); if (rw) rw.onclick = () => { const id = ui.sel;
     hacer(async () => { const sale = await cambiarReceso(id, recesoAbierto(id)?.tipo || "receso"); return `${primerNombre(trabajador(id).nombre)} ${sale ? "se fue a receso" : "regresó a trabajar"}`; }); };
+  // Plan del día (antes era la pestaña Dashboard): va abajo de todo lo de la obra
+  const pd = V.querySelector("#planDia"); if (pd) planDia.render(pd, { hacer, redibujar });
 }

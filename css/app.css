@@ -433,8 +433,6 @@ nav.tabs a[data-tab="anticipos"][aria-current="page"]{background:var(--sym-verde
 nav.tabs a{font-size:11px;min-width:0;white-space:nowrap}
 
 /* ---------- Dashboard: plan de trabajo del día ---------- */
-nav.tabs .in{grid-template-columns:repeat(6,1fr)}
-@media (max-width:420px){nav.tabs a{font-size:10px;letter-spacing:-.01em}nav.tabs svg{width:20px;height:20px}}
 .stat b .de{font-size:13px;color:var(--muted);font-weight:600}
 .dash-alerta{width:100%;border:0;background:none;text-align:left;text-decoration:none;color:inherit;font:inherit}
 .dash-atencion .list{border-color:color-mix(in srgb,var(--lost) 40%,var(--line))}
@@ -509,3 +507,4 @@ nav.tabs .in{grid-template-columns:repeat(6,1fr)}
 .captura .trazo-zona{stroke:#7fb800;stroke-width:3!important;fill:#c4ee4a!important;fill-opacity:.25}
 .dash-escribir{background:var(--work-soft)}
 .dash-escribir input{flex:1 1 200px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:11px;font:inherit;min-width:0}
+.plan-dia{margin-top:28px;padding-top:18px;border-top:2px solid var(--line)}
