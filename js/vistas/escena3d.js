@@ -393,6 +393,15 @@ function ponerParedes(areas, piezas) {
       lista[est].push([mx, my, L * ESC + 0.35, 0.38, Math.atan2(y1 - y0, x1 - x0), E.altura(mx, my) * M, alto]);
     }
   });
+  // el plano dibuja cada pared con dos rayas (sus dos caras): en 3D va UNA sola pared, no dos o tres pegadas
+  for (const est of Object.keys(lista)) {
+    const ok = [];
+    for (const it of lista[est]) {
+      const gemela = ok.find((o) => Math.abs(Math.sin(o[4] - it[4])) < 0.05 && Math.abs(o[2] - it[2]) < 3 * ESC && Math.hypot(o[0] - it[0], o[1] - it[1]) < 3.2);
+      if (!gemela) ok.push(it);
+    }
+    lista[est] = ok;
+  }
   ponerLamina(piezas, lista);
   const geo = new THREE.BoxGeometry(1, 1, 1), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), eje = new THREE.Vector3(0, 1, 0);
   for (const [est, items] of Object.entries(lista)) {
@@ -749,7 +758,7 @@ function techoElemento(e) {
 
 // ---------- Figuras agregadas (se pueden deformar): bloque, columna, gradas, hoyo, montón de tierra, techo ----------
 const COL_FIG = { grada: 0x8a8f96, jardinera: 0x5f9a45, bano: 0x4f9fd0, muro: 0x3b4046, puerta: 0x6c5a3d, columna: 0x8d8a80, bodega: 0xee8420, otro: 0x7d6bb3,
-  losa: 0xa5a196, monticulo: 0xb98d4f, techo: 0xb9c0c6 };
+  losa: 0xa5a196, monticulo: 0xb98d4f, techo: 0xb9c0c6, inodoro: 0xf4f4f2, lavamanos: 0xe6e4df, mueble: 0x8a6a45 };
 const MAT_TIERRA = new THREE.MeshLambertMaterial({ color: 0x7a5636, side: THREE.DoubleSide });
 const MAT_FONDO = new THREE.MeshLambertMaterial({ color: 0x5a3e27 });
 const MAT_MASCARA = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, stencilWrite: true, stencilRef: 1,
@@ -790,6 +799,7 @@ function figura3d(e) {
     const gm = new THREE.BufferGeometry(); gm.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); gm.computeVertexNormals();
     mat.side = THREE.DoubleSide; const m = new THREE.Mesh(gm, mat); m.castShadow = !falta; m.receiveShadow = true; g.add(m); return g;
   }
+  if (e.tipo === "inodoro" || e.tipo === "lavamanos" || e.tipo === "mueble") { g.add(mueble3d(e, pts, base, alto, mat)); return g; }
   if (e.tipo === "techo") {   // lámina a la altura del techo, con vigas en las orillas
     const y = base + alto, viga = falta ? MAT.falta : proceso ? MAT.en_proceso : new THREE.MeshStandardMaterial({ color: 0x8b949b, metalness: 0.4, roughness: 0.5 });
     g.userData.techo = true;
@@ -803,6 +813,33 @@ function figura3d(e) {
   geo.rotateX(-Math.PI / 2);
   const m = new THREE.Mesh(geo, mat); m.position.y = base; m.castShadow = !falta; m.receiveShadow = true; g.add(m);
   return g;
+}
+
+// Muebles: se arman en los ejes de la figura (lado 0→1 = ancho, lado 0→3 = fondo, la espalda va en el lado 0→1)
+function mueble3d(e, pts, base, alto, mat) {
+  const g = new THREE.Group(), a = aEscena(...pts[0]), b = aEscena(...pts[1]), d = aEscena(...pts[3]);
+  const W = a.distanceTo(b), D = a.distanceTo(d), ang = -Math.atan2(b.z - a.z, b.x - a.x);
+  const c = new THREE.Vector3((b.x + d.x) / 2, base, (b.z + d.z) / 2);
+  const caja = (w, h, dd, x, y, z, m = mat) => { const o = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.02, w), Math.max(0.02, h), Math.max(0.02, dd)), m); o.position.set(x, y, z); o.castShadow = o.receiveShadow = true; g.add(o); return o; };
+  const oscuro = new THREE.MeshStandardMaterial({ color: 0x9aa3ab, roughness: 0.3, metalness: 0.4, transparent: mat.transparent, opacity: mat.opacity });
+  // z local: 0 = espalda (lado 0→1), D = frente
+  if (e.tipo === "inodoro") {
+    caja(W, alto, D * 0.25, 0, alto / 2, -D / 2 + D * 0.125);                                   // tanque
+    const taza = new THREE.Mesh(new THREE.CylinderGeometry(W * 0.45, W * 0.38, alto * 0.5, 16), mat);
+    taza.scale.z = (D * 0.75) / (W * 0.9); taza.position.set(0, alto * 0.25, D * 0.12); taza.castShadow = true; g.add(taza);
+    caja(W * 0.85, 0.03 * M, D * 0.7, 0, alto * 0.52, D * 0.12, oscuro);                          // tapa
+  } else if (e.tipo === "lavamanos") {
+    caja(W, 0.05 * M, D, 0, alto, 0);                                                              // mesón
+    caja(W, alto - 0.05 * M, D * 0.15, 0, (alto - 0.05 * M) / 2, -D / 2 + D * 0.075);             // faldón contra la pared
+    const n = Math.max(1, Math.round((W / M) / 0.7));                                              // un lavamanos cada 70 cm
+    for (let k = 0; k < n; k++) { const x = -W / 2 + (W * (k + 0.5)) / n;
+      caja(Math.min(0.45 * M, (W / n) * 0.7), 0.06 * M, D * 0.55, x, alto + 0.03 * M, D * 0.05, oscuro);
+      caja(0.04 * M, 0.25 * M, 0.04 * M, x, alto + 0.15 * M, -D / 2 + D * 0.12, oscuro); }       // chorro
+  } else {
+    caja(W, 0.05 * M, D, 0, alto, 0);                                                              // tablero
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) caja(0.05 * M, alto, 0.05 * M, sx * (W / 2 - 0.05 * M), alto / 2, sz * (D / 2 - 0.05 * M));
+  }
+  g.position.copy(c); g.rotation.y = ang; return g;
 }
 
 // ---------- Taller: estructura de acero gris perla (como en obra) ----------
@@ -889,7 +926,7 @@ function filaNorteTaller(base, H) {
   caja(925, 3, 1336, 6, 0, H, lam);
   // pared sur de la fila (de x 1144 a 1336) con huecos: [desde, hasta] en x, tipo
   const ALTO = 3.0, yS = 61, pared = (x0, x1) => { if (x1 - x0 < 0.5) return; caja(x0, yS - 1, x1, yS + 1, 0, 1.2, naranja); caja(x0, yS - 1, x1, yS + 1, 1.2, ALTO, blanco); };
-  const huecos = [[1171, 1219, "puerta"], [1300, 1316, "puerta"]], ventanas = [[1150, 1166, 1.3, 1.0], [1262, 1276, 2.0, 0.5]];
+  const huecos = [[1186, 1204, "puerta"], [1300, 1316, "puerta"]], ventanas = [[1150, 1166, 1.3, 1.0], [1262, 1276, 2.0, 0.5]];
   if (editable("Fila norte")) pared(1144, 1336);   // puertas y ventanas: de la cara guardada (se editan en la app)
   else { let x = 1144; for (const [a, b] of huecos) { pared(x, a); caja(a, yS - 1, b, yS + 1, 2.4, ALTO, blanco); x = b; } pared(x, 1336);
     for (const [a, b, desde, alto] of ventanas) caja(a, yS - 1.4, b, yS + 1.4, desde, desde + alto, oscuro); }
@@ -897,7 +934,6 @@ function filaNorteTaller(base, H) {
   for (const xd of [1143.5, 1251.5]) { caja(xd - 1, 6, xd + 1, yS, 0, 1.2, naranja); caja(xd - 1, 6, xd + 1, yS, 1.2, ALTO, blanco); }
   // baños: cubículos (Model.pdf) y el mueble del lavamanos frente a la puerta
   for (const xc of [1282, 1303]) caja(xc - 0.6, 6, xc + 0.6, 26, 0, 2.1, blanco);
-  caja(1262, 52, 1310, 59, 0, 0.85, new THREE.MeshStandardMaterial({ color: 0xd9d6cf, roughness: 0.4 }));
   // lockers: dos filas de casilleros y una banca al centro
   const metal = new THREE.MeshStandardMaterial({ color: 0x9aa3ab, metalness: 0.5, roughness: 0.45 });
   caja(1146, 7, 1198, 13, 0, 1.9, metal); caja(1146, 52, 1198, 58, 0, 1.9, metal); caja(1150, 31, 1185, 35, 0, 0.45, new THREE.MeshStandardMaterial({ color: 0x8a6a45, roughness: 0.8 }));

@@ -309,7 +309,7 @@ export async function borrarAnticipo(id) {
 export const ESTADOS = { existe: "Hecho", en_proceso: "En construcción", falta: "Falta" };
 export const NOMBRE_ESTADO = { ...ESTADOS, quitado: "No va" };   // "quitado" = pieza del plano que no va (no se dibuja ni se levanta)
 export const TIPOS_ELEMENTO = { grada: "Gradas", jardinera: "Jardinera", bano: "Baño", muro: "Pared", puerta: "Puerta", columna: "Columna", bodega: "Bodega", techo: "Techo", otro: "Otro",
-  hoyo: "Hoyo / zanja", monticulo: "Montón de tierra", losa: "Bloque / losa" };
+  hoyo: "Hoyo / zanja", monticulo: "Montón de tierra", losa: "Bloque / losa", inodoro: "Inodoro", lavamanos: "Lavamanos", mueble: "Mueble / mesa" };
 export async function estadoArea(id, estado) {
   ok(await sb.from("areas").update({ estado }).eq("id", id));
 }

@@ -17,6 +17,9 @@ export const FICHAS = [
   { tipo: "jardinera", nombre: "Jardinera", icono: "✿", w: 2.5, h: 0.6 },
   { tipo: "monticulo", nombre: "Montón de tierra", icono: "▲", w: 2, h: 2, alto: 1 },
   { tipo: "techo", nombre: "Techo", icono: "⌂", w: 4, h: 4 },
+  { tipo: "inodoro", nombre: "Inodoro", icono: "🚽", w: 0.45, h: 0.7 },
+  { tipo: "lavamanos", nombre: "Lavamanos", icono: "🚰", w: 1.2, h: 0.5 },
+  { tipo: "mueble", nombre: "Mueble / mesa", icono: "▭", w: 1.5, h: 0.6 },
   { tipo: "area", nombre: "Área / zona", icono: "⬚", w: 6, h: 6 },
 ];
 // Áreas: siempre rectángulos derechos. Esquina = la opuesta queda fija; lado = se corre ese lado; centro = mover.
@@ -32,10 +35,11 @@ export function rectPct(pts) {
   return { x: +((x0 / ANCHO) * 100).toFixed(2), y: +((y0 / ALTO) * 100).toFixed(2), w: +Math.max(0.3, ((Math.max(...xs) - x0) / ANCHO) * 100).toFixed(2), h: +Math.max(0.3, ((Math.max(...ys) - y0) / ALTO) * 100).toFixed(2) };
 }
 // Alto (m) cuando no se ha cambiado. Hoyo: profundidad. Los demás: desde el piso.
-export const ALTO_DEF = { grada: 1.2, jardinera: 0.7, bano: 1.7, puerta: 1.7, columna: 3.4, bodega: 2.2, otro: 1.1, losa: 0.3, hoyo: 1, monticulo: 1, techo: 3.5 };
+export const ALTO_DEF = { grada: 1.2, jardinera: 0.7, bano: 1.7, puerta: 1.7, columna: 3.4, bodega: 2.2, otro: 1.1, losa: 0.3, hoyo: 1, monticulo: 1, techo: 3.5, inodoro: 0.78, lavamanos: 0.85, mueble: 0.9 };
 export const altoDe = (e) => (+e.alto > 0 ? +e.alto : ALTO_DEF[e.tipo] ?? 1.1);
 export const NOMBRE_TIPO = { grada: "Gradas", jardinera: "Jardinera", bano: "Baño", muro: "Pared", puerta: "Puerta", columna: "Columna", bodega: "Bodega",
-  techo: "Techo", otro: "Otro", hoyo: "Hoyo / zanja", monticulo: "Montón de tierra", losa: "Bloque / losa" };
+  techo: "Techo", otro: "Otro", hoyo: "Hoyo / zanja", monticulo: "Montón de tierra", losa: "Bloque / losa",
+  inodoro: "Inodoro", lavamanos: "Lavamanos", mueble: "Mueble / mesa" };
 
 // Esquinas de un elemento (en unidades): las guardadas, o las del rectángulo de siempre
 export function esquinas(e) {
