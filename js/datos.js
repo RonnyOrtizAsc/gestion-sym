@@ -314,6 +314,12 @@ export async function estadoArea(id, estado) {
   ok(await sb.from("areas").update({ estado }).eq("id", id));
 }
 // Áreas: se agregan, se estiran, se dividen y se borran desde "Editar plano". El nombre puede quedar vacío.
+// Colores de lo dibujado en 3D (estantes, columnas, casetas…): { clave: "#rrggbb" } en la obra. color null = el original.
+export async function guardarColor(clave, color) {
+  const colores = { ...(S.obra.colores || {}) }; if (color) colores[clave] = color; else delete colores[clave];
+  S.obra.colores = colores;
+  ok(await sb.from("obras").update({ colores }).eq("id", S.obra.id));
+}
 export const agregarArea = (a) => arInsertar({ tipo: "patio", estado: "existe", nombre: "", ...a, obra_id: S.obra.id, orden: 50 });   // 50 = zona agregada (ver ORDEN_ZONA en figuras.js)
 export const editarArea = (id, cambios) => arCambiar(id, cambios);
 // Al borrar un área, la gente que estaba ahí se queda en el mismo lugar del plano (sin área)

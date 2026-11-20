@@ -61,8 +61,8 @@ export const ANCHO_HUECO = { puerta: 0.9, ventana: 1.5 };
 // Tramos de la pared a lo largo (en unidades del mapa desde la punta a): sólidos y huecos
 export function tramosPared(e) {
   const [a, b] = puntas(e.trazo), L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, u = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
-  const huecos = (e.huecos || []).map((h) => { const s = (h.c[0] - a[0]) * u[0] + (h.c[1] - a[1]) * u[1], m = h.w / M / 2;
-    return { t: h.t, s0: Math.max(0, s - m), s1: Math.min(L, s + m), d: h.d, h: h.h }; }).filter((h) => h.s1 - h.s0 > 1).sort((p, q) => p.s0 - q.s0);
+  const huecos = (e.huecos || []).map((h, k) => { const s = (h.c[0] - a[0]) * u[0] + (h.c[1] - a[1]) * u[1], m = h.w / M / 2;
+    return { t: h.t, s0: Math.max(0, s - m), s1: Math.min(L, s + m), d: h.d, h: h.h, k }; })   // k: posición en e.huecos.filter((h) => h.s1 - h.s0 > 1).sort((p, q) => p.s0 - q.s0);
   const solidos = []; let ini = 0;
   for (const h of huecos) { if (h.s0 > ini) solidos.push([ini, h.s0]); ini = Math.max(ini, h.s1); }
   if (ini < L) solidos.push([ini, L]);

@@ -179,9 +179,12 @@ function crear() {
       ray.setFromCamera(p, camera);   // primero: una pared o figura agregada (la que se ve primero)
       const vis = (o) => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
       const hit = ray.intersectObjects(edificios.children, true).find((h) => !h.object.isSprite && vis(h.object) && !h.object.userData.mascara);
-      let o = hit?.object; while (o && !o.userData.elemento) o = o.parent;
-      if (o && E.handlers?.elemento?.(o.userData.elemento)) { tip.hidden = true; return; }
+      let o = hit?.object, hk = null; while (o && !o.userData.elemento) { if (o.userData.hueco != null && hk == null) hk = o.userData.hueco; o = o.parent; }
+      if (o && E.handlers?.elemento?.(o.userData.elemento, hk)) { tip.hidden = true; return; }
       const q = puntoBajo(e.clientX, e.clientY);
+      // cualquier otra cosa que se ve (estante, columna, caseta, techo…): se elige para pintarla
+      const mat = hit && !hit.object.isInstancedMesh && [].concat(hit.object.material)[0];
+      if (mat?.userData?.clave && !mat.userData.sinColor && E.handlers?.parte?.({ clave: mat.userData.clave, nombre: mat.userData.nombre, color: "#" + mat.color.getHexString(), original: mat.userData.color0 }, q)) { tip.hidden = true; return; }
       if (q && E.handlers?.pared?.(q[0], q[1])) { tip.hidden = true; return; }
       const i = piezaBajo(e.clientX, e.clientY); if (i >= 0) { tip.hidden = true; return E.handlers?.pieza?.(i); }
     }
@@ -783,6 +786,7 @@ const ALTO_TALLER = 6, SUBE_CENTRO = 1.6;   // metros: aleros de los techos y cu
 function estructuraTaller(base) {
   const g = new THREE.Group();
   const perla = new THREE.MeshStandardMaterial({ color: 0xe0b022, metalness: 0.3, roughness: 0.55 });   // columnas y vigas amarillas (foto)
+  perla.userData = { clave: "estructura-taller", nombre: "Columnas y vigas del taller" };
   const lamina = new THREE.MeshStandardMaterial({ color: 0xb4babf, metalness: 0.45, roughness: 0.5, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false });
   const y = base + ALTO_TALLER * M, z0 = aEscena(0, TALLER.y0 + 5).z, z1 = aEscena(0, TALLER.y1 - 5).z, largo = z1 - z0, zc = (z0 + z1) / 2;
   const X = (x) => aEscena(x, 0).x;
@@ -840,6 +844,8 @@ function filaNorteTaller(base, H) {
   const lam = new THREE.MeshStandardMaterial({ color: 0x8f969c, metalness: 0.45, roughness: 0.55 });
   const blanco = new THREE.MeshStandardMaterial({ color: 0xf1efe9, roughness: 0.85 }), naranja = new THREE.MeshStandardMaterial({ color: 0xe8792a, roughness: 0.8 });
   const oscuro = new THREE.MeshStandardMaterial({ color: 0x24282c, roughness: 0.4 }), azul = new THREE.MeshStandardMaterial({ color: 0x2f6fc2, metalness: 0.3, roughness: 0.5 });
+  azul.userData = { clave: "estanteria-repuestos", nombre: "Estantería de repuestos" };
+  lam.userData = { clave: "lamina-taller", nombre: "Lámina de las paredes del taller" };
   // paredes perimetrales
   // oeste: del supervisor (y 177) para abajo. Entre la esquina (y 66) y el supervisor estaba el portón (G-06, ya quitado):
   // queda abierto hasta que se instale la cortina metálica tipo Sarti (AR-09). Arriba del hueco sigue la lámina.
@@ -1198,8 +1204,8 @@ function paredDibujada(e, areas) {
     for (const h of tramosPared(e).huecos) {
       const puerta = h.t === "puerta", d = h.d ?? (puerta ? 0 : 1), alto = h.h ?? (puerta ? 2.1 : 1), L2 = (h.s1 - h.s0) * ESC, x = ((h.s0 + h.s1) / 2 - L / 2) * ESC;
       for (const lado of [-1, 1]) {
-        const fr = new THREE.Mesh(new THREE.BoxGeometry(L2 + 0.12, alto * M + 0.12, 0.06), marco); fr.position.set(x, (d + alto / 2) * M, lado * 0.09); g.add(fr);
-        const p = new THREE.Mesh(new THREE.BoxGeometry(L2, alto * M, 0.06), puerta ? hoja : vidrio); p.position.set(x, (d + alto / 2) * M, lado * 0.13); g.add(p);
+        const fr = new THREE.Mesh(new THREE.BoxGeometry(L2 + 0.12, alto * M + 0.12, 0.06), marco); fr.position.set(x, (d + alto / 2) * M, lado * 0.09); fr.userData.hueco = h.k; g.add(fr);
+        const p = new THREE.Mesh(new THREE.BoxGeometry(L2, alto * M, 0.06), puerta ? hoja : vidrio); p.position.set(x, (d + alto / 2) * M, lado * 0.13); p.userData.hueco = h.k; g.add(p);
       }
     }
     const p = aEscena(mx, my); g.position.set(p.x, base, p.z); g.rotation.y = -Math.atan2(b[1] - a[1], b[0] - a[0]);
@@ -1274,6 +1280,7 @@ function ponerEdificios(areas, elementos = [], piezas = {}) {
     t.position.set(p.x, yc + 2, p.z); const c = new THREE.Mesh(new THREE.SphereGeometry(3.2 + (i % 3) * 0.5, 10, 8), copa);
     c.position.set(p.x, yc + 6, p.z); c.castShadow = true; t.castShadow = true; E.edificios.add(t, c);
   }
+  prepararColores();
 }
 
 // Dos esferas verdes en las puntas de la pared elegida y una línea entre ellas
@@ -1407,13 +1414,14 @@ function animar() {
 }
 
 // Pone la escena dentro del contenedor y la actualiza con los datos actuales
-export function montar(contenedor, { dibujo = null, svg, clave, areas, elementos, piezas, personas, handlers, editar = false, seleccion = null, asas = null }) {
+export function montar(contenedor, { dibujo = null, colores = null, svg, clave, areas, elementos, piezas, personas, handlers, editar = false, seleccion = null, asas = null }) {
   if (!E) crear();
-  E.handlers = handlers; E.dibujo = dibujo;
+  E.handlers = handlers; E.dibujo = dibujo; E.colores = colores || {};
   contenedor.appendChild(E.renderer.domElement); contenedor.appendChild(E.tip); E.tip.hidden = true;
   ajustar();
   E.areasUlt = areas;
-  if (E.clave !== clave) { E.clave = clave; E.hovKey = E.selKey = "-"; prepararNiveles(areas, piezas); ponerTerreno(); ponerPiso(svg); ponerEdificios(areas, elementos, piezas); }
+  if (E.clave !== clave) { E.clave = clave; E.hovKey = E.selKey = "-"; prepararNiveles(areas, piezas); ponerTerreno(); ponerPiso(svg); ponerEdificios(areas, elementos, piezas); E.coloresUlt = JSON.stringify(E.colores); }
+  else if (E.coloresUlt !== JSON.stringify(E.colores)) { E.coloresUlt = JSON.stringify(E.colores); prepararColores(); }   // solo cambió un color
   // Editando: sin techos (para ver las paredes) y con la pieza elegida resaltada
   E.editar = editar; E.gente.visible = !editar; E.renderer.domElement.style.cursor = "";
   E.edificios.traverse((o) => { if (o.userData.techo) o.visible = !editar; });   // también techos dentro de grupos (casita del comedor)
@@ -1437,3 +1445,33 @@ export function centroVista() {
   if (!E) return [ANCHO / 2, ALTO / 2];
   const t = E.controls.target; return [t.x / ESC + ANCHO / 2, t.z / ESC + ALTO / 2];
 }
+
+// ---------- Colores: todo lo que se ve se puede elegir y pintar desde la app ----------
+// Cada material tiene una clave estable: la que le puso el código (p. ej. "estructura-taller"), o el grupo / área donde
+// está + su color original. Los colores elegidos se guardan en la obra (obras.colores = { clave: "#rrggbb" }).
+const NOMBRE_COLOR = { "#e0b022": "amarillo", "#2f6fc2": "azul", "#b8352b": "rojo", "#c8202a": "rojo", "#b1281f": "rojo", "#e0662e": "naranja", "#e8792a": "naranja", "#eeeeea": "blanco", "#f1efe9": "blanco", "#d9a821": "amarillo", "#e8b81f": "amarillo" };
+function prepararColores() {
+  const col = E.colores || {};
+  for (const m of Object.values(MAT)) if (m?.userData) m.userData.sinColor = true;   // paredes del plano: van por estado (falta / en proceso / hecho)
+  E.edificios.traverse((o) => {
+    if (!o.isMesh || o.isInstancedMesh) return;
+    for (const m of [].concat(o.material)) {
+      if (!m?.color || m.colorWrite === false || m.userData.sinColor) continue;
+      if (!m.userData.color0) m.userData.color0 = "#" + m.color.getHexString();
+      if (!m.userData.clave) {
+        let g = o; while (g && !g.userData.grupo && !g.userData.elemento) g = g.parent;
+        if (g?.userData.elemento) { m.userData.sinColor = true; continue; }   // lo agregado en la app se edita como elemento
+        let gr = g?.userData.grupo;
+        if (!gr) {   // sin grupo: el área donde está
+          const c = new THREE.Box3().setFromObject(o).getCenter(new THREE.Vector3()), x = c.x / ESC + ANCHO / 2, y = c.z / ESC + ALTO / 2;
+          const a = (E.areas || []).filter((q) => { const k = caja(q); return x >= k.x0 && x <= k.x1 && y >= k.y0 && y <= k.y1; }).sort((p, q) => p.w * p.h - q.w * q.h)[0];
+          gr = { clave: a ? "area-" + a.id : "afuera", nombre: a ? (a.nombre || "Zona") : "Afuera" };
+        }
+        m.userData.clave = `${gr.clave}:${m.userData.color0}`;
+        m.userData.nombre = `${gr.nombre} · ${NOMBRE_COLOR[m.userData.color0] ? "lo " + NOMBRE_COLOR[m.userData.color0] : "pieza " + m.userData.color0}`;
+      }
+      m.color.set(col[m.userData.clave] || m.userData.color0);
+    }
+  });
+}
+export function pintar(colores) { if (!E) return; E.colores = colores || {}; prepararColores(); }

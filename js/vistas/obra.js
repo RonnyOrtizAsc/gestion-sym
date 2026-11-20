@@ -5,7 +5,7 @@
 import { S, recesoAbierto, enReceso, recesoTurno, turnoDe, turnoActual, limiteReceso, esAlmuerzo, almuerzoHoy, LIMITE_ALMUERZO, prestamosActivos, cambiarReceso, terminarReceso,
   trabajador, herramienta, area, enArea, moverTrabajador,
   ESTADOS, NOMBRE_ESTADO, TIPOS_ELEMENTO, estadoArea, agregarArea, editarArea, borrarArea, agregarElemento, editarElemento, borrarElemento,
-  ponerActividad, prestarRapido, cerrarPrestamo, disponibles, METROS_POR_UNIDAD, usarComoBodega, estadoPiezas, deshacer, puedeDeshacer, rehacer, puedeRehacer } from "../datos.js";
+  ponerActividad, prestarRapido, cerrarPrestamo, disponibles, METROS_POR_UNIDAD, usarComoBodega, estadoPiezas, deshacer, puedeDeshacer, rehacer, puedeRehacer, guardarColor } from "../datos.js";
 import { esc, iniciales, primerNombre, ms, hhmm } from "../util.js";
 import { lugarEn, lugarDe, nombreArea, areaEn } from "./lugares.js";
 import * as planDia from "./dashboard.js";
@@ -187,14 +187,27 @@ function hojaPared(e) {
     ${ui.mas ? `<p class="note" style="margin:10px 0 6px">Material</p>${chipsMaterial(e.material, "data-mat")}
     <form class="addrow" id="nomEl"><input id="elNombre" value="${esc(e.nombre || "")}" placeholder="Nombre (opcional)" aria-label="Nombre de la pared"><button class="btn">Guardar nombre</button></form>` : ""}`;
 }
+// Paleta para pintar lo que se ve en 3D
+const COLORES = [["#cfd0cc", "Gris perla"], ["#f2f2ef", "Blanco"], ["#ece3cf", "Crema"], ["#4a4f55", "Gris grafito"], ["#1f2226", "Negro"], ["#e0b022", "Amarillo"],
+  ["#e0662e", "Naranja"], ["#b8352b", "Rojo"], ["#2f6fc2", "Azul"], ["#5f9a45", "Verde"], ["#8a6a45", "Café"]];
+function hojaParte(pt) {
+  const actual = (S.obra?.colores || {})[pt.clave] || pt.original;
+  return `<div class="hoja-h"><div class="grow"><b>${esc(pt.nombre || "Pieza")}</b><small>Toca un color para pintarlo</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
+    <div class="colores">${COLORES.map(([c, n]) => `<button class="color" data-color="${c}" aria-pressed="${actual === c}" title="${n}"><i style="background:${c}"></i>${n}</button>`).join("")}</div>
+    <div class="acts" style="margin-top:10px">${(S.obra?.colores || {})[pt.clave] ? `<button class="btn small" data-color-original>Volver al color original</button>` : ""}
+      ${pt.cara ? `<button class="btn small" data-abrir-cara="${pt.cara}">Puertas y ventanas de esta pared</button>` : ""}</div>`;
+}
 // Cara de una caseta existente: aquí solo se quitan, ponen o cambian sus puertas y ventanas (la caseta se queda como está)
 function hojaCara(e) {
   const [edif, cara] = (e.nombre || "Caseta · cara").split(" · ");
   return `<div class="hoja-h"><div class="grow"><b>${esc(edif)}</b><small>${ui.hueco ? `Toca en la pared dónde va la ${ui.hueco.t}` : esc(cara || "")}</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
-    <p class="note" style="margin:0 0 8px">Toca una puerta o ventana de la lista para quitarla. Para ponerla en otro lado: quítala y agrégala donde va.</p>
+    <p class="note" style="margin:0 0 8px">Toca una puerta o ventana (aquí o en el 3D) para cambiarla o quitarla. Para moverla: quítala y ponla donde va.</p>
     <div class="juego">${jbtn('data-hueco="puerta"', "◫", "Poner puerta", ui.hueco?.t === "puerta" ? "on" : "")}${jbtn('data-hueco="ventana"', "▭", "Poner ventana", ui.hueco?.t === "ventana" ? "on" : "")}</div>
-    ${(e.huecos || []).length ? `<div class="chips" style="margin-top:10px">${e.huecos.map((h, k) => `<button class="chip" data-quitar-hueco="${k}" aria-label="Quitar ${h.t}">${h.t === "puerta" ? "Puerta" : "Ventana"} ${fmtM(h.w)}${h.d > 2 ? " (arriba)" : ""} ✕</button>`).join("")}</div>`
-      : `<p class="note">Esta cara no tiene puertas ni ventanas.</p>`}`;
+    ${(e.huecos || []).length ? `<div class="chips" style="margin-top:10px">${e.huecos.map((h, k) => `<button class="chip" data-hueco-sel="${k}" aria-pressed="${ui.huecoSel === k}">${h.t === "puerta" ? "Puerta" : "Ventana"} ${fmtM(h.w)}${h.d > 2 ? " (arriba)" : ""}</button>`).join("")}</div>`
+      : `<p class="note">Esta cara no tiene puertas ni ventanas.</p>`}
+    ${ui.huecoSel != null && e.huecos?.[ui.huecoSel] ? (() => { const h = e.huecos[ui.huecoSel]; return `<div class="juego" style="margin-top:10px">
+      ${jbtn("data-hueco-ancho=\"1\"", "⟷", "Más ancha")}${jbtn("data-hueco-ancho=\"-1\"", "→←", "Más angosta")}
+      ${jbtn("data-hueco-tipo", h.t === "puerta" ? "▭" : "◫", h.t === "puerta" ? "Hacerla ventana" : "Hacerla puerta")}${jbtn(`data-quitar-hueco="${ui.huecoSel}"`, "✕", "Quitar", "borrar")}</div>`; })() : ""}`;
 }
 // Cualquier otra cosa (hoyo, columna, bloque, gradas…): se deforma con los puntos y se ajusta con botones
 function hojaElemento(e) {
@@ -387,6 +400,7 @@ export function render(V, { hacer, redibujar }) {
     : ui.verPrestamos ? `<div class="hoja" role="dialog" aria-label="Préstamos">${hojaPrestamos()}</div>`
     : ui.nuevo ? `<div class="hoja" role="dialog" aria-label="Agregar">${hojaNuevo()}</div>`
     : ui.editar && ui.agregar ? `<div class="hoja" role="dialog" aria-label="Agregar">${hojaAgregar()}</div>`
+    : ui.editar && ui.parte ? `<div class="hoja" role="dialog" aria-label="Pintar">${hojaParte(ui.parte)}</div>`
     : ui.editar && elSel ? `<div class="hoja" role="dialog" aria-label="Elemento">${hojaElemento(elSel)}</div>`
     : ui.editar && aSel ? `<div class="hoja" role="dialog" aria-label="Área">${hojaEditarArea(aSel)}</div>`
     : (w && !ui.moviendo) || (aSel && !ui.moviendo) ? `<div class="hoja" role="dialog" aria-label="Detalle">${w ? hojaTrabajador(w) : hojaArea(aSel)}</div>` : ""}`;
@@ -466,10 +480,14 @@ export function render(V, { hacer, redibujar }) {
     import("./escena3d.js").then((m) => {
       const cont = V.querySelector("#escena"); if (!cont) return;
       cont.querySelector(".cargando")?.remove();
-      m.montar(cont, { dibujo: ui.editar && DIBUJA.has(ui.herr) ? { tipo: ui.herr, grosor: ui.grosor[ui.herr] || 0.3 } : null, svg: dibujo.svg, clave: dibujo.clave, areas: S.areas, elementos: S.elementos, piezas: S.piezas, personas, editar: ui.editar && !ui.nuevo && !ui.punta && !ui.hueco, seleccion: ui.pz?.grupo, asas: specAsas(asasActuales()) || (ui.inicio ? [ui.inicio, ui.inicio] : null), handlers: {
+      m.montar(cont, { colores: S.obra?.colores || {}, dibujo: ui.editar && DIBUJA.has(ui.herr) ? { tipo: ui.herr, grosor: ui.grosor[ui.herr] || 0.3 } : null, svg: dibujo.svg, clave: dibujo.clave, areas: S.areas, elementos: S.elementos, piezas: S.piezas, personas, editar: ui.editar && !ui.nuevo && !ui.punta && !ui.hueco, seleccion: ui.pz?.grupo, asas: specAsas(asasActuales()) || (ui.inicio ? [ui.inicio, ui.inicio] : null), handlers: {
         asaMueve: (idx, x, y) => { const A = asasActuales(); return A ? moverAsa(A, idx, x, y) : null; },
         asaSuelta: (idx, x, y) => { const A = asasActuales(); if (!A) return; const m = moverAsa(A, idx, x, y); soltarAsa(A, A.f ? m.pts : m.ab); },
-        elemento: (id) => { if (!ui.editar || ui.hueco || ui.punta || !S.elementos.some((q) => q.id === id)) return false; tocarElemento(id); return true; },
+        elemento: (id, hk) => { if (!ui.editar || ui.hueco || ui.punta || !S.elementos.some((q) => q.id === id)) return false; ui.parte = null; tocarElemento(id);
+          if (hk != null && ui.elSel === id) { ui.huecoSel = hk; redibujar(); } return true; },
+        parte: (pt, q) => { if (!ui.editar || ui.hueco || ui.punta || DIBUJA.has(ui.herr)) return false;
+          const cara = q && S.elementos.find((e) => e.material === "caseta" && distPared(q[0], q[1], e) < 10);   // pared de caseta cercana: sus puertas y ventanas
+          ui.parte = { ...pt, cara: cara?.id || null }; ui.elSel = null; ui.areaSel = null; ui.pz = null; ui.huecoSel = null; redibujar(); return true; },
         trazoMueve: (a, q) => { const [a2, b] = ajustarTrazo(a, q); return { a: a2, b, texto: textoTrazo(a2, b) }; },
         trazo: (a, b) => hacerTrazo(a, b),
         persona: tocarPersona, pieza: tocarPieza, textoPieza,
@@ -679,7 +697,7 @@ export function render(V, { hacer, redibujar }) {
       h.addEventListener("pointerup", fin); h.addEventListener("pointercancel", fin);
     });
   }
-  function elegir(id) { ui.mas = false; ui.elSel = id; ui.pz = null; ui.areaSel = null; ui.borrar = false; ui.agregar = false; ui.hueco = null; redibujar(); }
+  function elegir(id) { ui.parte = null; if (ui.elSel !== id) ui.huecoSel = null; ui.mas = false; ui.elSel = id; ui.pz = null; ui.areaSel = null; ui.borrar = false; ui.agregar = false; ui.hueco = null; redibujar(); }
   // Guarda las esquinas nuevas de una figura (se ve al instante; se guarda atrás)
   function guardarFigura(e, pts, extra = {}) {
     const cambios = { ...guardable(pts), ...extra }; Object.assign(e, cambios); redibujar();
@@ -789,10 +807,25 @@ export function render(V, { hacer, redibujar }) {
 
   // ---- Interacción ----
   const $$ = (s) => V.querySelectorAll(s);
+  // Pintar lo elegido en 3D
+  $$("[data-color]").forEach((b) => (b.onclick = () => { const pt = ui.parte; if (!pt) return; const c = b.dataset.color;
+    S.obra.colores = { ...(S.obra.colores || {}), [pt.clave]: c }; redibujar();
+    hacer(async () => { await guardarColor(pt.clave, c); return `${pt.nombre}: ${b.title}`; }); }));
+  $$("[data-color-original]").forEach((b) => (b.onclick = () => { const pt = ui.parte; if (!pt) return; const col = { ...(S.obra.colores || {}) }; delete col[pt.clave]; S.obra.colores = col; redibujar();
+    hacer(async () => { await guardarColor(pt.clave, null); return `${pt.nombre}: color original`; }); }));
+  $$("[data-abrir-cara]").forEach((b) => (b.onclick = () => elegir(b.dataset.abrirCara)));
+  // Puertas y ventanas de una caseta, una por una
+  $$("[data-hueco-sel]").forEach((b) => (b.onclick = () => { const k = +b.dataset.huecoSel; ui.huecoSel = ui.huecoSel === k ? null : k; redibujar(); }));
+  const cambiarHueco = (fn, aviso) => { const e = S.elementos.find((q) => q.id === ui.elSel); const h = e?.huecos?.[ui.huecoSel]; if (!h) return;
+    const huecos = e.huecos.map((x, k) => (k === ui.huecoSel ? fn({ ...x }) : x)); e.huecos = huecos; redibujar();
+    hacer(async () => { await editarElemento(e.id, { huecos }); return aviso(huecos[ui.huecoSel]); }); };
+  $$("[data-hueco-ancho]").forEach((b) => (b.onclick = () => cambiarHueco((h) => ({ ...h, w: Math.max(0.4, Math.min(6, Math.round((h.w + +b.dataset.huecoAncho * 0.1) * 100) / 100)) }), (h) => `${h.t === "puerta" ? "Puerta" : "Ventana"}: ${fmtM(h.w)} de ancho`)));
+  $$("[data-hueco-tipo]").forEach((b) => (b.onclick = () => cambiarHueco((h) => (h.t === "puerta" ? { ...h, t: "ventana", d: h.d > 2 ? h.d + 0.9 : 1, h: 1 } : { ...h, t: "puerta", d: h.d > 2 ? Math.max(0, h.d - 0.9) : 0, h: 2.1 }), (h) => (h.t === "puerta" ? "Ahora es puerta" : "Ahora es ventana"))));
+
   $$("[data-herr]").forEach((b) => (b.onclick = () => { ui.herr = b.dataset.herr; ui.inicio = null; ui.elSel = null; ui.areaSel = null; ui.pz = null; ui.borrar = false; ui.hueco = null; ui.agregar = false; redibujar(); }));
   $$("[data-grosor]").forEach((b) => (b.onclick = () => { ui.grosor[ui.herr] = +b.dataset.grosor; redibujar(); }));
-  function cerrarTodo() { ui.agregar = false; ui.hueco = null; ui.mas = false; ui.punta = null; ui.pz = null; ui.sel = null; ui.areaSel = null; ui.moviendo = false; ui.elSel = null; ui.nuevo = null; ui.borrar = false; ui.prestar = null; ui.verPrestamos = false; ui.perdida = null; }
-  const cerrar = () => { ui.agregar = false; ui.hueco = null; ui.mas = false; ui.punta = null; ui.pz = null; ui.sel = null; ui.areaSel = null; ui.moviendo = false; ui.elSel = null; ui.nuevo = null; ui.borrar = false; ui.prestar = null; ui.verPrestamos = false; ui.perdida = null; redibujar(); };
+  function cerrarTodo() { ui.parte = null; ui.huecoSel = null; ui.agregar = false; ui.hueco = null; ui.mas = false; ui.punta = null; ui.pz = null; ui.sel = null; ui.areaSel = null; ui.moviendo = false; ui.elSel = null; ui.nuevo = null; ui.borrar = false; ui.prestar = null; ui.verPrestamos = false; ui.perdida = null; }
+  const cerrar = () => { ui.parte = null; ui.huecoSel = null; ui.agregar = false; ui.hueco = null; ui.mas = false; ui.punta = null; ui.pz = null; ui.sel = null; ui.areaSel = null; ui.moviendo = false; ui.elSel = null; ui.nuevo = null; ui.borrar = false; ui.prestar = null; ui.verPrestamos = false; ui.perdida = null; redibujar(); };
   $$("[data-vista]").forEach((b) => (b.onclick = () => { ui.vista = b.dataset.vista; try { localStorage.setItem("sym-vista", ui.vista); } catch (e) {} redibujar(); }));
   $$("[data-w]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); if (b.dataset.solto) return; tocarPersona(b.dataset.w); }));
   $$("[data-cerrar]").forEach((b) => (b.onclick = cerrar));
@@ -814,7 +847,7 @@ export function render(V, { hacer, redibujar }) {
   const he = V.querySelector("#hudEditar");
   if (he) he.onclick = () => { ui.modo = null; ui.pz = null; ui.editar = !ui.editar; ui.agregar = false; ui.herr = "mano"; ui.inicio = null; if (!es3d && innerWidth < 700) ui.zoom = ui.editar ? ZOOMS[1] : ZOOMS[0]; ui.nuevo = null; ui.elSel = null; ui.areaSel = null; ui.sel = null; ui.moviendo = false; redibujar(); };
   $$("[data-hueco]").forEach((b) => (b.onclick = () => { ui.hueco = ui.hueco?.t === b.dataset.hueco ? null : { t: b.dataset.hueco }; redibujar(); }));
-  $$("[data-quitar-hueco]").forEach((b) => (b.onclick = () => { const e = S.elementos.find((q) => q.id === ui.elSel), k = +b.dataset.quitarHueco;
+  $$("[data-quitar-hueco]").forEach((b) => (b.onclick = () => { ui.huecoSel = null; const e = S.elementos.find((q) => q.id === ui.elSel), k = +b.dataset.quitarHueco;
     const huecos = (e.huecos || []).filter((_, i) => i !== k); e.huecos = huecos; redibujar();
     hacer(async () => { await editarElemento(e.id, { huecos }); return "Hueco quitado"; }); }));
   const mo = V.querySelector("[data-mas]"); if (mo) mo.onclick = () => { ui.mas = !ui.mas; redibujar(); };
