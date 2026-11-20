@@ -685,18 +685,36 @@ function oficinaExistente() {
   { const b2 = E.altura(758, 1353) * M, lam = quitar(matE(0xb8bec3, { metalness: 0.5, roughness: 0.4 }));
     caja(723, 1325, 794, 1382, b2, b2 + 2.6 * M, lam); }
   caja(XV, Y0, X1, Y1, TOP - FAS, TOP, marino).userData.techo = true;   // la losa se esconde al editar para ver por dentro                                                  // tapa (losa)
-  // ventanal norte (foto 20-nov): ocupa la mitad oeste de la cara norte; la persiana clara del lado del pasillo, adentro oscuro
-  caja(576, Y0 - 0.6, 650, Y0, F + 0.9 * M, F + 2.9 * M, oscuro); caja(577, Y0 - 0.9, 612, Y0 - 0.6, F + 1.0 * M, F + 2.8 * M, persiana);
-  caja(700, Y0 - 0.6, 708, Y0, F + 1.9 * M, F + 2.6 * M, oscuro);                                 // ventanita
-  // frente oeste (foto 20-nov): tapado con paneles cafés de lámina; dos vanos de puerta oscuros (G-02: y 1318–1338 y 1425–1445)
-  const cafe = matE(0x6e5546, { metalness: 0.2, roughness: 0.7 }), vano = matE(0x15181b, { metalness: 0 });
-  caja(XV, Y0 + 1, XV + 0.5, Y1 - 1, F, TOP - FAS, cafe);
-  for (let y = Y0 + 3; y < Y1 - 1; y += 4) caja(XV - 0.15, y, XV, y + 1.2, F, TOP - FAS - 0.1, cafe);   // costillas de la lámina
-  for (const [a, b] of [[1318, 1338], [1425, 1445]]) caja(XV - 0.3, a, XV + 0.6, b, F, F + 2.5 * M, vano);
-  // pasillo: losa con cielo blanco, fascia amarilla, una columna
+  // vidrio reflejante con marco de aluminio oscuro (fotos 20-nov marcadas)
+  const cristal = new THREE.MeshStandardMaterial({ color: 0x3a4a55, metalness: 0.6, roughness: 0.08, transparent: true, opacity: 0.55, depthWrite: false });
+  const marco = matE(0x2a2e33, { metalness: 0.5 });
+  const ventN = (x0, x1, h0, h1) => { caja(x0, Y0 - 0.5, x1, Y0, h0, h1, cristal);   // ventana en la cara norte, con su marco
+    caja(x0 - 0.6, Y0 - 0.7, x1 + 0.6, Y0, h0 - 0.06 * M, h0, marco); caja(x0 - 0.6, Y0 - 0.7, x1 + 0.6, Y0, h1, h1 + 0.06 * M, marco);
+    caja(x0 - 0.6, Y0 - 0.7, x0, Y0, h0, h1, marco); caja(x1, Y0 - 0.7, x1 + 0.6, Y0, h0, h1, marco); };
+  // cara norte: VENTANAL grande desde la esquina del pasillo hasta más de la mitad; la persiana clara en la mitad del lado del pasillo
+  ventN(577, 658, F + 0.65 * M, F + 3.0 * M); caja(616.7, Y0 - 0.75, 618.3, Y0, F + 0.65 * M, F + 3.0 * M, marco);
+  caja(578, Y0 - 0.15, 616, Y0 + 0.2, F + 0.7 * M, F + 2.95 * M, persiana);
+  ventN(707, 715, F + 2.0 * M, F + 2.5 * M);                                                      // ventanita junto a la esquina este
+  // frente oeste, de norte a sur (foto 20-nov marcada = G-02): ventanal, puerta abierta, pared, ventanal y puerta de vidrio
+  const CI2 = TOP - FAS, vano = matE(0x15181b, { metalness: 0 }), gris = matE(0xc9cdd3, { metalness: 0 });
+  const ventO = (a, b, h0 = F + 0.08 * M, h1 = CI2) => { caja(XV, a, XV + 0.4, b, h0, h1, cristal);
+    caja(XV - 0.2, a, XV + 0.6, a + 0.7, h0, h1, marco); caja(XV - 0.2, b - 0.7, XV + 0.6, b, h0, h1, marco); caja(XV - 0.2, a, XV + 0.6, b, h0 - 0.06 * M, h0, marco); };
+  caja(XV, Y0, XV + 1.2, Y0 + 1.5, F, CI2, marino);              // esquina de block
+  ventO(Y0 + 1.5, 1318);                                         // ventanal (oficina de arriba)
+  caja(XV - 0.2, 1318, XV + 0.6, 1338, F, F + 2.5 * M, vano);    // puerta abierta (vano oscuro)
+  caja(XV - 0.2, 1318, XV + 0.6, 1338, F + 2.5 * M, CI2, marco);
+  caja(XV - 0.6, 1338, XV + 1.2, 1352, F, CI2, gris);            // PARED (el machón gris claro entre las dos oficinas)
+  ventO(1352, 1425);                                             // ventanal (oficina de abajo)
+  ventO(1425, 1445, F + 0.02 * M, F + 2.5 * M); caja(XV - 0.2, 1425, XV + 0.6, 1445, F + 2.5 * M, CI2, marco);   // puerta de vidrio
+  caja(XV - 0.4, 1434.6, XV - 0.2, 1435.4, F + 0.9 * M, F + 1.4 * M, matE(0xd8dadc, { metalness: 0.8 }));        // jaladera
+  caja(XV, 1445, XV + 1.2, Y1, F, CI2, marino);
+  // pasillo: losa con cielo blanco y fascia amarilla (sin columna: lo gris claro es la pared del frente)
   caja(X0, Y0 + 1.5, XV, Y1, TOP - FAS, TOP - FAS + 0.15 * M, blanco);
   caja(X0 - 1.2, Y0 - 3, X0, Y1, TOP - FAS, TOP + 0.08 * M, amarillo);
-  caja(X0 + 1, 1343, X0 + 5, 1347, F, TOP - FAS, columna);
+  // al final del pasillo (sur) una rampita baja al piso
+  { const a = aEscena(X0, Y1), b2 = aEscena(XV, Y1 + 14), w = Math.abs(b2.x - a.x), L = Math.abs(b2.z - a.z), ang = Math.atan2(PL, L);
+    const r = new THREE.Mesh(new THREE.BoxGeometry(w, 0.12, Math.hypot(L, PL)), mosaico); r.position.set((a.x + b2.x) / 2, base + PL / 2 - 0.05, (a.z + b2.z) / 2);
+    r.rotation.x = -ang * Math.sign(b2.z - a.z) * -1; r.receiveShadow = true; g.add(r); }
   // gradas (G-02): 4 huellas dentro del pasillo, en su punta norte; bajan hacia el norte
   for (let k = 0; k < 4; k++) caja(X0, Y0 + k * 5, XV, Y0 + (k + 1) * 5, base, base + (PL * (k + 1)) / 5, k % 2 ? mosaico : piso);
   return g;
