@@ -203,12 +203,16 @@ function hojaCara(e) {
   return `<div class="hoja-h"><div class="grow"><b>${esc(edif)}</b><small>${ui.hueco ? `Toca en la pared dónde va la ${ui.hueco.t}` : esc(cara || "")}</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
     <p class="note" style="margin:0 0 8px">Toca una puerta o ventana (aquí o en el 3D) para cambiarla o quitarla. Para moverla: quítala y ponla donde va.</p>
     <div class="juego">${jbtn('data-hueco="puerta"', "◫", "Poner puerta", ui.hueco?.t === "puerta" ? "on" : "")}${jbtn('data-hueco="ventana"', "▭", "Poner ventana", ui.hueco?.t === "ventana" ? "on" : "")}</div>
-    ${(e.huecos || []).length ? `<div class="chips" style="margin-top:10px">${e.huecos.map((h, k) => `<button class="chip" data-hueco-sel="${k}" aria-pressed="${ui.huecoSel === k}">${h.t === "puerta" ? "Puerta" : "Ventana"} ${fmtM(h.w)}${h.d > 2 ? " (arriba)" : ""}</button>`).join("")}</div>`
+    ${(e.huecos || []).length ? `<div class="chips" style="margin-top:10px">${e.huecos.map((h, k) => `<button class="chip" data-hueco-sel="${k}" aria-pressed="${ui.huecoSel === k}">${h.t === "puerta" ? "Puerta" : "Ventana"} ${fmtM(h.w)}${h.d > 2 ? " (arriba)" : ""}${h.e ? ` · ${EST_HUECO[h.e]}` : ""}</button>`).join("")}</div>`
       : `<p class="note">Esta cara no tiene puertas ni ventanas.</p>`}
     ${ui.huecoSel != null && e.huecos?.[ui.huecoSel] ? (() => { const h = e.huecos[ui.huecoSel]; return `<div class="juego" style="margin-top:10px">
       ${jbtn("data-hueco-ancho=\"1\"", "⟷", "Más ancha")}${jbtn("data-hueco-ancho=\"-1\"", "→←", "Más angosta")}
-      ${jbtn("data-hueco-tipo", h.t === "puerta" ? "▭" : "◫", h.t === "puerta" ? "Hacerla ventana" : "Hacerla puerta")}${jbtn(`data-quitar-hueco="${ui.huecoSel}"`, "✕", "Quitar", "borrar")}</div>`; })() : ""}`;
+      ${jbtn("data-hueco-tipo", h.t === "puerta" ? "▭" : "◫", h.t === "puerta" ? "Hacerla ventana" : "Hacerla puerta")}${jbtn(`data-quitar-hueco="${ui.huecoSel}"`, "✕", "Borrar", "borrar")}</div>
+      <div class="chips" style="margin-top:8px" role="group" aria-label="Estado">${[["", "Ya está"], ["abierto", "Hueco hecho, sin puerta"], ["falta", "Falta abrir"], ["quitar", "No va (se quita)"]].map(([v, t]) =>
+        `<button class="chip" data-hueco-est="${v}" aria-pressed="${(h.e || "") === v}">${t}</button>`).join("")}</div>
+      <p class="note" style="margin:6px 0 0">"Falta abrir": se ve celeste y la pared sigue entera. "No va": se ve roja hasta que la borres cuando ya la hayan tapado.</p>`; })() : ""}`;
 }
+const EST_HUECO = { abierto: "hueco hecho", falta: "falta abrir", quitar: "no va" };
 // Cualquier otra cosa (hoyo, columna, bloque, gradas…): se deforma con los puntos y se ajusta con botones
 function hojaElemento(e) {
   if (e.trazo) return hojaPared(e);
@@ -820,6 +824,8 @@ export function render(V, { hacer, redibujar }) {
     const huecos = e.huecos.map((x, k) => (k === ui.huecoSel ? fn({ ...x }) : x)); e.huecos = huecos; redibujar();
     hacer(async () => { await editarElemento(e.id, { huecos }); return aviso(huecos[ui.huecoSel]); }); };
   $$("[data-hueco-ancho]").forEach((b) => (b.onclick = () => cambiarHueco((h) => ({ ...h, w: Math.max(0.4, Math.min(6, Math.round((h.w + +b.dataset.huecoAncho * 0.1) * 100) / 100)) }), (h) => `${h.t === "puerta" ? "Puerta" : "Ventana"}: ${fmtM(h.w)} de ancho`)));
+  $$("[data-hueco-est]").forEach((b) => (b.onclick = () => cambiarHueco((h) => { const n = { ...h }; if (b.dataset.huecoEst) n.e = b.dataset.huecoEst; else delete n.e; return n; },
+    (h) => `${h.t === "puerta" ? "Puerta" : "Ventana"}: ${h.e ? EST_HUECO[h.e] : "ya está"}`)));
   $$("[data-hueco-tipo]").forEach((b) => (b.onclick = () => cambiarHueco((h) => (h.t === "puerta" ? { ...h, t: "ventana", d: h.d > 2 ? h.d + 0.9 : 1, h: 1 } : { ...h, t: "puerta", d: h.d > 2 ? Math.max(0, h.d - 0.9) : 0, h: 2.1 }), (h) => (h.t === "puerta" ? "Ahora es puerta" : "Ahora es ventana"))));
 
   $$("[data-herr]").forEach((b) => (b.onclick = () => { ui.herr = b.dataset.herr; ui.inicio = null; ui.elSel = null; ui.areaSel = null; ui.pz = null; ui.borrar = false; ui.hueco = null; ui.agregar = false; redibujar(); }));

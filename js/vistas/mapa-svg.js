@@ -62,9 +62,9 @@ export const ANCHO_HUECO = { puerta: 0.9, ventana: 1.5 };
 export function tramosPared(e) {
   const [a, b] = puntas(e.trazo), L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, u = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
   const huecos = (e.huecos || []).map((h, k) => { const s = (h.c[0] - a[0]) * u[0] + (h.c[1] - a[1]) * u[1], m = h.w / M / 2;
-    return { t: h.t, s0: Math.max(0, s - m), s1: Math.min(L, s + m), d: h.d, h: h.h, k }; })   // k: posición en e.huecos.filter((h) => h.s1 - h.s0 > 1).sort((p, q) => p.s0 - q.s0);
+    return { t: h.t, s0: Math.max(0, s - m), s1: Math.min(L, s + m), d: h.d, h: h.h, e: h.e, k }; })   // k: posición en e.huecos.filter((h) => h.s1 - h.s0 > 1).sort((p, q) => p.s0 - q.s0);
   const solidos = []; let ini = 0;
-  for (const h of huecos) { if (h.s0 > ini) solidos.push([ini, h.s0]); ini = Math.max(ini, h.s1); }
+  for (const h of huecos) { if (h.e === "falta") continue; if (h.s0 > ini) solidos.push([ini, h.s0]); ini = Math.max(ini, h.s1); }   // la que falta abrir no corta la pared
   if (ini < L) solidos.push([ini, L]);
   return { a, b, L, u, solidos, huecos };
 }
@@ -94,11 +94,15 @@ function elemento(e) {
     const w = Math.max(2.5, gruesoPared(e) / M), col = e.estado === "existe" ? COLOR_MAT[e.material] || COLOR_MAT.block : e.estado === "en_proceso" ? "#b26b00" : "#8ea3b8";
     const op = e.estado === "falta" ? ' stroke-opacity=".55"' : "", { a, u, solidos, huecos } = tramosPared(e);
     const P = (s) => `${(a[0] + u[0] * s).toFixed(1)} ${(a[1] + u[1] * s).toFixed(1)}`, d = solidos.map(([s0, s1]) => `M${P(s0)}L${P(s1)}`).join("");
-    const vid = huecos.filter((h) => h.t === "ventana").map((h) => `M${P(h.s0)}L${P(h.s1)}`).join("");
-    const pue = huecos.filter((h) => h.t === "puerta").map((h) => { const r = h.s1 - h.s0, q = [a[0] + u[0] * h.s0 - u[1] * r, a[1] + u[1] * h.s0 + u[0] * r];
-      return `M${P(h.s0)}L${q[0].toFixed(1)} ${q[1].toFixed(1)}A${r.toFixed(1)} ${r.toFixed(1)} 0 0 0 ${P(h.s1)}`; }).join("");
+    const normal = huecos.filter((h) => !h.e), vid = normal.filter((h) => h.t === "ventana").map((h) => `M${P(h.s0)}L${P(h.s1)}`).join("");
+    const arco = (h) => { const r = h.s1 - h.s0, q = [a[0] + u[0] * h.s0 - u[1] * r, a[1] + u[1] * h.s0 + u[0] * r];
+      return `M${P(h.s0)}L${q[0].toFixed(1)} ${q[1].toFixed(1)}A${r.toFixed(1)} ${r.toFixed(1)} 0 0 0 ${P(h.s1)}`; };
+    const pue = normal.filter((h) => h.t === "puerta").map(arco).join("");
+    // falta abrir: marco celeste punteado sobre la pared; se quita: rojo punteado; hueco hecho sin puerta: solo el paso libre
+    const marca = (lista, color) => lista.length ? `<path stroke="${color}" stroke-width="${Math.max(1.6, w * 0.6)}" stroke-dasharray="3 2" fill="none" d="${lista.map((h) => h.t === "puerta" ? arco(h) : `M${P(h.s0)}L${P(h.s1)}`).join("")}"/>` : "";
+    const extra = marca(huecos.filter((h) => h.e === "falta"), "#3d8fd1") + marca(huecos.filter((h) => h.e === "quitar"), "#d0342c");
     return `<g class="elem">${d ? `<path stroke="${col}"${op} stroke-width="${w}" fill="none" d="${d}"/>` : ""}${e.material === "ventanal" && d ? `<path stroke="#fff" stroke-width="${w * 0.4}" fill="none" d="${d}"/>` : ""}
-      ${vid ? `<path stroke="#3d8fd1" stroke-width="${Math.max(1.5, w * 0.35)}" fill="none" d="${vid}"/>` : ""}${pue ? `<path stroke="#6c5a3d" stroke-width="1.2" fill="none" d="${pue}"/>` : ""}</g>`;
+      ${vid ? `<path stroke="#3d8fd1" stroke-width="${Math.max(1.5, w * 0.35)}" fill="none" d="${vid}"/>` : ""}${pue ? `<path stroke="#6c5a3d" stroke-width="1.2" fill="none" d="${pue}"/>` : ""}${extra}</g>`;
   }
   // Todo lo demás es una figura de 4 esquinas (puede estar deformada)
   const pts = esquinas(e), col = ELEM[e.tipo] || ELEM.otro, f = (p) => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`;

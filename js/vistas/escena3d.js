@@ -1289,11 +1289,15 @@ function paredDibujada(e, areas) {
   if (mat === "caseta") {   // la caseta ya está dibujada (fotos): aquí van solo sus puertas y ventanas, por los dos lados de la cara
     const marco = new THREE.MeshStandardMaterial({ color: 0xc8ccd0, metalness: 0.6, roughness: 0.4 }), hoja = new THREE.MeshStandardMaterial({ color: 0x2f3438, roughness: 0.5 }),
       vidrio = new THREE.MeshStandardMaterial({ color: 0x23282d, roughness: 0.3, metalness: 0.4 });
+    // estado de cada una: ya está (normal), "abierto" (hueco hecho, sin puerta todavía), "falta" (por abrir) o "quitar" (no va)
+    const fantasma = (c) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.45, depthWrite: false });
+    const mFalta = fantasma(0x3d8fd1), mQuitar = fantasma(0xd0342c), mVano = new THREE.MeshStandardMaterial({ color: 0x0e1012, roughness: 1 });
     for (const h of tramosPared(e).huecos) {
       const puerta = h.t === "puerta", d = h.d ?? (puerta ? 0 : 1), alto = h.h ?? (puerta ? 2.1 : 1), L2 = (h.s1 - h.s0) * ESC, x = ((h.s0 + h.s1) / 2 - L / 2) * ESC;
       for (const lado of [-1, 1]) {
-        const fr = new THREE.Mesh(new THREE.BoxGeometry(L2 + 0.12, alto * M + 0.12, 0.06), marco); fr.position.set(x, (d + alto / 2) * M, lado * 0.09); fr.userData.hueco = h.k; g.add(fr);
-        const p = new THREE.Mesh(new THREE.BoxGeometry(L2, alto * M, 0.06), puerta ? hoja : vidrio); p.position.set(x, (d + alto / 2) * M, lado * 0.13); p.userData.hueco = h.k; g.add(p);
+        if (!h.e || h.e === "abierto") { const fr = new THREE.Mesh(new THREE.BoxGeometry(L2 + 0.12, alto * M + 0.12, 0.06), marco); fr.position.set(x, (d + alto / 2) * M, lado * 0.15); fr.userData.hueco = h.k; g.add(fr); }
+        const mat = h.e === "falta" ? mFalta : h.e === "quitar" ? mQuitar : h.e === "abierto" ? mVano : puerta ? hoja : vidrio;
+        const p = new THREE.Mesh(new THREE.BoxGeometry(L2, alto * M, h.e === "falta" || h.e === "quitar" ? 0.3 : 0.06), mat); p.position.set(x, (d + alto / 2) * M, lado * 0.19); p.userData.hueco = h.k; g.add(p);
       }
     }
     // se mide desde el piso del CENTRO de la caseta (el mismo que usa su dibujo), no desde el borde: la cara puede estar
@@ -1322,6 +1326,11 @@ function paredDibujada(e, areas) {
   // huecos: la puerta deja el paso libre hasta 2.1 m; la ventana lleva antepecho de 0.9 m, vidrio y dintel
   const dintel = Math.min(2.1, tope - 0.1);
   for (const h of huecos) {
+    if (h.e === "falta" || h.e === "quitar") {   // por abrir / se quita: marca transparente encima de la pared (que sigue entera o con su hueco)
+      const m = new THREE.Mesh(new THREE.BoxGeometry((h.s1 - h.s0) * ESC, (h.h ?? 2.1) * M, grueso * 1.3), new THREE.MeshBasicMaterial({ color: h.e === "falta" ? 0x3d8fd1 : 0xd0342c, transparent: true, opacity: 0.45, depthWrite: false }));
+      m.position.set(((h.s0 + h.s1) / 2 - L / 2) * ESC, ((h.d ?? 0) + (h.h ?? 2.1) / 2) * M, 0); m.userData.hueco = h.k; g.add(m);
+      if (h.e === "falta") continue;
+    }
     trozo(h.s0, h.s1, dintel, tope - dintel, macizo);
     if (h.t === "ventana") { trozo(h.s0, h.s1, 0, Math.min(0.9, dintel), macizo); if (!falta) trozo(h.s0, h.s1, 0.9, dintel - 0.9, MAT_VIDRIO, grueso * 0.3); }
   }
