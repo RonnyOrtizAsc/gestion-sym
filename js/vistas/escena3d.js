@@ -648,11 +648,29 @@ function oficinaExistente() {
   const vidrio = new THREE.MeshStandardMaterial({ color: 0xa9c2cc, metalness: 0.3, roughness: 0.05, transparent: true, opacity: 0.25, depthWrite: false });
   const oscuro = new THREE.MeshStandardMaterial({ color: 0x1d2328, metalness: 0.6, roughness: 0.1 }), F = base + PL;
   // piso del edificio y pasillo (zócalo de mosaico)
-  caja(X0, Y0, XV, Y1, base, F, mosaico); caja(X0, Y0, XV, Y1, F - 0.01, F, piso); caja(XV, Y0, X1, Y1, base, F, marino);
+  const YG = 1265;   // G-02: las gradas ocupan la punta norte del pasillo (y 1245–1265) y bajan hacia el norte
+  caja(X0, YG, XV, Y1, base, F, mosaico); caja(X0, YG, XV, Y1, F - 0.01, F, piso); caja(XV, Y0, X1, Y1, base, F, marino); caja(XV + 0.4, Y0 + 1.2, X1 - 1.2, Y1 - 1.2, F - 0.01, F + 0.01, piso);   // piso de las oficinas
   // muros: norte, este, sur (azul marino) y el divisorio entre las dos oficinas
   caja(XV, Y0, X1, Y0 + 1.2, F, TOP, marino); caja(X1 - 1.2, Y0, X1, Y1, F, TOP, marino); caja(XV, Y1 - 1.2, X1, Y1, F, TOP, marino);
-  caja(XV, 1344, 690, 1346, F, TOP - FAS, blanco);
-  caja(XV, Y0, X1, Y1, TOP - FAS, TOP, marino);                                                  // tapa (losa)
+  // G-06 (planta de demoliciones): lo que se va a quitar queda TRANSPARENTE hasta que se quite
+  const quitar = (m) => { const q = m.clone(); q.transparent = true; q.opacity = 0.28; q.depthWrite = false; return q; };
+  const bloqueQ = quitar(blanco), puertaQ = quitar(matE(0x8a6a4a, { metalness: 0 })), vidrioQ = quitar(oscuro), CI = TOP - FAS;
+  // pared entre las dos oficinas (y 1346–1349): tramo oeste y su puerta se demuelen; el tramo junto al baño se queda
+  caja(XV, 1346, 653, 1349, F, CI, bloqueQ);
+  caja(653, 1347, 673, 1348, F, F + 2.2 * M, puertaQ); caja(653, 1346, 673, 1349, F + 2.2 * M, CI, blanco);
+  caja(673, 1346, 700, 1349, F, CI, blanco);
+  caja(700, 1347, X1 - 1.2, 1348, F, F + 2.1 * M, puertaQ); caja(700, 1346, X1 - 1.2, 1349, F + 2.1 * M, CI, blanco);   // puerta del baño de abajo
+  caja(691, 1349, 697, 1373, F, CI, bloqueQ);                                                     // tabla roca (G-06)
+  // baño de arriba (esquina noreste): pared oeste con su puerta y pared sur; se desmonta completo por dentro (se quedan los muros)
+  caja(691, Y0 + 1.2, 694, 1283, F, CI, blanco); caja(692, 1283, 693, 1302, F, F + 2.1 * M, puertaQ); caja(691, 1283, 694, 1302, F + 2.1 * M, CI, blanco);
+  caja(684, 1303, X1 - 1.2, 1306, F, CI, blanco);
+  caja(700, Y0 - 0.6, 714, Y0, F + 1.82 * M, F + 2.42 * M, vidrioQ);                              // ventanita del baño (se desmonta)
+  // baño de abajo: su pared oeste; el tramo de tabla roca (y 1328–1346) se demuele
+  caja(681, 1306, 684, 1328, F, CI, blanco); caja(681, 1328, 684, 1346, F, CI, bloqueQ);
+  // construcción existente al este de la oficina (G-02); el G-06 la demuele
+  { const b2 = E.altura(758, 1353) * M, lam = quitar(matE(0xb8bec3, { metalness: 0.5, roughness: 0.4 }));
+    caja(723, 1325, 794, 1382, b2, b2 + 2.6 * M, lam); }
+  caja(XV, Y0, X1, Y1, TOP - FAS, TOP, marino).userData.techo = true;   // la losa se esconde al editar para ver por dentro                                                  // tapa (losa)
   caja(578, Y0 - 0.6, 640, Y0, F + 0.3 * M, F + 2.8 * M, oscuro);                                // ventanal norte (cerca de la esquina)
   caja(600, Y0 - 0.9, 638, Y0 - 0.6, F + 0.4 * M, F + 2.7 * M, persiana);
   caja(700, Y0 - 0.6, 708, Y0, F + 1.9 * M, F + 2.6 * M, oscuro);                                 // ventanita
@@ -664,8 +682,8 @@ function oficinaExistente() {
   caja(X0, Y0 + 1.5, XV, Y1, TOP - FAS, TOP - FAS + 0.15 * M, blanco);
   caja(X0 - 1.2, Y0 - 3, X0, Y1, TOP - FAS, TOP + 0.08 * M, amarillo);
   caja(X0 + 1, 1343, X0 + 5, 1347, F, TOP - FAS, columna);
-  // gradas en la esquina noroeste (G-02): bajan del pasillo hacia el oeste
-  for (let k = 0; k < 4; k++) caja(X0 - 4 * (k + 1), Y0 + 2, X0 - 4 * k, Y0 + 20, base, base + (PL * (4 - k)) / 4.4, piso);
+  // gradas (G-02): 4 huellas dentro del pasillo, en su punta norte; bajan hacia el norte
+  for (let k = 0; k < 4; k++) caja(X0, Y0 + k * 5, XV, Y0 + (k + 1) * 5, base, base + (PL * (k + 1)) / 5, k % 2 ? mosaico : piso);
   return g;
 }
 
