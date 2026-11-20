@@ -1208,11 +1208,10 @@ function paredDibujada(e, areas) {
         const p = new THREE.Mesh(new THREE.BoxGeometry(L2, alto * M, 0.06), puerta ? hoja : vidrio); p.position.set(x, (d + alto / 2) * M, lado * 0.13); p.userData.hueco = h.k; g.add(p);
       }
     }
-    // la cara puede estar en el borde con un piso más alto (p. ej. la bodega junto al café): se mide desde el piso de la
-    // caseta, que es el más bajo de los dos lados de la pared
-    const n = [-(b[1] - a[1]) / L, (b[0] - a[0]) / L], baseC = Math.min(...[0.2, 0.5, 0.8].flatMap((t) => [-6, 6].map((o) =>
-      E.altura(a[0] + (b[0] - a[0]) * t + n[0] * o, a[1] + (b[1] - a[1]) * t + n[1] * o) * M)));
-    const p = aEscena(mx, my); g.position.set(p.x, Math.min(base, baseC), p.z); g.rotation.y = -Math.atan2(b[1] - a[1], b[0] - a[0]);
+    // se mide desde el piso del CENTRO de la caseta (el mismo que usa su dibujo), no desde el borde: la cara puede estar
+    // junto a un piso más alto (la bodega junto al café) o sobre un talud
+    const ctr = E.centrosCaseta?.get((e.nombre || "").split(" · ")[0]), baseC = ctr ? E.altura(ctr[0], ctr[1]) * M : base;
+    const p = aEscena(mx, my); g.position.set(p.x, baseC, p.z); g.rotation.y = -Math.atan2(b[1] - a[1], b[0] - a[0]);
     return g;
   }
   const altoM = +e.alto ? alto0 / M + +e.alto
@@ -1247,6 +1246,13 @@ const editable = (clave) => E.caras?.has(clave);
 function ponerEdificios(areas, elementos = [], piezas = {}) {
   E.edificios.clear(); E.areas = areas;
   E.caras = new Set(elementos.filter((e) => e.material === "caseta" && e.nombre).map((e) => e.nombre.split(" · ")[0]));
+  // centro de cada caseta (promedio de las puntas de sus caras): de ahí se mide el piso de sus puertas y ventanas
+  E.centrosCaseta = new Map();
+  for (const ed of E.caras) {
+    const pts = elementos.filter((e) => e.material === "caseta" && (e.nombre || "").split(" · ")[0] === ed).flatMap((e) => puntas(e.trazo));
+    const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
+    E.centrosCaseta.set(ed, [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2]);
+  }
   ponerParedes(areas, piezas);
   ponerGradas(piezas);
   const eRampa = estadoRampa(RAMPA_CHERY, piezas);
