@@ -174,7 +174,16 @@ sb.auth.onAuthStateChange((evento, sesion) => {
 window.addEventListener("hashchange", () => { redibujar(); window.scrollTo(0, 0); });
 
 // App instalable (funciona como app en el celular)
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+// App al día: cuando se publica una versión nueva, se carga sola (si la app quedó abierta, no se queda con la vieja)
+if ("serviceWorker" in navigator) {
+  const habia = !!navigator.serviceWorker.controller; let recargando = false;
+  navigator.serviceWorker.register("sw.js").then((reg) => {
+    const revisar = () => reg.update().catch(() => {});
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") revisar(); });
+    setInterval(revisar, 5 * 60 * 1000);
+  }).catch(() => {});
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (habia && !recargando) { recargando = true; location.reload(); } });
+}
 
 // Compu con pantalla baja (laptop con escala de Windows o zoom del navegador): achica toda la app para que quepa más.
 // En celular y tablet (dedo) no se toca.

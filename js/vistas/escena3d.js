@@ -692,8 +692,9 @@ function oficinaExistente() {
     caja(x0 - 0.6, Y0 - 0.7, x1 + 0.6, Y0, h0 - 0.06 * M, h0, marco); caja(x0 - 0.6, Y0 - 0.7, x1 + 0.6, Y0, h1, h1 + 0.06 * M, marco);
     caja(x0 - 0.6, Y0 - 0.7, x0, Y0, h0, h1, marco); caja(x1, Y0 - 0.7, x1 + 0.6, Y0, h0, h1, marco); };
   // cara norte: VENTANAL grande desde la esquina del pasillo hasta más de la mitad; la persiana clara en la mitad del lado del pasillo
-  ventN(577, 658, F + 0.65 * M, F + 3.0 * M); caja(616.7, Y0 - 0.75, 618.3, Y0, F + 0.65 * M, F + 3.0 * M, marco);
-  caja(578, Y0 - 0.15, 616, Y0 + 0.2, F + 0.7 * M, F + 2.95 * M, persiana);
+  ventN(577, 656, F + 0.45 * M, F + 2.8 * M); caja(616.2, Y0 - 0.75, 617.8, Y0, F + 0.45 * M, F + 2.8 * M, marco);
+  caja(578, Y0 - 0.15, 616, Y0 + 0.2, F + 0.5 * M, F + 2.75 * M, persiana);
+  caja(XV, Y0 - 0.5, X1 + 0.3, Y0, TOP - 0.45 * M, TOP - 0.41 * M, marco);                      // raya de la viga arriba de la cara norte
   ventN(707, 715, F + 2.0 * M, F + 2.5 * M);                                                      // ventanita junto a la esquina este
   // frente oeste, de norte a sur (foto 20-nov marcada = G-02): ventanal, puerta abierta, pared, ventanal y puerta de vidrio
   const CI2 = TOP - FAS, vano = matE(0x15181b, { metalness: 0 }), gris = matE(0xc9cdd3, { metalness: 0 });
@@ -701,16 +702,24 @@ function oficinaExistente() {
     caja(XV - 0.2, a, XV + 0.6, a + 0.7, h0, h1, marco); caja(XV - 0.2, b - 0.7, XV + 0.6, b, h0, h1, marco); caja(XV - 0.2, a, XV + 0.6, b, h0 - 0.06 * M, h0, marco); };
   caja(XV, Y0, XV + 1.2, Y0 + 1.5, F, CI2, marino);              // esquina de block
   ventO(Y0 + 1.5, 1318);                                         // ventanal (oficina de arriba)
-  caja(XV - 0.2, 1318, XV + 0.6, 1338, F, F + 2.5 * M, vano);    // puerta abierta (vano oscuro)
-  caja(XV - 0.2, 1318, XV + 0.6, 1338, F + 2.5 * M, CI2, marco);
+  // PUERTA abierta: marco grueso, hoja abierta hacia adentro y el vano oscuro
+  caja(XV + 0.3, 1319, XV + 0.6, 1337, F, F + 2.5 * M, vano);
+  caja(XV - 0.3, 1318, XV + 0.7, 1319.2, F, F + 2.5 * M, marco); caja(XV - 0.3, 1336.8, XV + 0.7, 1338, F, F + 2.5 * M, marco);
+  caja(XV - 0.3, 1318, XV + 0.7, 1338, F + 2.5 * M, CI2, marco);
+  { const hoja = new THREE.Mesh(new THREE.BoxGeometry(18 * ESC, 2.45 * M, 0.08), matE(0x3a3f45, { metalness: 0.3 })), q = aEscena(XV + 0.6, 1337);
+    hoja.geometry.translate(-9 * ESC, 0, 0); hoja.position.set(q.x, F + 1.24 * M, q.z); hoja.rotation.y = Math.PI / 2 + 1.1; g.add(hoja); }
   caja(XV - 0.6, 1338, XV + 1.2, 1352, F, CI2, gris);            // PARED (el machón gris claro entre las dos oficinas)
   ventO(1352, 1425);                                             // ventanal (oficina de abajo)
-  ventO(1425, 1445, F + 0.02 * M, F + 2.5 * M); caja(XV - 0.2, 1425, XV + 0.6, 1445, F + 2.5 * M, CI2, marco);   // puerta de vidrio
-  caja(XV - 0.4, 1434.6, XV - 0.2, 1435.4, F + 0.9 * M, F + 1.4 * M, matE(0xd8dadc, { metalness: 0.8 }));        // jaladera
+  // PUERTA de vidrio al final, con marco grueso y manija
+  caja(XV, 1426, XV + 0.4, 1444, F + 0.02 * M, F + 2.4 * M, cristal);
+  caja(XV - 0.3, 1425, XV + 0.7, 1426.3, F, F + 2.5 * M, marco); caja(XV - 0.3, 1443.7, XV + 0.7, 1445, F, F + 2.5 * M, marco);
+  caja(XV - 0.3, 1425, XV + 0.7, 1445, F, F + 0.12 * M, marco); caja(XV - 0.3, 1425, XV + 0.7, 1445, F + 2.4 * M, CI2, marco);
+  caja(XV - 0.7, 1440.5, XV - 0.3, 1441.3, F + 0.8 * M, F + 1.5 * M, matE(0xd8dadc, { metalness: 0.8 }));        // manija
   caja(XV, 1445, XV + 1.2, Y1, F, CI2, marino);
   // pasillo: losa con cielo blanco y fascia amarilla (sin columna: lo gris claro es la pared del frente)
   caja(X0, Y0 + 1.5, XV, Y1, TOP - FAS, TOP - FAS + 0.15 * M, blanco);
   caja(X0 - 1.2, Y0 - 3, X0, Y1, TOP - FAS, TOP + 0.08 * M, amarillo);
+  for (let y = Y0 + 22; y < Y1; y += 25) caja(X0 - 1.4, y - 0.3, X0 - 1.1, y + 0.3, TOP - FAS, TOP + 0.08 * M, matE(0x8a7430, { metalness: 0 }));   // juntas de los paneles del rótulo
   // al final del pasillo (sur) una rampita baja al piso
   { const a = aEscena(X0, Y1), b2 = aEscena(XV, Y1 + 14), w = Math.abs(b2.x - a.x), L = Math.abs(b2.z - a.z), ang = Math.atan2(PL, L);
     const r = new THREE.Mesh(new THREE.BoxGeometry(w, 0.12, Math.hypot(L, PL)), mosaico); r.position.set((a.x + b2.x) / 2, base + PL / 2 - 0.05, (a.z + b2.z) / 2);
