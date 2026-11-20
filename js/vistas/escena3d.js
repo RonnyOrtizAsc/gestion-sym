@@ -359,13 +359,16 @@ function ponerParedes(areas, piezas) {
     const est = estadoPieza(i, piezas), c = CAJAS[i], cx = (c.x0 + c.x1) / 2, cy = (c.y0 + c.y1) / 2;
     if (!lista[est]) return;   // "no va"
     const tipo = tipoEn(areas, cx, cy), base = E.altura(cx, cy) * M;
-    if (enSupervisor(cx, cy) || enFilaNorte(cx, cy)) return;   // supervisor y fila norte del taller se dibujan aparte
+    // supervisor, casita del comedor y fila norte se dibujan aparte (fotos); pero lo NUEVO del plano (lo que no existe hoy)
+    // sí se dibuja aquí, con su estado, para que lo que se marca en 2D se vea igual en 3D
+    const especial = enSupervisor(cx, cy) || enFilaNorte(cx, cy);
+    if (especial && PIEZAS[i][4]) return;
     if (clase === "columna") {
       if (enTaller(cx, cy) || enGalera(cx, cy)) return;   // las del taller son de acero y van con su estructura (ver estructuraTaller)
       const alto = (ALTO_MURO[tipo] || 4.5) * M * (est === "en_proceso" ? 0.5 : 1), lado = Math.max(0.7, Math.min(2.5, c.largo * ESC));
       lista[est].push([cx, cy, lado, lado, 0, base, alto]); return;
     }
-    const alto = (ALTO_MURO[tipo] || 1.1) * M * (est === "en_proceso" ? 0.5 : 1);
+    const alto = (especial ? 2.72 : ALTO_MURO[tipo] || 1.1) * M * (est === "en_proceso" ? 0.5 : 1);   // adentro de las casitas: hasta el cielo (2.72 m, G-06)
     for (const pl of polilineas(d)) for (let k = 1; k < pl.length; k++) {
       const [x0, y0] = pl[k - 1], [x1, y1] = pl[k], L = Math.hypot(x1 - x0, y1 - y0);
       if (L < 1.5) continue;
@@ -1008,12 +1011,16 @@ const MATS_CASETA = () => ({
   amarillo: new THREE.MeshStandardMaterial({ color: 0xe8b81f, roughness: 0.6 }), rojo: new THREE.MeshStandardMaterial({ color: 0xc8202a, roughness: 0.7 }),
 });
 // Caja de paredes con franja naranja (0–0.45 naranja, raya blanca, 0.57–0.95 naranja) y piezas pegadas a sus caras
-function caseta(g, q, base, alto, pared, m) {
+// hueca = solo las 4 paredes (sin relleno), para que se vea lo que se construye adentro (p. ej. el comedor)
+function caseta(g, q, base, alto, pared, m, hueca = false) {
   const w = (q.x1 - q.x0) * ESC, h = (q.y1 - q.y0) * ESC, c = aEscena((q.x0 + q.x1) / 2, (q.y0 + q.y1) / 2);
-  const b = new THREE.Mesh(new THREE.BoxGeometry(w, alto * M, h), pared); b.position.set(c.x, base + (alto * M) / 2, c.z); b.castShadow = b.receiveShadow = true; g.add(b);
-  for (const [d, a, mat] of [[0, 0.45, m.naranja], [0.45, 0.12, m.blanco], [0.57, 0.38, m.naranja]]) {
-    const f = new THREE.Mesh(new THREE.BoxGeometry(w + 0.06, a * M, h + 0.06), mat); f.position.set(c.x, base + (d + a / 2) * M, c.z); g.add(f);
-  }
+  // caja maciza, o anillo de 4 paredes de grosor "gr" (escena) con el mismo contorno
+  const bloque = (W, H, y0, a, mat, sombra) => {
+    const gr = 0.2 * M, partes = hueca ? [[W, gr, 0, -(H - gr) / 2], [W, gr, 0, (H - gr) / 2], [gr, H - 2 * gr, -(W - gr) / 2, 0], [gr, H - 2 * gr, (W - gr) / 2, 0]] : [[W, H, 0, 0]];
+    for (const [pw, ph, dx, dz] of partes) { const b = new THREE.Mesh(new THREE.BoxGeometry(pw, a, ph), mat); b.position.set(c.x + dx, y0 + a / 2, c.z + dz); if (sombra) b.castShadow = b.receiveShadow = true; g.add(b); }
+  };
+  bloque(w, h, base, alto * M, pared, true);
+  for (const [d, a, mat] of [[0, 0.45, m.naranja], [0.45, 0.12, m.blanco], [0.57, 0.38, m.naranja]]) bloque(w + 0.06, h + 0.06, base + d * M, a * M, mat, false);
   // pieza en una cara: lado "s" (sur), "n", "o" (oeste), "e"; de t0 a t1 a lo largo (unidades del mapa), de "desde" con "a" de alto (m)
   return (lado, t0, t1, desde, a, mat, salir = 0.05) => {
     const L = Math.abs(t1 - t0) * ESC, mid = (t0 + t1) / 2, y = base + (desde + a / 2) * M;
@@ -1050,7 +1057,7 @@ function casita() {
   // ventana también al oeste. Techo de lámina que vuela poco al frente, con viga de celosía blanca y orilla roja,
   // cargado por la columna roja de perfil I del "PEDESTAL" (x 853, y 103) junto a la esquina, con su bajada de agua blanca.
   const g = new THREE.Group(), m = MATS_CASETA(), q = CASITA, base = E.altura((q.x0 + q.x1) / 2, (q.y0 + q.y1) / 2) * M;
-  const cara = caseta(g, q, base, 2.9, m.crema, m);
+  const cara = caseta(g, q, base, 2.9, m.crema, m, true);   // hueca: se remodela por dentro (comedor, AR-06)
   cara("s", q.x0, q.x1, 1.25, 0.2, m.naranja, 0.04); cara("o", q.y0, q.y1, 1.25, 0.2, m.naranja, 0.04); cara("e", q.y0, q.y1, 1.25, 0.2, m.naranja, 0.04);   // tercera franja
   ventanas(cara, "s", 727, 757, 1, 0.62, 1.6, m); puertaV(cara, "s", 775, 791, m); ventanas(cara, "s", 815, 845, 1, 0.62, 1.6, m);
   ventanas(cara, "o", 38, 68, 1, 0.62, 1.6, m);
@@ -1059,11 +1066,12 @@ function casita() {
   const P = (x, y, h) => { const v = aEscena(x, y); v.y = base + h * M; return v; };
   const geo = new THREE.BufferGeometry(), pts = [P(T.x0, T.y0, ATRAS), P(T.x1, T.y0, ATRAS), P(T.x1, T.y1, FRENTE), P(T.x0, T.y1, FRENTE)];
   geo.setAttribute("position", new THREE.Float32BufferAttribute(pts.flatMap((p) => [p.x, p.y, p.z]), 3)); geo.setIndex([0, 1, 2, 0, 2, 3]); geo.computeVertexNormals();
-  const lam = new THREE.Mesh(geo, m.lamina); lam.castShadow = lam.receiveShadow = true; g.add(lam);
+  const tg = new THREE.Group(); tg.userData.techo = true; g.add(tg);   // el techo se esconde al editar, para ver adentro
+  const lam = new THREE.Mesh(geo, m.lamina); lam.castShadow = lam.receiveShadow = true; tg.add(lam);
   const amarillo = new THREE.MeshStandardMaterial({ color: 0xd9a821, roughness: 0.6 });
-  for (let x = T.x0; x <= T.x1; x += 27) barraE(g, P(x, T.y0, ATRAS - 0.12), P(x, T.y1, FRENTE - 0.12), 0.12, amarillo, 0.22);   // polines amarillos
-  celosia(g, P(T.x0, T.y1 - 1, FRENTE - 0.05), P(T.x1, T.y1 - 1, FRENTE - 0.05), 0.7 * M, blanco, 0.08);   // viga de celosía blanca al frente
-  barraE(g, P(T.x0, T.y1, FRENTE), P(T.x1, T.y1, FRENTE), 0.1, rojo, 0.35 * M);   // orilla roja
+  for (let x = T.x0; x <= T.x1; x += 27) barraE(tg, P(x, T.y0, ATRAS - 0.12), P(x, T.y1, FRENTE - 0.12), 0.12, amarillo, 0.22);   // polines amarillos
+  celosia(tg, P(T.x0, T.y1 - 1, FRENTE - 0.05), P(T.x1, T.y1 - 1, FRENTE - 0.05), 0.7 * M, blanco, 0.08);   // viga de celosía blanca al frente
+  barraE(tg, P(T.x0, T.y1, FRENTE), P(T.x1, T.y1, FRENTE), 0.1, rojo, 0.35 * M);   // orilla roja
   // columna roja de perfil I con placa, y bajada de agua blanca
   const v = P(856, 102, 0), hc = (FRENTE - 0.7) * M;
   for (const [sx, sz, dx] of [[0.32, 0.06, 0], [0.06, 0.3, 0.13], [0.06, 0.3, -0.13]]) { const p = new THREE.Mesh(new THREE.BoxGeometry(sx, hc, sz), rojo); p.position.set(v.x, base + hc / 2, v.z + dx); p.castShadow = true; g.add(p); }
@@ -1384,7 +1392,7 @@ export function montar(contenedor, { dibujo = null, svg, clave, areas, elementos
   if (E.clave !== clave) { E.clave = clave; E.hovKey = E.selKey = "-"; prepararNiveles(areas, piezas); ponerTerreno(); ponerPiso(svg); ponerEdificios(areas, elementos, piezas); }
   // Editando: sin techos (para ver las paredes) y con la pieza elegida resaltada
   E.editar = editar; E.gente.visible = !editar; E.renderer.domElement.style.cursor = "";
-  E.edificios.children.forEach((o) => { if (o.userData.techo) o.visible = !editar; });
+  E.edificios.traverse((o) => { if (o.userData.techo) o.visible = !editar; });   // también techos dentro de grupos (casita del comedor)
   resaltar(E.hover, null, "hovKey");
   resaltar(E.marcado, editar && seleccion?.length ? seleccion : null, "selKey");
   ponerAsas(asas);

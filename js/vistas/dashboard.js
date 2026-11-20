@@ -7,12 +7,14 @@ import { ESTADO_ACT, MOTIVOS, hoyISO, siguienteDia, avance, esperado, vencida, a
   fechaCorta, fechaLarga, textoAvance, fechaPlanificador, finPorDias } from "../plan.js";
 import { PLANIFICADOR_SHEETS } from "../config.js";
 import { cara } from "./fotos.js";
-import { lugarDe, nombreArea } from "./lugares.js";
+import { lugarDe, nombreArea, areaEn } from "./lugares.js";
+import { PAQUETES } from "../planos/trabajos.js";
+import { ANCHO, ALTO } from "./mapa-svg.js";
 import { esc, primerNombre } from "../util.js";
 
 const UNIDADES = ["m²", "ml", "m³", "unidades", "kg", "qq", "bolsas"];
 // abierta = { id, modo: "avance" | "detener" | "editar" }; form = valores del formulario mientras se escribe
-const ui = { escribir: null, texto: "", abierta: null, form: null, motivo: "", necesita: "", hecho: "", verPlan: false, borrar: null, imp: null };
+const ui = { plano: false, desde: "", escribir: null, texto: "", abierta: null, form: null, motivo: "", necesita: "", hecho: "", verPlan: false, borrar: null, imp: null };
 
 const PILL = { pendiente: "", en_proceso: "ok", detenida: "lost", terminada: "ok" };
 const pill = (a) => `<span class="pill ${PILL[a.estado]}">${a.estado === "terminada" ? "✓ " : ""}${ESTADO_ACT[a.estado]}</span>`;
@@ -171,7 +173,9 @@ function seccionPlan(hoy) {
   const nueva = ui.abierta?.id === "nueva";
   return `<div class="section"><p class="eyebrow">Plan de trabajo completo (${todas.length})</p>
     ${nueva ? `<div class="act-card">${formActividad(null)}</div>` : `<div class="acts" style="margin-bottom:10px"><button class="btn primary" data-nueva>+ Agregar actividad</button>
-      <button class="btn" data-importar>${S.actividades.some((a) => a.origen) ? "Actualizar desde el Planificador" : "Importar del Planificador"}</button></div>`}
+      <button class="btn" data-plano>Trabajos de los planos</button>
+      <button class="btn" data-importar>${S.actividades.some((a) => a.origen && !a.origen.startsWith("plano:")) ? "Actualizar desde el Planificador" : "Importar del Planificador"}</button></div>`}
+    ${ui.plano ? panelPlano(hoy) : ""}
     ${ui.imp ? panelImportar() : ""}
     ${todas.length ? `<button class="linkbtn" data-ver-plan>${ui.verPlan ? "Ocultar plan completo ▴" : "Ver plan completo ▾"}</button>
     ${ui.verPlan ? `<div class="list" style="margin-top:8px">${todas.map((a) => ui.abierta?.id === a.id && ui.abierta.modo === "editar-plan"
@@ -179,6 +183,28 @@ function seccionPlan(hoy) {
       : `<div class="li"><div class="grow"><b>${esc(a.nombre)}</b><small>${esc(fechaCorta(a.inicio))} → ${esc(fechaCorta(a.fin))}${lugar(a) ? " · " + lugar(a) : ""}</small></div>
         <span class="num">${avance(a)} %</span>${pill(a)}<button class="linkbtn" data-modo="editar-plan" data-a="${a.id}">Editar</button></div>`).join("")}</div>` : ""}` : ""}
   </div>`;
+}
+
+// Obra nueva sacada de los planos: se carga al plan con un toque (sin repetir lo ya cargado)
+function filasPaquete(pq, desde) {
+  const pt = pq.punto, a = areaEn((pt[0] / ANCHO) * 100, (pt[1] / ALTO) * 100);
+  let dia = desde;
+  return pq.trabajos.map((t, k) => {
+    const f = { origen: `plano:${pq.id}:${String(k + 1).padStart(2, "0")}`, nombre: t.nombre, fase: `${pq.nombre.split(" ")[0]} · ${t.fase}`,
+      area_id: a?.id || null, inicio: dia, fin: dia, cantidad: t.cantidad || null, unidad: t.unidad || null, encargado: null };
+    dia = siguienteDia(dia); return f;
+  });
+}
+function panelPlano(hoy) {
+  const desde = ui.desde || hoy;
+  return `<div class="step"><h3>Trabajos de los planos</h3>
+    <p class="note" style="margin:0 0 10px">Lo que se va a construir, sacado de los planos. Se agregan uno por día de trabajo desde la fecha que elijas; después ajustas las fechas de cada uno.</p>
+    <div class="field"><label for="planoDesde">Empiezan el</label><input id="planoDesde" type="date" value="${esc(desde)}"></div>
+    ${PAQUETES.map((pq) => { const ya = S.actividades.filter((a) => (a.origen || "").startsWith(`plano:${pq.id}:`)).length;
+      return `<div class="li" style="display:block"><b>${esc(pq.nombre)}</b><small style="display:block">${pq.trabajos.length} trabajos · hojas ${esc(pq.hojas)}</small>
+        <p class="note" style="margin:6px 0">${esc(pq.nota)}</p>
+        <div class="acts"><button class="btn primary small" data-paquete="${pq.id}" ${ya >= pq.trabajos.length ? "disabled" : ""}>${ya >= pq.trabajos.length ? "Ya está en el plan" : ya ? `Agregar los ${pq.trabajos.length - ya} que faltan` : `Agregar ${pq.trabajos.length} trabajos`}</button></div></div>`; }).join("")}
+    <div class="acts" style="margin-top:10px"><button class="btn small" data-plano>Cerrar</button></div></div>`;
 }
 
 function panelImportar() {
@@ -286,6 +312,13 @@ function conectar(V, { hacer, redibujar }) {
     fe.onsubmit = (e) => { e.preventDefault(); const wid = fe.dataset.escribir, t = inp.value.trim(), n = primerNombre(trabajador(wid).nombre); if (!t) return;
       ui.escribir = null; ui.texto = ""; hacer(async () => { await ponerActividad(wid, t); return `${n}: ${t}`; }); };
     fe.querySelector("[data-no-escribir]").onclick = () => { ui.escribir = null; ui.texto = ""; redibujar(); }; }
+
+  // Trabajos de los planos
+  $$("[data-plano]").forEach((b) => (b.onclick = () => { ui.plano = !ui.plano; redibujar(); }));
+  const pd = V.querySelector("#planoDesde"); if (pd) pd.onchange = () => { ui.desde = pd.value; };
+  $$("[data-paquete]").forEach((b) => (b.onclick = () => { const pq = PAQUETES.find((x) => x.id === b.dataset.paquete), ya = new Set(S.actividades.map((a) => a.origen));
+    const filas = filasPaquete(pq, ui.desde || hoyISO()).filter((f) => !ya.has(f.origen)); ui.plano = false; ui.verPlan = true;
+    hacer(async () => { await importarActividades(filas); return `${pq.nombre}: ${filas.length} trabajos agregados al plan`; }); }));
 
   // Importar del Planificador
   $$("[data-importar]").forEach((b) => (b.onclick = async () => {
