@@ -648,7 +648,7 @@ function oficinaExistente() {
   const X0 = 555, XV = 573, X1 = 720, Y0 = 1245, Y1 = 1447;
   const caja = (x0, y0, x1, y1, b, t, mat) => { const a = aEscena(x0, y0), c = aEscena(x1, y1), m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.05, Math.abs(c.x - a.x)), Math.max(0.02, t - b), Math.max(0.05, Math.abs(c.z - a.z))), mat);
     m.position.set((a.x + c.x) / 2, (b + t) / 2, (a.z + c.z) / 2); m.castShadow = m.receiveShadow = true; g.add(m); return m; };
-  const marino = matE(0x434a63, { metalness: 0 }), columna = matE(0x8d93a6, { metalness: 0 }), blanco = matE(0xf4f3ef, { metalness: 0 }), amarillo = matE(0xd9b746, { metalness: 0 });
+  const marino = matE(0x575e73, { metalness: 0 }), columna = matE(0x8d93a6, { metalness: 0 }), blanco = matE(0xf4f3ef, { metalness: 0 }), amarillo = matE(0xd9b746, { metalness: 0 });
   const mosaico = cuadros("#ddd2bf", "#cbbca2", [2, 30]), piso = matE(0xe7e2d8, { metalness: 0 }), persiana = matE(0xdfe6d2, { metalness: 0 });
   const vidrio = new THREE.MeshStandardMaterial({ color: 0xa9c2cc, metalness: 0.3, roughness: 0.05, transparent: true, opacity: 0.25, depthWrite: false });
   const oscuro = new THREE.MeshStandardMaterial({ color: 0x1d2328, metalness: 0.6, roughness: 0.1 }), F = base + PL;
@@ -676,13 +676,14 @@ function oficinaExistente() {
   { const b2 = E.altura(758, 1353) * M, lam = quitar(matE(0xb8bec3, { metalness: 0.5, roughness: 0.4 }));
     caja(723, 1325, 794, 1382, b2, b2 + 2.6 * M, lam); }
   caja(XV, Y0, X1, Y1, TOP - FAS, TOP, marino).userData.techo = true;   // la losa se esconde al editar para ver por dentro                                                  // tapa (losa)
-  caja(578, Y0 - 0.6, 640, Y0, F + 0.3 * M, F + 2.8 * M, oscuro);                                // ventanal norte (cerca de la esquina)
-  caja(600, Y0 - 0.9, 638, Y0 - 0.6, F + 0.4 * M, F + 2.7 * M, persiana);
+  // ventanal norte (foto 20-nov): ocupa la mitad oeste de la cara norte; la persiana clara del lado del pasillo, adentro oscuro
+  caja(576, Y0 - 0.6, 650, Y0, F + 0.9 * M, F + 2.9 * M, oscuro); caja(577, Y0 - 0.9, 612, Y0 - 0.6, F + 1.0 * M, F + 2.8 * M, persiana);
   caja(700, Y0 - 0.6, 708, Y0, F + 1.9 * M, F + 2.6 * M, oscuro);                                 // ventanita
-  // frente de vidrio (oeste) con parales y las dos puertas
-  caja(XV, Y0 + 1, XV + 0.4, Y1 - 1, F, TOP - FAS, vidrio);
-  for (let y = Y0 + 1; y <= Y1 - 1; y += 25) caja(XV - 0.3, y - 0.4, XV + 0.5, y + 0.4, F, TOP - FAS, marino);
-  for (const [a, b] of [[1318, 1338], [1425, 1445]]) { caja(XV - 0.3, a, XV + 0.5, a + 0.8, F, F + 2.5 * M, marino); caja(XV - 0.3, b - 0.8, XV + 0.5, b, F, F + 2.5 * M, marino); }
+  // frente oeste (foto 20-nov): tapado con paneles cafés de lámina; dos vanos de puerta oscuros (G-02: y 1318–1338 y 1425–1445)
+  const cafe = matE(0x6e5546, { metalness: 0.2, roughness: 0.7 }), vano = matE(0x15181b, { metalness: 0 });
+  caja(XV, Y0 + 1, XV + 0.5, Y1 - 1, F, TOP - FAS, cafe);
+  for (let y = Y0 + 3; y < Y1 - 1; y += 4) caja(XV - 0.15, y, XV, y + 1.2, F, TOP - FAS - 0.1, cafe);   // costillas de la lámina
+  for (const [a, b] of [[1318, 1338], [1425, 1445]]) caja(XV - 0.3, a, XV + 0.6, b, F, F + 2.5 * M, vano);
   // pasillo: losa con cielo blanco, fascia amarilla, una columna
   caja(X0, Y0 + 1.5, XV, Y1, TOP - FAS, TOP - FAS + 0.15 * M, blanco);
   caja(X0 - 1.2, Y0 - 3, X0, Y1, TOP - FAS, TOP + 0.08 * M, amarillo);
