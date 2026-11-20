@@ -178,7 +178,16 @@ function crear() {
     if (E.editar) {
       ray.setFromCamera(p, camera);   // primero: una pared o figura agregada (la que se ve primero)
       const vis = (o) => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
-      const hit = ray.intersectObjects(edificios.children, true).find((h) => !h.object.isSprite && vis(h.object) && !h.object.userData.mascara);
+      // lo primero SÓLIDO que se ve: se saltan las paredes transparentes del plano ("Falta"), techos de vidrio, etc.
+      const hits = ray.intersectObjects(edificios.children, true).filter((h) => !h.object.isSprite && vis(h.object) && !h.object.userData.mascara);
+      const solido = (h) => { const m = [].concat(h.object.material)[0]; return !(m?.transparent && (m.opacity ?? 1) < 0.6); };
+      const marcado = (o) => { while (o) { if (o.userData.elemento || o.userData.piezas) return true; o = o.parent; } return false; };
+      // si lo primero es transparente y detrás hay un objeto propio (elemento o gradas), se elige ese
+      const detras = hits[0] && !solido(hits[0]) ? hits.find((h) => solido(h) && marcado(h.object)) : null;
+      const hit = detras || hits[0];
+      // una pieza del plano dibujada en 3D (gradas): se elige la pieza
+      { let o = hit?.object; while (o && !o.userData.piezas && !o.userData.elemento) o = o.parent;
+        if (o?.userData.piezas && E.handlers?.pieza) { tip.hidden = true; return E.handlers.pieza(o.userData.piezas[0]); } }
       let o = hit?.object, hk = null; while (o && !o.userData.elemento) { if (o.userData.hueco != null && hk == null) hk = o.userData.hueco; o = o.parent; }
       if (o && E.handlers?.elemento?.(o.userData.elemento, hk)) { tip.hidden = true; return; }
       const q = puntoBajo(e.clientX, e.clientY);
@@ -448,6 +457,7 @@ function ponerGradas(piezas) {
     if (Math.abs(hFin - hIni) < 0.5) hIni = hFin + 0.6 * EXAGERA * M;   // mismo nivel: unos escalones de banqueta
     const baja = Math.min(hIni, hFin), sube = Math.abs(hFin - hIni), n = Math.max(pos.length + 1, Math.round(sube / (0.18 * EXAGERA * M)));
     const mat = MAT[est], g = new THREE.Group(), fondo = (fin - ini) / n, ancho = (ancho1 - ancho0) * ESC;
+    g.userData.piezas = [i];   // para elegirla tocando la escalera y resaltarla entera
     for (let s = 0; s < n; s++) {
       const t = hFin > hIni ? ini + fondo * (s + 0.5) : fin - fondo * (s + 0.5), alto = (sube * (s + 1)) / n;
       const p = aEscena(...punto(t));
@@ -1323,8 +1333,21 @@ function ponerAsas(ab) {
 function resaltar(capa, grupo, llave, color = 0x9fd400, opacidad = 0.8) {
   const k = grupo ? grupo.join(",") : "";
   if (E[llave] === k) return; E[llave] = k;
-  capa.children.forEach((m) => m.geometry?.dispose()); capa.clear();
+  capa.children.forEach((m) => { if (!m.userData.compartida) m.geometry?.dispose(); }); capa.clear();
   if (!grupo) return;
+  // piezas que tienen su propio objeto en 3D (gradas): se resalta el objeto entero (escalones y pasamanos)
+  const conObjeto = new Set();
+  E.edificios.children.forEach((g) => {
+    if (!g.userData.piezas?.some((i) => grupo.includes(i))) return;
+    g.userData.piezas.forEach((i) => conObjeto.add(i));
+    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: opacidad * 0.6, depthWrite: false });
+    g.updateWorldMatrix(true, true);
+    g.traverse((o) => { if (!o.isMesh) return;
+      const h = new THREE.Mesh(o.geometry, mat); h.userData.compartida = true; h.matrixAutoUpdate = false;
+      h.matrix.copy(o.matrixWorld).multiply(new THREE.Matrix4().makeScale(1.04, 1.04, 1.04)); h.renderOrder = 5; capa.add(h); });
+  });
+  grupo = grupo.filter((i) => !conObjeto.has(i));
+  if (!grupo.length) return;
   const r = rampaDe(grupo[0]);
   if (r) {   // la rampa se resalta entera, como una losa inclinada
     const nivel = r.c.x0 < RAMPA_CHERY.c.x1 && r.c.x1 > RAMPA_CHERY.c.x0 && r.c.y0 < RAMPA_CHERY.c.y1 && r.c.y1 > RAMPA_CHERY.c.y0 ? RAMPA_CHERY.n : [E.altura(r.c.x0, r.c.y0) / EXAGERA, E.altura(r.c.x1, r.c.y1) / EXAGERA];
