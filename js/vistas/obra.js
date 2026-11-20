@@ -12,6 +12,8 @@ import * as planDia from "./dashboard.js";
 import { miniatura, tarjeta, avatares, cara } from "./fotos.js";
 import { FICHAS, esquinas, agarraderas, moverFigura, girar, correr, guardable, figuraNueva, medidasFigura, medidaCorta, altoDe, dentroDe, centro, U, altoPared, moverRect, rectPct, cercaDe } from "./figuras.js";
 import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, CAJAS, grupoDe, queEs, pegar, ANCHO, ALTO, MATERIALES, puntas, pared, largoPared, gruesoPared, enderezar, distPared, enLinea, sobrePared, ANCHO_HUECO, CHICAS, rampaDe, piezaEn, medidasPieza, medidasArea, medidasElemento } from "./mapa-svg.js";
+// el 3D se pide con la versión: así el celular no se queda con un 3D viejo guardado (súbelo junto con sw.js)
+const ESCENA = "./escena3d.js?v=140";
 
 const ZOOMS = [1, 1.6, 2.4, 3.4];
 let vistaGuardada = "2d"; try { vistaGuardada = localStorage.getItem("sym-vista") || "2d"; } catch (e) {}
@@ -481,7 +483,7 @@ export function render(V, { hacer, redibujar }) {
 
   if (es3d) {
     const personas = ui.sinGente ? [] : tokens.map(([p, x, y]) => ({ id: p.id, nombre: primerNombre(p.nombre) + (p.actividad && !recesoAbierto(p.id) ? " · " + p.actividad : ""), x: (x / 100) * ANCHO, y: (y / 100) * ALTO, receso: !!recesoAbierto(p.id), almuerzo: esAlmuerzo(recesoAbierto(p.id)), sel: ui.sel === p.id }));
-    import("./escena3d.js").then((m) => {
+    import(ESCENA).then((m) => {
       const cont = V.querySelector("#escena"); if (!cont) return;
       cont.querySelector(".cargando")?.remove();
       m.montar(cont, { colores: S.obra?.colores || {}, dibujo: ui.editar && DIBUJA.has(ui.herr) ? { tipo: ui.herr, grosor: ui.grosor[ui.herr] || 0.3 } : null, svg: dibujo.svg, clave: dibujo.clave, areas: S.areas, elementos: S.elementos, piezas: S.piezas, personas, editar: ui.editar && !ui.nuevo && !ui.punta && !ui.hueco, seleccion: ui.pz?.grupo, asas: specAsas(asasActuales()) || (ui.inicio ? [ui.inicio, ui.inicio] : null), handlers: {
@@ -725,7 +727,7 @@ export function render(V, { hacer, redibujar }) {
   const centro2d = () => { const r = V.querySelector(".mapa").getBoundingClientRect(), cl = (v, a, b) => Math.max(a, Math.min(b, v));
     return [((cl(innerWidth / 2, r.left, r.right) - r.left) / r.width) * ANCHO, ((cl(innerHeight * 0.4, r.top, r.bottom) - r.top) / r.height) * ALTO]; };
   async function agregarFicha(i) {
-    const f = FICHAS[i], c = es3d ? (await import("./escena3d.js")).centroVista() : centro2d();
+    const f = FICHAS[i], c = es3d ? (await import(ESCENA)).centroVista() : centro2d();
     ui.agregar = false;
     if (f.tipo === "area") return ponerArea(rectPct(figuraNueva(f, c[0], c[1])), "Área nueva: estírala con los puntos y ponle nombre si quieres");
     if (f.tipo === "muro") return guardarPared(null, [c[0] - U(f.w) / 2, c[1]], [c[0] + U(f.w) / 2, c[1]], { tipo: "muro", estado: "falta", material: "block" });
@@ -903,7 +905,7 @@ export function render(V, { hacer, redibujar }) {
   $$("[data-el]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); if (ui.punta || ui.hueco) return; tocarElemento(b.dataset.el); }));
   $$("[data-estado-area]").forEach((b) => (b.onclick = () => { const a = area(ui.areaSel), est = b.dataset.estadoArea;
     const X0 = (a.x / 100) * ANCHO, Y0 = (a.y / 100) * ALTO, X1 = X0 + (a.w / 100) * ANCHO, Y1 = Y0 + (a.h / 100) * ALTO;
-    const dentro = PIEZAS.map((p, i) => [p, i]).filter(([p, i]) => p[0] !== "jardin" && S.piezas[i] !== "quitado" && p[1] >= X0 && p[1] <= X1 && p[2] >= Y0 && p[2] <= Y1).map(([, i]) => i);
+    const dentro = PIEZAS.map((p, i) => [p, i]).filter(([p, i]) => p[0] !== "jardin" && p[0] !== "oculto" && S.piezas[i] !== "quitado" && p[1] >= X0 && p[1] <= X1 && p[2] >= Y0 && p[2] <= Y1).map(([, i]) => i);
     dentro.forEach((i) => (S.piezas[i] = est));
     hacer(async () => { await estadoArea(a.id, est); await estadoPiezas(dentro, est); return `${a.nombre}: ${ESTADOS[est]} (${dentro.length} piezas)`; }); }));
   $$("[data-estado-el]").forEach((b) => (b.onclick = () => { const id = ui.elSel, est = b.dataset.estadoEl, e = S.elementos.find((q) => q.id === id);

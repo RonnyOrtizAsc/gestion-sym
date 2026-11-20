@@ -213,7 +213,7 @@ function calcularGrupo(i) {
     const c = CAJAS[cola.shift()];
     CAJAS.forEach((o, j) => {
       const clase = TRAZO[j][0];
-      if (grupo.has(j) || clase === "jardin" || o.largo > tope) return;
+      if (grupo.has(j) || clase === "jardin" || clase === "oculto" || o.largo > tope) return;
       if ((clase === "muro") !== esMuro || (clase === "lamina") !== esLamina) return;   // paredes con paredes; puertas y gradas aparte
       if (o.x0 < lim.x0 || o.x1 > lim.x1 || o.y0 < lim.y0 || o.y1 > lim.y1) return;
       if (o.x0 <= c.x1 + M && o.x1 >= c.x0 - M && o.y0 <= c.y1 + M && o.y1 >= c.y0 - M) { grupo.add(j); cola.push(j); }
@@ -243,7 +243,7 @@ const distSeg = (x, y, [a, b]) => {
 export function piezaEn(x, y, radio = 12) {
   let mejor = -1, d = radio;
   CAJAS.forEach((c, i) => {
-    if (TRAZO[i][0] === "jardin" || x < c.x0 - d || x > c.x1 + d || y < c.y0 - d || y > c.y1 + d) return;
+    if (TRAZO[i][0] === "jardin" || TRAZO[i][0] === "oculto" || x < c.x0 - d || x > c.x1 + d || y < c.y0 - d || y > c.y1 + d) return;
     for (const s of segmentos(i)) { const e = distSeg(x, y, s); if (e < d) { d = e; mejor = i; } }
   });
   return mejor;
@@ -252,7 +252,7 @@ export { segmentos };
 // Puntas de todas las piezas (para que una pared nueva se pegue a lo que ya está dibujado)
 let PUNTAS = null;
 export function pegar(x, y, radio = 9, extra = []) {
-  PUNTAS ||= TRAZO.flatMap(([c], i) => c === "jardin" ? [] : segmentos(i).flat());
+  PUNTAS ||= TRAZO.flatMap(([c], i) => c === "jardin" || c === "oculto" ? [] : segmentos(i).flat());
   let mejor = null, d = radio;
   for (const p of PUNTAS.concat(extra)) { const e = Math.hypot(p[0] - x, p[1] - y); if (e < d) { d = e; mejor = p; } }
   return mejor ? [mejor[0], mejor[1]] : [x, y];
@@ -279,7 +279,7 @@ export function queEs(grupo) {
 export function capaPiezas(piezas = {}, seleccion = []) {
   const sel = new Set(seleccion);
   return `<svg class="capa-piezas" viewBox="0 0 ${ANCHO} ${ALTO}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${TRAZO.map(([c, , , d], i) =>
-    c === "jardin" ? "" : `<path class="pz ${estadoPieza(i, piezas)}${sel.has(i) ? " sel" : ""}" data-pz="${i}" d="${d}"/>`).join("")}</svg>`;
+    c === "jardin" || c === "oculto" ? "" : `<path class="pz ${estadoPieza(i, piezas)}${sel.has(i) ? " sel" : ""}" data-pz="${i}" d="${d}"/>`).join("")}</svg>`;
 }
 
 export function dibujarObra(areas, elementos = [], piezas = {}) {
