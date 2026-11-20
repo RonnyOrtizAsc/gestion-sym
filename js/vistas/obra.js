@@ -171,6 +171,7 @@ const borrarSiNo = (txt) => ui.borrar ? `<div class="acts confirma-borrar"><span
 // Botones grandes "de juego": cada toque cambia un poquito; no hay que escribir medidas
 const jbtn = (attr, ico, txt, extra = "") => `<button class="jbtn ${extra}" ${attr}><b aria-hidden="true">${ico}</b>${txt}</button>`;
 function hojaPared(e) {
+  if (e.material === "caseta") return hojaCara(e);
   return `<div class="hoja-h"><div class="grow"><b>${esc(e.nombre || "Pared")}</b>
       <small>${ui.hueco ? `Toca en la pared dónde va la ${ui.hueco.t}` : medidasElemento(e)}</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
     <p class="note pista-puntos"><i class="pt esquina"></i> Arrastra los puntos verdes para alargarla o acortarla.</p>
@@ -185,6 +186,15 @@ function hojaPared(e) {
     <div style="margin-top:8px">${masOpciones()}</div>
     ${ui.mas ? `<p class="note" style="margin:10px 0 6px">Material</p>${chipsMaterial(e.material, "data-mat")}
     <form class="addrow" id="nomEl"><input id="elNombre" value="${esc(e.nombre || "")}" placeholder="Nombre (opcional)" aria-label="Nombre de la pared"><button class="btn">Guardar nombre</button></form>` : ""}`;
+}
+// Cara de una caseta existente: aquí solo se quitan, ponen o cambian sus puertas y ventanas (la caseta se queda como está)
+function hojaCara(e) {
+  const [edif, cara] = (e.nombre || "Caseta · cara").split(" · ");
+  return `<div class="hoja-h"><div class="grow"><b>${esc(edif)}</b><small>${ui.hueco ? `Toca en la pared dónde va la ${ui.hueco.t}` : esc(cara || "")}</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
+    <p class="note" style="margin:0 0 8px">Toca una puerta o ventana de la lista para quitarla. Para ponerla en otro lado: quítala y agrégala donde va.</p>
+    <div class="juego">${jbtn('data-hueco="puerta"', "◫", "Poner puerta", ui.hueco?.t === "puerta" ? "on" : "")}${jbtn('data-hueco="ventana"', "▭", "Poner ventana", ui.hueco?.t === "ventana" ? "on" : "")}</div>
+    ${(e.huecos || []).length ? `<div class="chips" style="margin-top:10px">${e.huecos.map((h, k) => `<button class="chip" data-quitar-hueco="${k}" aria-label="Quitar ${h.t}">${h.t === "puerta" ? "Puerta" : "Ventana"} ${fmtM(h.w)}${h.d > 2 ? " (arriba)" : ""} ✕</button>`).join("")}</div>`
+      : `<p class="note">Esta cara no tiene puertas ni ventanas.</p>`}`;
 }
 // Cualquier otra cosa (hoyo, columna, bloque, gradas…): se deforma con los puntos y se ajusta con botones
 function hojaElemento(e) {
@@ -244,7 +254,7 @@ const esPared = (g) => !rampaDe(g[0]) && !detalle(g) && g.some((i) => ["muro", "
 function asasActuales() {
   if (!ui.editar || ui.nuevo || ui.punta || ui.hueco) return null;
   const e = ui.elSel && S.elementos.find((q) => q.id === ui.elSel);
-  if (e?.trazo) return { e, puntas: puntas(e.trazo) };
+  if (e?.trazo) return e.material === "caseta" ? null : { e, puntas: puntas(e.trazo) };   // la cara de una caseta no se estira
   if (e) { const pts = esquinas(e); return { f: e, pts, puntas: agarraderas(pts).puntos }; }
   const ar = !ui.pz && ui.areaSel && area(ui.areaSel);
   if (ar) { const pts = esquinas(ar); return { f: ar, ar: true, pts, puntas: agarraderas(pts).puntos }; }
@@ -612,7 +622,7 @@ export function render(V, { hacer, redibujar }) {
   // Guarda una pared de a → b. Si hay otras en la misma línea que la tocan o se enciman, quedan como una sola pared.
   // base = pared que se está cambiando (o null si es nueva, con sus datos en "nueva").
   function guardarPared(base, a, b, nueva = {}, antes = null, elegirla = true) {
-    const otras = S.elementos.filter((q) => q.trazo && q !== base);
+    const otras = S.elementos.filter((q) => q.trazo && q !== base && q.material !== "caseta");
     const r = enLinea(a, b, otras), quien = base || r.juntas[0] || null, sobran = r.juntas.filter((q) => q !== quien);
     const huecos = [...(quien?.huecos || []), ...sobran.flatMap((q) => q.huecos || [])];
     const cambios = { ...pared(r.a, r.b), huecos }, largo = fmtM(Math.hypot(r.b[0] - r.a[0], r.b[1] - r.a[1]) * METROS_POR_UNIDAD);
@@ -705,6 +715,7 @@ export function render(V, { hacer, redibujar }) {
   function tocarElemento(id) {
     if (ui.herr !== "borrar") return elegir(id);
     const e = S.elementos.find((q) => q.id === id); if (!e) return;
+    if (e.material === "caseta") { ui.herr = "mano"; return elegir(id); }   // la caseta no se borra: se abre para quitar sus puertas o ventanas
     S.elementos = S.elementos.filter((q) => q !== e); ui.elSel = null; redibujar();
     hacer(async () => { await borrarElemento(id); return `${e.nombre || TIPOS_ELEMENTO[e.tipo] || "Elemento"} quitado (↶ lo regresa)`; });
   }

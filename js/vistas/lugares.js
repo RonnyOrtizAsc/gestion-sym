@@ -22,7 +22,7 @@ function queHay(X, Y) {
   const fig = S.elementos.find((e) => !e.trazo && e.tipo !== "techo" && dentroDe(esquinas(e), X, Y));
   if (fig) return fig.nombre || TIPOS_ELEMENTO[fig.tipo] || "";
   const muro = S.elementos.find((e) => e.trazo && distPared(X, Y, e) < 6);
-  if (muro) return muro.nombre || "Pared";
+  if (muro) return (muro.nombre || "Pared").split(" · ")[0];   // "Oficina supervisor · cara sur" → "Oficina supervisor"
   const i = piezaEn(X, Y, 6);
   if (i >= 0 && !CHICAS.has(i)) { const q = queEs(grupoDe(i)); if (q && !/^(línea|linea|detalle)/i.test(q)) return q; }
   return "";

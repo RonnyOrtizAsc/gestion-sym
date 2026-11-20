@@ -29,4 +29,15 @@ export const PAQUETES = [
       { fase: "Instalaciones", nombre: "Inodoro y lavamanos del baño", hoja: "AR-06" },
     ],
   },
+  {
+    id: "taller-oeste",
+    nombre: "Taller · acceso oeste",
+    hojas: "G-06, AR-09",
+    nota: "Entre la esquina de Tableros eléctricos y la oficina del supervisor. El portón viejo ya se quitó (G-06); ahí va la cortina Sarti.",
+    punto: [941, 120],
+    trabajos: [
+      { fase: "Obra", nombre: "Instalar cortina metálica tipo Sarti (entre la esquina de tableros y la oficina del supervisor)", cantidad: 1, unidad: "unidades", hoja: "AR-09" },
+      { fase: "Demolición", nombre: "Desmontar estructura metálica sobre la lámina existente (pared oeste del taller, debajo del supervisor)", hoja: "G-06" },
+    ],
+  },
 ];

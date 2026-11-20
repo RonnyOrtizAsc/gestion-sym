@@ -841,14 +841,18 @@ function filaNorteTaller(base, H) {
   const blanco = new THREE.MeshStandardMaterial({ color: 0xf1efe9, roughness: 0.85 }), naranja = new THREE.MeshStandardMaterial({ color: 0xe8792a, roughness: 0.8 });
   const oscuro = new THREE.MeshStandardMaterial({ color: 0x24282c, roughness: 0.4 }), azul = new THREE.MeshStandardMaterial({ color: 0x2f6fc2, metalness: 0.3, roughness: 0.5 });
   // paredes perimetrales
-  caja(939, 66, 943, 700, 0, 1.5, cuadros("#f2f0e8", "#e8c33a", [1, 120])); caja(939, 66, 943, 700, 1.5, H - 0.1, lam);
+  // oeste: del supervisor (y 177) para abajo. Entre la esquina (y 66) y el supervisor estaba el portón (G-06, ya quitado):
+  // queda abierto hasta que se instale la cortina metálica tipo Sarti (AR-09). Arriba del hueco sigue la lámina.
+  caja(939, 177, 943, 700, 0, 1.5, cuadros("#f2f0e8", "#e8c33a", [1, 100])); caja(939, 177, 943, 700, 1.5, H - 0.1, lam);
+  caja(939, 66, 943, 177, 4.2, H - 0.1, lam);
   caja(1329, 66, 1333, 712, 0, 2.0, cuadros("#f4f2ec", "#e8792a", [1, 120])); caja(1329, 66, 1333, 712, 2.0, H - 0.1, lam);
   caja(925, 3, 1336, 6, 0, H, lam);
   // pared sur de la fila (de x 1144 a 1336) con huecos: [desde, hasta] en x, tipo
   const ALTO = 3.0, yS = 61, pared = (x0, x1) => { if (x1 - x0 < 0.5) return; caja(x0, yS - 1, x1, yS + 1, 0, 1.2, naranja); caja(x0, yS - 1, x1, yS + 1, 1.2, ALTO, blanco); };
   const huecos = [[1171, 1219, "puerta"], [1300, 1316, "puerta"]], ventanas = [[1150, 1166, 1.3, 1.0], [1262, 1276, 2.0, 0.5]];
-  let x = 1144; for (const [a, b] of huecos) { pared(x, a); caja(a, yS - 1, b, yS + 1, 2.4, ALTO, blanco); x = b; } pared(x, 1336);
-  for (const [a, b, desde, alto] of ventanas) caja(a, yS - 1.4, b, yS + 1.4, desde, desde + alto, oscuro);
+  if (editable("Fila norte")) pared(1144, 1336);   // puertas y ventanas: de la cara guardada (se editan en la app)
+  else { let x = 1144; for (const [a, b] of huecos) { pared(x, a); caja(a, yS - 1, b, yS + 1, 2.4, ALTO, blanco); x = b; } pared(x, 1336);
+    for (const [a, b, desde, alto] of ventanas) caja(a, yS - 1.4, b, yS + 1.4, desde, desde + alto, oscuro); }
   // divisiones entre bodega, lockers y baños, y el fondo
   for (const xd of [1143.5, 1251.5]) { caja(xd - 1, 6, xd + 1, yS, 0, 1.2, naranja); caja(xd - 1, 6, xd + 1, yS, 1.2, ALTO, blanco); }
   // baños: cubículos (Model.pdf) y el mueble del lavamanos frente a la puerta
@@ -1034,8 +1038,8 @@ const ventanas = (cara, lado, t0, t1, n, desde, a, m) => { cara(lado, t0, t1, de
 function supervisor(base) {
   const g = new THREE.Group(), m = MATS_CASETA();
   const cara = caseta(g, SUPERVISOR, base, 3, m.blanco, m);
-  ventanas(cara, "s", 836, 928, 5, 1.0, 0.75, m);   // cara sur: fila de ventanas
-  puertaV(cara, "o", 182, 198, m); ventanas(cara, "o", 200, 220, 1, 1.0, 0.75, m); ventanas(cara, "o", 222, 241, 1, 1.0, 0.75, m); puertaV(cara, "o", 243, 259, m);   // cara oeste: puerta (con espacio a la esquina norte), dos ventanas, puerta pegada a la esquina sur
+  if (!editable("Oficina supervisor")) { ventanas(cara, "s", 836, 928, 5, 1.0, 0.75, m);   // cara sur: fila de ventanas
+  puertaV(cara, "o", 182, 198, m); ventanas(cara, "o", 200, 220, 1, 1.0, 0.75, m); ventanas(cara, "o", 222, 241, 1, 1.0, 0.75, m); puertaV(cara, "o", 243, 259, m); }   // cara oeste: puerta (con espacio a la esquina norte), dos ventanas, puerta pegada a la esquina sur
   // techo (G-01): lámina de x 797 a 932 y de y 168 a 362, cae al 19% hacia el este (la pared de lámina).
   // Lo carga el poste del "PEDESTAL" del G-02 (x 830, y 356), unos 5.4 m al frente de la cabina. Celosías por debajo.
   const t = TECHO_SUP, OESTE = 5.6, ESTE = OESTE - 0.19 * (t.x1 - t.x0) * 0.056, hT = (x) => OESTE + ((ESTE - OESTE) * (x - t.x0)) / (t.x1 - t.x0);
@@ -1059,8 +1063,8 @@ function casita() {
   const g = new THREE.Group(), m = MATS_CASETA(), q = CASITA, base = E.altura((q.x0 + q.x1) / 2, (q.y0 + q.y1) / 2) * M;
   const cara = caseta(g, q, base, 2.9, m.crema, m, true);   // hueca: se remodela por dentro (comedor, AR-06)
   cara("s", q.x0, q.x1, 1.25, 0.2, m.naranja, 0.04); cara("o", q.y0, q.y1, 1.25, 0.2, m.naranja, 0.04); cara("e", q.y0, q.y1, 1.25, 0.2, m.naranja, 0.04);   // tercera franja
-  ventanas(cara, "s", 727, 757, 1, 0.62, 1.6, m); puertaV(cara, "s", 775, 791, m); ventanas(cara, "s", 815, 845, 1, 0.62, 1.6, m);
-  ventanas(cara, "o", 38, 68, 1, 0.62, 1.6, m);
+  if (!editable("Comedor")) { ventanas(cara, "s", 727, 757, 1, 0.62, 1.6, m); puertaV(cara, "s", 775, 791, m); ventanas(cara, "s", 815, 845, 1, 0.62, 1.6, m);
+  ventanas(cara, "o", 38, 68, 1, 0.62, 1.6, m); }
   const rojo = new THREE.MeshStandardMaterial({ color: 0xb1281f, roughness: 0.55, metalness: 0.3 }), blanco = new THREE.MeshStandardMaterial({ color: 0xeeeeea, roughness: 0.6, metalness: 0.2 });
   const T = { x0: 705, x1: 932, y0: 0, y1: 112 }, FRENTE = 4.0, ATRAS = FRENTE - 0.07 * (T.y1 - T.y0) * 0.056;
   const P = (x, y, h) => { const v = aEscena(x, y); v.y = base + h * M; return v; };
@@ -1153,10 +1157,12 @@ function bodega(a, base) {
   const celosia = new THREE.MeshStandardMaterial({ color: 0x9aa3a8, metalness: 0.4, roughness: 0.45 });
   const zd = (d) => zN + d * h;   // d: fracción desde el norte
   const huecoE = (mat, an, alto, desde, d) => box(xE, xE + 0.08, yb + desde * M, yb + (desde + alto) * M, zd(d) - (an * M) / 2, zd(d) + (an * M) / 2, mat);
-  for (const [d, an] of [[0.91, 1.4], [0.5, 1.3], [0.29, 1.2], [0.09, 1.1]]) huecoE(celosia, an, 1.2, 0.9, d);
-  huecoE(new THREE.MeshStandardMaterial({ color: 0xcfd2d4 }), 1.1, 2.25, 0, dPuerta); const pu = huecoE(new THREE.MeshStandardMaterial({ color: 0x2f3438 }), 0.9, 2.15, 0, dPuerta); pu.position.x += 0.02;
-  box(xE, xE + 0.35 * M, yRampa - 0.2 * M, yb, zd(dPuerta) - 0.6 * M, zd(dPuerta) + 0.6 * M, new THREE.MeshStandardMaterial({ color: 0xbdbab3, roughness: 0.95 }));   // umbral
-  box(xc - 0.12 * w - 0.85 * M, xc - 0.12 * w + 0.85 * M, yb + 0.9 * M, yb + 2.0 * M, zN - 0.06, zN, celosia);   // ventana del norte
+  if (!editable("Bodega")) {   // puertas y ventanas fijas (si la bodega tiene sus caras guardadas, salen de ahí)
+    for (const [d, an] of [[0.91, 1.4], [0.5, 1.3], [0.29, 1.2], [0.09, 1.1]]) huecoE(celosia, an, 1.2, 0.9, d);
+    huecoE(new THREE.MeshStandardMaterial({ color: 0xcfd2d4 }), 1.1, 2.25, 0, dPuerta); const pu = huecoE(new THREE.MeshStandardMaterial({ color: 0x2f3438 }), 0.9, 2.15, 0, dPuerta); pu.position.x += 0.02;
+    box(xE, xE + 0.35 * M, yRampa - 0.2 * M, yb, zd(dPuerta) - 0.6 * M, zd(dPuerta) + 0.6 * M, new THREE.MeshStandardMaterial({ color: 0xbdbab3, roughness: 0.95 }));   // umbral
+    box(xc - 0.12 * w - 0.85 * M, xc - 0.12 * w + 0.85 * M, yb + 0.9 * M, yb + 2.0 * M, zN - 0.06, zN, celosia);   // ventana del norte
+  }
   return g;
 }
 
@@ -1186,6 +1192,19 @@ function paredDibujada(e, areas) {
   const bod = areas.find((q) => q.es_receso), cb = bod && caja(bod), cerca = 5;
   const enBodega = cb && mx > cb.x0 - cerca && mx < cb.x1 + cerca && my > cb.y0 - cerca && my < cb.y1 + cerca;
   const mat = e.material || "block";
+  if (mat === "caseta") {   // la caseta ya está dibujada (fotos): aquí van solo sus puertas y ventanas, por los dos lados de la cara
+    const marco = new THREE.MeshStandardMaterial({ color: 0xc8ccd0, metalness: 0.6, roughness: 0.4 }), hoja = new THREE.MeshStandardMaterial({ color: 0x2f3438, roughness: 0.5 }),
+      vidrio = new THREE.MeshStandardMaterial({ color: 0x23282d, roughness: 0.3, metalness: 0.4 });
+    for (const h of tramosPared(e).huecos) {
+      const puerta = h.t === "puerta", d = h.d ?? (puerta ? 0 : 1), alto = h.h ?? (puerta ? 2.1 : 1), L2 = (h.s1 - h.s0) * ESC, x = ((h.s0 + h.s1) / 2 - L / 2) * ESC;
+      for (const lado of [-1, 1]) {
+        const fr = new THREE.Mesh(new THREE.BoxGeometry(L2 + 0.12, alto * M + 0.12, 0.06), marco); fr.position.set(x, (d + alto / 2) * M, lado * 0.09); g.add(fr);
+        const p = new THREE.Mesh(new THREE.BoxGeometry(L2, alto * M, 0.06), puerta ? hoja : vidrio); p.position.set(x, (d + alto / 2) * M, lado * 0.13); g.add(p);
+      }
+    }
+    const p = aEscena(mx, my); g.position.set(p.x, base, p.z); g.rotation.y = -Math.atan2(b[1] - a[1], b[0] - a[0]);
+    return g;
+  }
   const altoM = +e.alto ? alto0 / M + +e.alto
     : enBodega ? Math.max(3 * M, ARRIBA * EXAGERA * M - E.altura((cb.x0 + cb.x1) / 2, (cb.y0 + cb.y1) / 2) * M) / M + (E.altura((cb.x0 + cb.x1) / 2, (cb.y0 + cb.y1) / 2) * M - base) / M
     : alto0 / M + (mat === "lamina" ? ALTO_LAMINA : ALTO_MURO[tipoEn(areas, mx, my)] || 3);
@@ -1213,8 +1232,11 @@ function paredDibujada(e, areas) {
   return g;
 }
 
+// Casetas existentes con sus caras guardadas como paredes "caseta": las puertas y ventanas salen de ahí (se editan en la app)
+const editable = (clave) => E.caras?.has(clave);
 function ponerEdificios(areas, elementos = [], piezas = {}) {
   E.edificios.clear(); E.areas = areas;
+  E.caras = new Set(elementos.filter((e) => e.material === "caseta" && e.nombre).map((e) => e.nombre.split(" · ")[0]));
   ponerParedes(areas, piezas);
   ponerGradas(piezas);
   const eRampa = estadoRampa(RAMPA_CHERY, piezas);
@@ -1239,7 +1261,9 @@ function ponerEdificios(areas, elementos = [], piezas = {}) {
   rotulosNivel();
   // Elementos agregados (gradas, jardineras, baños…)
   for (const e of elementos) {
-    if (e.trazo) { const [[ax, ay], [bx, by]] = puntas(e.trazo); if (!enSupervisor((ax + bx) / 2, (ay + by) / 2)) E.edificios.add(paredDibujada(e, areas)); continue; }
+    // paredes: sobre una caseta hecha por fotos, las que ya existen las representa la caseta; las caras de caseta (puertas y
+    // ventanas) y lo que falta o está en proceso sí se dibujan, para que se vea igual que en 2D
+    if (e.trazo) { const [[ax, ay], [bx, by]] = puntas(e.trazo); if (e.material === "caseta" || e.estado !== "existe" || !enSupervisor((ax + bx) / 2, (ay + by) / 2)) E.edificios.add(paredDibujada(e, areas)); continue; }
     if (e.tipo === "techo" && !e.forma) { E.edificios.add(techoElemento(e)); continue; }
     E.edificios.add(figura3d(e));
   }

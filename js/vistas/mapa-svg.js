@@ -41,7 +41,7 @@ function etiqueta(nombre, X, Y, W, H, apagada) {
 
 // ---------- Paredes dibujadas a mano (elementos con trazo) ----------
 export const MATERIALES = { block: "Block", lamina: "Lámina", ventanal: "Ventanal" };
-const COLOR_MAT = { block: "#1f2327", lamina: "#4d565e", ventanal: "#3d8fd1" };
+const COLOR_MAT = { block: "#1f2327", lamina: "#4d565e", ventanal: "#3d8fd1", caseta: "#7a5c3c" };   // caseta: cara de una caseta existente (sus puertas y ventanas se editan)
 export const puntas = (trazo) => { const v = (trazo.match(/-?\d+\.?\d*/g) || []).map(Number); return [[v[0], v[1]], [v[2], v[3]]]; };
 const r1 = (v) => +v.toFixed(1), pct = (v, t) => +((v / t) * 100).toFixed(2);
 // Trazo y caja (en % del plano, con margen para poder tocarla) de una pared de a → b
@@ -62,7 +62,7 @@ export const ANCHO_HUECO = { puerta: 0.9, ventana: 1.5 };
 export function tramosPared(e) {
   const [a, b] = puntas(e.trazo), L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, u = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
   const huecos = (e.huecos || []).map((h) => { const s = (h.c[0] - a[0]) * u[0] + (h.c[1] - a[1]) * u[1], m = h.w / M / 2;
-    return { t: h.t, s0: Math.max(0, s - m), s1: Math.min(L, s + m) }; }).filter((h) => h.s1 - h.s0 > 1).sort((p, q) => p.s0 - q.s0);
+    return { t: h.t, s0: Math.max(0, s - m), s1: Math.min(L, s + m), d: h.d, h: h.h }; }).filter((h) => h.s1 - h.s0 > 1).sort((p, q) => p.s0 - q.s0);
   const solidos = []; let ini = 0;
   for (const h of huecos) { if (h.s0 > ini) solidos.push([ini, h.s0]); ini = Math.max(ini, h.s1); }
   if (ini < L) solidos.push([ini, L]);
