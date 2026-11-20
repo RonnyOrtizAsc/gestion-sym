@@ -255,6 +255,11 @@ const LADO_BOULEVARD = [
   { c: { x0: 85, y0: 715, x1: 330, y1: 1310 }, eje: "y", n: [0.01, -0.64], sinRotulo: true },   // baja parejo, sin hundirse en medio (no es rampa)
   { c: { x0: 85, y0: 1310, x1: 352, y1: 1446 }, eje: "y", n: [-0.64, -0.64], sinRotulo: true },
   { c: { x0: 352, y0: 1322, x1: 556, y1: 1446 }, eje: "x", n: [-0.64, 1.04] },   // G-02: rampa de la calle a la oficina
+  // GWM junto al boulevard (G-02 entre Mo16 y Mo18 + AR-01): el estacionamiento de clientes está hundido (N 867.90) y a cada lado
+  // una rampa (los triángulos del plano) que sube de la acera (N 867.37) a la exhibición (N 868.95)
+  { c: { x0: 85, y0: 276, x1: 245, y1: 482 }, eje: "x", n: [-1.06, -1.06], sinRotulo: true },
+  { c: { x0: 85, y0: 129, x1: 253, y1: 274 }, eje: "x", n: [-1.59, 0] },
+  { c: { x0: 85, y0: 485, x1: 253, y1: 592 }, eje: "x", n: [-1.59, 0] },
 ];
 // Estado de una rampa del plano: el de la mayoría de sus rayas (se marcan juntas)
 const rayasDe = (r) => RAMPAS.find((q) => q.c.x0 < r.c.x1 && q.c.x1 > r.c.x0 && q.c.y0 < r.c.y1 && q.c.y1 > r.c.y0);
