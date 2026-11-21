@@ -256,10 +256,13 @@ const LADO_BOULEVARD = [
   { c: { x0: 85, y0: 1310, x1: 352, y1: 1446 }, eje: "y", n: [-0.64, -0.64], sinRotulo: true },
   // G-02 + foto 20-nov: rampa frente a la oficina. La calle del sur va en pendiente: junto a las gradas el piso está en N 869.95
   // y hacia la calle sube hasta casi el nivel del pasillo (al final del pasillo queda casi al ras). Esquinas: [NO, NE, SO, SE]
-  { c: { x0: 352, y0: 1322, x1: 556, y1: 1446 }, esq: [-0.64, 0.99, -0.64, 1.5], n: [-0.64, 1.5] },
+  // foto marcada 20-nov: la rampa sube pareja hacia el este (x 352 → 530) y arriba queda un descanso angosto frente al pasillo
+  // (x 530 → 555) al nivel de la plataforma; hacia el sur (junto a la valla) el descanso se levanta un poco. Esquinas [NO, NE, SO, SE]
+  { c: { x0: 352, y0: 1318, x1: 530, y1: 1446 }, esq: [-0.64, 1.04, -0.64, 1.3], n: [-0.64, 1.3] },
+  { c: { x0: 530, y0: 1318, x1: 556, y1: 1446 }, esq: [1.04, 1.04, 1.3, 1.42], n: [1.04, 1.42], sinRotulo: true },
   // calle del sur (video 20-nov): sigue la orilla de la rampa, sin escalón: abajo al oeste (adoquín) y sube hacia el este
-  { c: { x0: 330, y0: 1446, x1: 556, y1: 1520 }, eje: "x", n: [-0.64, 1.5], sinRotulo: true },
-  { c: { x0: 556, y0: 1446, x1: 760, y1: 1520 }, eje: "x", n: [1.5, 1.9], sinRotulo: true },
+  { c: { x0: 330, y0: 1446, x1: 530, y1: 1520 }, eje: "x", n: [-0.64, 1.3], sinRotulo: true },
+  { c: { x0: 530, y0: 1446, x1: 760, y1: 1520 }, eje: "x", n: [1.3, 1.9], sinRotulo: true },
   // GWM junto al boulevard (G-02 entre Mo16 y Mo18 + AR-01): el estacionamiento de clientes está hundido (N 867.90) y a cada lado
   // una rampa (los triángulos del plano) que sube de la acera (N 867.37) a la exhibición (N 868.95)
   { c: { x0: 85, y0: 276, x1: 245, y1: 482 }, eje: "x", n: [-1.06, -1.06], sinRotulo: true },
@@ -612,7 +615,7 @@ function zonaBoulevard() {
   // muro del oeste (x 330), de la franja de abajo a la plataforma; el tramo sur pintado (mural)
   for (let y0 = 718; y0 < 1316; y0 += 18) { const y1 = Math.min(1316, y0 + 18), b = suelo(322, (y0 + y1) / 2); caja(328, y0, 332, y1, b, plat + 0.3 * M, concreto); if (y0 > 1130) caja(327.5, y0, 328, y1, b, plat, mural); }
   // muro del sur (y 1316), de x 330 a 450: se va haciendo bajo porque la rampa sube hacia la oficina; con mural
-  for (let x0 = 330; x0 < 450; x0 += 10) { const x1 = x0 + 10, b = suelo((x0 + x1) / 2, 1324); if (plat - b < 0.1 * M) continue;
+  for (let x0 = 330; x0 < 530; x0 += 10) { const x1 = x0 + 10, b = suelo((x0 + x1) / 2, 1324); if (plat - b < 0.1 * M) continue;
     caja(x0, 1314, x1, 1318, b, plat + 0.3 * M, concreto); caja(x0, 1318, x1, 1318.6, b, plat, x0 < 390 ? mural : mural2); }
   // baranda sobre los muros, cerca de la caseta (gris con barrotes amarillos)
   const gris = matE(0xa9b0b5, { metalness: 0.5 }), amar = matE(0xe2b72c);
@@ -634,11 +637,11 @@ function zonaBoulevard() {
   const cur = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16, 1, false, 0, Math.PI), matE(0xd9dad4)), ca = aEscena(X0, Y0), cb = aEscena(X1, Y1);
   cur.scale.set((cb.x - ca.x) / 2 + 0.05, cb.z - ca.z, 0.12 * M); cur.rotation.set(Math.PI / 2, 0, 0); cur.position.set((ca.x + cb.x) / 2, pc + 2.4 * M, (ca.z + cb.z) / 2); cur.castShadow = true; g.add(cur);
   caja(X1 - 0.2, Y0 + 6, X1 + 0.3, Y1 - 6, pc + 0.12 * M, pc + 2.3 * M, matE(0x24282c));   // puerta de dos hojas (este)
-  // gradas de concreto (foto 20-nov): abajo, junto a la esquina del muro del mural (x 330), pegadas a su cara sur; 6 escalones
-  // anchos (~1.6 m) que suben hacia el este desde el adoquín hasta la plataforma de la caseta
-  { const ini = 332, paso = 10, n = 6, b0 = suelo(ini - 2, 1330);
-    for (let k = 0; k < n; k++) { const x0 = ini + k * paso; caja(x0, 1318, x0 + paso, 1346, Math.min(b0, suelo(x0, 1340)) - 0.05, b0 + (plat - b0) * (k + 1) / n, concreto); }
-    caja(ini + n * paso - 0.1, 1318, ini + n * paso + 6, 1346, suelo(ini + n * paso, 1340) - 0.05, plat, concreto); }   // descanso arriba
+  // gradas de concreto (foto marcada 20-nov): empiezan abajo en la esquina del muro del mural (x 332, a nivel del adoquín) y van
+  // a todo lo largo del lado norte de la rampa hasta arriba (x 530), donde llegan al descanso. 6 huellas largas: la orilla de la
+  // rampa sube en diagonal junto a ellas.
+  { const ini = 332, fin = 530, n = 6, paso = (fin - ini) / n, b0 = suelo(ini - 2, 1330);
+    for (let k = 0; k < n; k++) { const x0 = ini + k * paso; caja(x0, 1318, x0 + paso, 1340, Math.min(b0, suelo(x0, 1338)) - 0.05, b0 + (plat - b0) * (k + 1) / n, concreto); } }
   // piso: la rampa es de concreto ranurado (rayas a lo ancho) y abajo, hacia la calle, adoquín
   const piel = (x0, y0, x1, y1, mat, nx = 24, ny = 16) => {
     const geo = new THREE.PlaneGeometry(1, 1, nx, ny), pos = geo.attributes.position, a = aEscena(x0, y0), c = aEscena(x1, y1);
@@ -650,7 +653,7 @@ function zonaBoulevard() {
   const ranurado = textura((x) => { x.fillStyle = "#d8d5ce"; x.fillRect(0, 0, 64, 64); x.fillStyle = "#8f8b82"; for (let k = 0; k < 64; k += 16) x.fillRect(k, 0, 5, 64); }, 60, 1);
   const adoquin = textura((x) => { x.fillStyle = "#9a978f"; x.fillRect(0, 0, 64, 64); x.fillStyle = "#b9b5ab";
     for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) x.fillRect(i * 16 + (j % 2) * 8 + 1, j * 16 + 1, 14, 14); }, 30, 25);
-  piel(352, 1346, 556, 1446, ranurado); piel(400, 1318, 556, 1346, ranurado, 12, 2);
+  piel(352, 1340, 530, 1446, ranurado); piel(530, 1318, 556, 1446, concreto, 4, 12);
   piel(220, 1318, 352, 1446, adoquin, 6, 6);
   // rótulo: columna alta amarilla con base azul y marco blanco arriba (fotos 5 y 7), junto a la calle
   for (const [x, yy] of [[255, 1432]]) {
