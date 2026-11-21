@@ -258,12 +258,12 @@ const LADO_BOULEVARD = [
   // y hacia la calle sube hasta casi el nivel del pasillo (al final del pasillo queda casi al ras). Esquinas: [NO, NE, SO, SE]
   // foto marcada 20-nov: la rampa sube pareja hacia el este (x 352 → 530) y arriba queda un descanso angosto frente al pasillo
   // (x 530 → 555) al nivel de la plataforma; hacia el sur (junto a la valla) el descanso se levanta un poco. Esquinas [NO, NE, SO, SE]
-  //   (G-02: la rampa va de x 352 a la oficina; las gradas del plano, junto a ella, terminan antes, en x 420)
-  { c: { x0: 352, y0: 1302, x1: 556, y1: 1446 }, esq: [-0.64, 1.04, -0.64, 1.35], n: [-0.64, 1.35] },
-  { c: { x0: 300, y0: 1300, x1: 352, y1: 1310 }, eje: "x", n: [-0.64, -0.64], sinRotulo: true },   // abajo de la esquina del muro: al nivel del adoquín   // las gradas (elemento de la app) van encima, junto al muro
+  //   (las gradas, elemento de la app, van de la esquina del muro a lo largo de la rampa hasta el descanso)
+  { c: { x0: 352, y0: 1318, x1: 530, y1: 1446 }, esq: [-0.64, 1.04, -0.64, 1.3], n: [-0.64, 1.3] },
+  { c: { x0: 530, y0: 1318, x1: 556, y1: 1446 }, esq: [1.04, 1.04, 1.3, 1.42], n: [1.04, 1.42], sinRotulo: true },
   // calle del sur (video 20-nov): sigue la orilla de la rampa, sin escalón: abajo al oeste (adoquín) y sube hacia el este
-  { c: { x0: 330, y0: 1446, x1: 556, y1: 1520 }, eje: "x", n: [-0.64, 1.35], sinRotulo: true },
-  { c: { x0: 556, y0: 1446, x1: 760, y1: 1520 }, eje: "x", n: [1.35, 1.9], sinRotulo: true },
+  { c: { x0: 330, y0: 1446, x1: 530, y1: 1520 }, eje: "x", n: [-0.64, 1.3], sinRotulo: true },
+  { c: { x0: 530, y0: 1446, x1: 760, y1: 1520 }, eje: "x", n: [1.3, 1.9], sinRotulo: true },
   // GWM junto al boulevard (G-02 entre Mo16 y Mo18 + AR-01): el estacionamiento de clientes está hundido (N 867.90) y a cada lado
   // una rampa (los triángulos del plano) que sube de la acera (N 867.37) a la exhibición (N 868.95)
   { c: { x0: 85, y0: 276, x1: 245, y1: 482 }, eje: "x", n: [-1.06, -1.06], sinRotulo: true },
@@ -614,20 +614,20 @@ function zonaBoulevard() {
   const caja = (x0, y0, x1, y1, b, t, mat) => { const a = aEscena(x0, y0), c = aEscena(x1, y1), m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.12, Math.abs(c.x - a.x)), Math.max(0.02, t - b), Math.max(0.12, Math.abs(c.z - a.z))), mat);
     m.position.set((a.x + c.x) / 2, (b + t) / 2, (a.z + c.z) / 2); m.castShadow = m.receiveShadow = true; g.add(m); return m; };
   // muro del oeste (x 330), de la franja de abajo a la plataforma; el tramo sur pintado (mural)
-  for (let y0 = 718; y0 < 1302; y0 += 18) { const y1 = Math.min(1302, y0 + 18), b = suelo(322, (y0 + y1) / 2); caja(328, y0, 332, y1, b, plat + 0.3 * M, concreto); }
+  for (let y0 = 718; y0 < 1316; y0 += 18) { const y1 = Math.min(1316, y0 + 18), b = suelo(322, (y0 + y1) / 2); caja(328, y0, 332, y1, b, plat + 0.3 * M, concreto); }
   // muro del sur (y 1316), de x 330 a 450: se va haciendo bajo porque la rampa sube hacia la oficina; con mural
   // muro del sur (y 1316) detrás de las gradas: un solo muro liso de concreto que llega al nivel de la plataforma
-  { const a = aEscena(330, 1298), c = aEscena(556, 1302), b0 = -0.75 * M, L = Math.abs(c.x - a.x), z = (a.z + c.z) / 2, d = Math.abs(c.z - a.z);
+  { const a = aEscena(330, 1312), c = aEscena(530, 1319.5), b0 = -0.75 * M, L = Math.abs(c.x - a.x), z = (a.z + c.z) / 2, d = Math.abs(c.z - a.z);
     const geo = new THREE.BufferGeometry(), x0 = a.x, x1 = c.x, y0 = b0, yt = plat;
     const v = [x0, y0, z - d / 2, x1, y0, z - d / 2, x1, yt, z - d / 2, x0, yt, z - d / 2, x0, y0, z + d / 2, x1, y0, z + d / 2, x1, yt, z + d / 2, x0, yt, z + d / 2];
     geo.setAttribute("position", new THREE.Float32BufferAttribute(v, 3)); geo.setIndex([0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 3, 7, 6, 3, 6, 2, 0, 4, 7, 0, 7, 3]); geo.computeVertexNormals();
     const m = new THREE.Mesh(geo, concreto); m.material.side = THREE.DoubleSide; m.castShadow = m.receiveShadow = true; g.add(m); void L; }
   // baranda sobre los muros, cerca de la caseta (gris con barrotes amarillos)
   const gris = matE(0xa9b0b5, { metalness: 0.5 }), amar = matE(0xe2b72c);
-  const baranda = (pa, pb) => { const alt = (p) => (p[1] === 1302 ? plat : plat + 0.3 * M), a = PA(pa[0], pa[1], alt(pa)), b = PA(pb[0], pb[1], alt(pb)), up = new THREE.Vector3(0, 1.1 * M, 0), L = a.distanceTo(b), n = Math.round(L / (0.12 * M));
+  const baranda = (pa, pb) => { const alt = (p) => (p[1] === 1316 ? plat : plat + 0.3 * M), a = PA(pa[0], pa[1], alt(pa)), b = PA(pb[0], pb[1], alt(pb)), up = new THREE.Vector3(0, 1.1 * M, 0), L = a.distanceTo(b), n = Math.round(L / (0.12 * M));
     barraE(g, a.clone().add(up), b.clone().add(up), 0.09, gris); barraE(g, a.clone().addScaledVector(up, 0.1), b.clone().addScaledVector(up, 0.1), 0.07, gris);
     for (let k = 0; k <= n; k++) { const p = a.clone().lerp(b, k / n); barraE(g, p, p.clone().add(up), k % 12 ? 0.04 : 0.09, k % 12 ? amar : gris); } };
-  baranda([330, 1150], [330, 1302]); baranda([330, 1302], [436, 1302]);
+  baranda([330, 1150], [330, 1316]); baranda([330, 1316], [530, 1316]);
   // caseta (fotos 13:36): bajo el techo grande, junto a la columna amarilla de base roja (x 333, y 1237), con la baranda detrás.
   // Rectangular ~1.7 × 2.2 m, 2.4 m de alto: abajo lámina gris, franja de ventanas con marco blanco, arriba lámina amarilla con techito
   // curvo; puerta de dos hojas oscuras en la cara este.
@@ -654,8 +654,8 @@ function zonaBoulevard() {
   const ranurado = textura((x) => { x.fillStyle = "#d8d5ce"; x.fillRect(0, 0, 64, 64); x.fillStyle = "#8f8b82"; for (let k = 0; k < 64; k += 16) x.fillRect(k, 0, 5, 64); }, 60, 1);
   const adoquin = textura((x) => { x.fillStyle = "#9a978f"; x.fillRect(0, 0, 64, 64); x.fillStyle = "#b9b5ab";
     for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) x.fillRect(i * 16 + (j % 2) * 8 + 1, j * 16 + 1, 14, 14); }, 30, 25);
-  piel(352, 1302, 556, 1446, ranurado);
-  piel(220, 1302, 352, 1446, adoquin, 6, 6);
+  piel(352, 1340, 530, 1446, ranurado); piel(530, 1318, 556, 1446, concreto, 4, 12);
+  piel(220, 1318, 352, 1446, adoquin, 6, 6);
   // rótulo: columna alta amarilla con base azul y marco blanco arriba (fotos 5 y 7), junto a la calle
   for (const [x, yy] of [[255, 1432]]) {
     const b = suelo(x, yy), v = aEscena(x, yy), h = 9 * M;
