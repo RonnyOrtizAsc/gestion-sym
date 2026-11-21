@@ -1027,15 +1027,27 @@ function filaNorteTaller(base, H) {
   // 1 · BODEGA DE REPUESTOS (x 1028–1143, fotos 20-nov): cerrada al taller con malla en marco gris perla; adentro estantería en L
   // (pared norte de block y la pared del fondo), estantes al frente con un tapanco de tablas arriba; cielo de lámina con vigas.
   // La ventana de celosía está en la pared del fondo (la que da a los lockers): por ahí se ven los estantes desde el 2.
-  const malla = new THREE.MeshStandardMaterial({ color: 0xcfd0cc, transparent: true, opacity: 0.3, metalness: 0.4, roughness: 0.5, side: THREE.DoubleSide, depthWrite: false });
-  malla.userData = azul.userData;
+  // malla desplegada (rombos), como en la foto: textura con huecos
+  const mallaTex = (rx, ry) => { const cv = document.createElement("canvas"); cv.width = cv.height = 32; const x = cv.getContext("2d");
+    x.strokeStyle = "#d6d7d3"; x.lineWidth = 3; x.beginPath(); x.moveTo(0, 16); x.lineTo(16, 0); x.lineTo(32, 16); x.lineTo(16, 32); x.closePath(); x.stroke();
+    const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry);
+    const m = new THREE.MeshStandardMaterial({ map: t, alphaTest: 0.4, transparent: true, metalness: 0.4, roughness: 0.5, side: THREE.DoubleSide }); m.userData = azul.userData; return m; };
+  const malla = mallaTex(60, 30);
   caja(1029, 6, 1143, 7.2, 0, 3.0, new THREE.MeshStandardMaterial({ color: 0xc6c1b5, roughness: 0.95 }));   // block visto
-  for (let x = 1030; x <= 1142; x += 18.6) caja(x - 0.6, 57.4, x + 0.6, 58.6, 0, 3.0, azul);                  // frente de malla: parales
-  for (const h of [0.05, 1.0, 2.0, 2.95]) caja(1030, 57.4, 1142.6, 58.6, h, h + 0.08, azul);                    //   y travesaños
-  caja(1030, 57.8, 1142.6, 58.2, 0.05, 3.0, malla);
+  // frente de malla con su PUERTA (foto: hoja de malla con marco, abierta hacia afuera) en el extremo este (x 1122–1140)
+  const P0 = 1122, P1 = 1140;
+  for (let x = 1030; x < P0; x += 18.4) caja(x - 0.6, 57.4, x + 0.6, 58.6, 0, 3.0, azul);                      // parales
+  for (const x of [P0, P1, 1142.4]) caja(x - 0.7, 57.3, x + 0.7, 58.7, 0, 3.0, azul);
+  for (const h of [0.05, 1.0, 2.0, 2.95]) { caja(1030, 57.4, P0, 58.6, h, h + 0.08, azul); caja(P1, 57.4, 1142.6, 58.6, h, h + 0.08, azul); }
+  caja(P0, 57.4, P1, 58.6, 2.25, 2.33, azul); caja(P0, 57.4, P1, 58.6, 2.95, 3.03, azul); caja(P0, 57.8, P1, 58.2, 2.33, 2.95, malla);   // dintel
+  caja(1030, 57.8, P0, 58.2, 0.05, 3.0, malla); caja(P1, 57.8, 1142.6, 58.2, 0.05, 3.0, malla);
+  { const hoja = new THREE.Group(), w = (P1 - P0 - 1) * ESC, hh = 2.15 * M, marcoH = (ww, h, x, y) => { const m = new THREE.Mesh(new THREE.BoxGeometry(ww, h, 0.07), azul); m.position.set(x, y, 0); m.castShadow = true; hoja.add(m); };
+    marcoH(0.08, hh, -0.04, hh / 2); marcoH(0.08, hh, -w + 0.04, hh / 2); marcoH(w, 0.08, -w / 2, 0.04); marcoH(w, 0.08, -w / 2, hh - 0.04); marcoH(w, 0.06, -w / 2, hh * 0.55);
+    const t = mallaTex(10, 12), pm = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.1, hh - 0.1), t); pm.position.set(-w / 2, hh / 2, 0); hoja.add(pm);
+    const bis = aEscena(P1 - 0.7, 58.8); hoja.position.set(bis.x, base + 0.08 * M, bis.z); hoja.rotation.y = 1.2; E.edificios.add(hoja); }
   for (let y = 7; y <= 58; y += 17) caja(1029.4, y - 0.6, 1030.6, y + 0.6, 0, 3.0, azul);                     // costado oeste de malla
   for (const h of [0.05, 1.0, 2.0, 2.95]) caja(1029.4, 7, 1030.6, 58.6, h, h + 0.08, azul);
-  caja(1029.8, 7, 1030.2, 58.6, 0.05, 3.0, malla);
+  caja(1029.8, 7, 1030.2, 58.6, 0.05, 3.0, mallaTex(30, 30));
   estante(1032, 7.5, 1131, 18, [0.3, 0.9, 1.5, 2.1], 2.2);          // a lo largo de la pared norte (block)
   estante(1131, 7.5, 1142.5, 50, [0.55, 1.15, 1.75], 1.85);         // en el fondo, debajo de la ventana
   caja(1131.5, 18, 1142.5, 50, 0, 0.3, new THREE.MeshStandardMaterial({ color: 0xb08a55, roughness: 0.8 }));
