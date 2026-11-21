@@ -698,22 +698,24 @@ function oficinaExistente() {
   ventN(707, 715, F + 2.0 * M, F + 2.5 * M);                                                      // ventanita junto a la esquina este
   // frente oeste, de norte a sur (foto 20-nov marcada = G-02): ventanal, puerta abierta, pared, ventanal y puerta de vidrio
   const CI2 = TOP - FAS, vano = matE(0x15181b, { metalness: 0 }), gris = matE(0xc9cdd3, { metalness: 0 });
-  const ventO = (a, b, h0 = F + 0.08 * M, h1 = CI2) => { caja(XV, a, XV + 0.4, b, h0, h1, cristal);
+  const DIN = F + 2.1 * M;   // arriba de ventanas y puertas va una viga blanca maciza hasta el cielo (foto marcada): no es vidrio hasta arriba
+  caja(XV - 0.3, Y0 + 1.5, XV + 1.2, 1445, DIN, CI2, blanco);
+  const ventO = (a, b, h0 = F + 0.08 * M, h1 = DIN) => { caja(XV, a, XV + 0.4, b, h0, h1, cristal);
     caja(XV - 0.2, a, XV + 0.6, a + 0.7, h0, h1, marco); caja(XV - 0.2, b - 0.7, XV + 0.6, b, h0, h1, marco); caja(XV - 0.2, a, XV + 0.6, b, h0 - 0.06 * M, h0, marco); };
   caja(XV, Y0, XV + 1.2, Y0 + 1.5, F, CI2, marino);              // esquina de block
   ventO(Y0 + 1.5, 1318);                                         // ventanal (oficina de arriba)
   // PUERTA abierta: marco grueso, hoja abierta hacia adentro y el vano oscuro
-  caja(XV + 0.3, 1319, XV + 0.6, 1337, F, F + 2.5 * M, vano);
-  caja(XV - 0.3, 1318, XV + 0.7, 1319.2, F, F + 2.5 * M, marco); caja(XV - 0.3, 1336.8, XV + 0.7, 1338, F, F + 2.5 * M, marco);
-  caja(XV - 0.3, 1318, XV + 0.7, 1338, F + 2.5 * M, CI2, marco);
-  { const hoja = new THREE.Mesh(new THREE.BoxGeometry(18 * ESC, 2.45 * M, 0.08), matE(0x3a3f45, { metalness: 0.3 })), q = aEscena(XV + 0.6, 1337);
-    hoja.geometry.translate(-9 * ESC, 0, 0); hoja.position.set(q.x, F + 1.24 * M, q.z); hoja.rotation.y = Math.PI / 2 + 1.1; g.add(hoja); }
-  caja(XV - 0.6, 1338, XV + 1.2, 1352, F, CI2, gris);            // PARED (el machón gris claro entre las dos oficinas)
+  caja(XV + 0.3, 1319, XV + 0.6, 1337, F, DIN, vano);
+  caja(XV - 0.3, 1318, XV + 0.7, 1319.2, F, DIN, marco); caja(XV - 0.3, 1336.8, XV + 0.7, 1338, F, DIN, marco);
+  caja(XV - 0.3, 1318, XV + 0.7, 1338, DIN - 0.08 * M, DIN, marco);
+  { const hoja = new THREE.Mesh(new THREE.BoxGeometry(18 * ESC, 2.05 * M, 0.08), matE(0x3a3f45, { metalness: 0.3 })), q = aEscena(XV + 0.6, 1337);
+    hoja.geometry.translate(-9 * ESC, 0, 0); hoja.position.set(q.x, F + 1.04 * M, q.z); hoja.rotation.y = Math.PI / 2 + 1.1; g.add(hoja); }
+  caja(XV - 0.6, 1338, XV + 1.2, 1352, F, DIN, gris);            // PARED (el machón gris claro entre las dos oficinas)
   ventO(1352, 1425);                                             // ventanal (oficina de abajo)
   // PUERTA de vidrio al final, con marco grueso y manija
-  caja(XV, 1426, XV + 0.4, 1444, F + 0.02 * M, F + 2.4 * M, cristal);
-  caja(XV - 0.3, 1425, XV + 0.7, 1426.3, F, F + 2.5 * M, marco); caja(XV - 0.3, 1443.7, XV + 0.7, 1445, F, F + 2.5 * M, marco);
-  caja(XV - 0.3, 1425, XV + 0.7, 1445, F, F + 0.12 * M, marco); caja(XV - 0.3, 1425, XV + 0.7, 1445, F + 2.4 * M, CI2, marco);
+  caja(XV, 1426, XV + 0.4, 1444, F + 0.02 * M, DIN - 0.08 * M, cristal);
+  caja(XV - 0.3, 1425, XV + 0.7, 1426.3, F, DIN, marco); caja(XV - 0.3, 1443.7, XV + 0.7, 1445, F, DIN, marco);
+  caja(XV - 0.3, 1425, XV + 0.7, 1445, F, F + 0.12 * M, marco); caja(XV - 0.3, 1425, XV + 0.7, 1445, DIN - 0.08 * M, DIN, marco);
   caja(XV - 0.7, 1440.5, XV - 0.3, 1441.3, F + 0.8 * M, F + 1.5 * M, matE(0xd8dadc, { metalness: 0.8 }));        // manija
   caja(XV, 1445, XV + 1.2, Y1, F, CI2, marino);
   // pasillo: losa con cielo blanco y fascia amarilla (sin columna: lo gris claro es la pared del frente)
