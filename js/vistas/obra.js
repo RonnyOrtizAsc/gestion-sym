@@ -30,7 +30,7 @@ const ICONO = {
   ojo: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>`,
   ojoNo: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A10.6 10.6 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6C3.8 8.4 2 12 2 12s3.5 7 10 7c1.8 0 3.4-.5 4.8-1.3M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>`,
   comida: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 21V3c-2 1-3 4-3 7h3"/></svg>`,
-  reloj: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>`,
+  reloj: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="15" cy="4.5" r="2"/><path d="M14 7.5l-3.5 5h5l2 6.5"/><path d="M10.5 12.5L8 18"/><path d="M3 15h7M4.5 15v5M8.5 15v5"/></svg>`,   // persona sentada descansando
   deshacer: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>`,
   rehacer: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>`,
   centrar: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>`,
@@ -346,7 +346,7 @@ export function render(V, { hacer, redibujar }) {
       <b>${recOn ? "Terminar receso" : "Receso"}</b><small>${recOn ? (nRec ? `${nRec} afuera` : "Toca a quien sale") : nRec ? `${nRec} en receso` : "15 minutos"}</small></button>
     <button class="accion pausa almuerzo ${alm ? "on" : ""}" id="hudAlmuerzo" aria-pressed="${alm}">${ICONO.comida}
       <b>${alm ? "Terminar almuerzo" : "Almuerzo"}</b><small>${alm ? (nAlm ? `${nAlm} afuera` : "Toca a quien sale") : nAlm ? `${nAlm} almorzando` : "1 hora"}</small></button>
-    <button class="accion herr" id="hudHerr">${ICONO.llave}<b>Herramientas</b><small>${nPrest ? `${nPrest} prestada${nPrest > 1 ? "s" : ""}` : "Todo en bodega"}</small>
+    <button class="accion herram" id="hudHerr">${ICONO.llave}<b>Herramientas</b><small>${nPrest ? `${nPrest} prestada${nPrest > 1 ? "s" : ""}` : "Todo en bodega"}</small>
       ${nPrest ? `<i class="cuenta">${nPrest}</i>` : ""}</button>
   </div>`;
   const BARRA_MAPA = `<div class="barra-mapa">
@@ -364,16 +364,16 @@ export function render(V, { hacer, redibujar }) {
       : `<button class="flot-btn icono" data-z="1" aria-label="Acercar" ${ui.zoom === ZOOMS.at(-1) ? "disabled" : ""}>+</button><button class="flot-btn icono" data-z="-1" aria-label="Alejar" ${ui.zoom === ZOOMS[0] ? "disabled" : ""}>−</button>`}</div>`;
 
   V.innerHTML = `<div class="titulo-obra"><div><p class="eyebrow">${esc(o.nombre)}${o.propietario ? " · " + esc(o.propietario) : ""}</p>
-    <h2>${ui.editar ? "Editando el plano" : alm ? "Modo almuerzo" : receso ? "Modo receso" : "Centro de mando"}</h2></div></div>
+    ${ui.editar ? "<h2>Editando el plano</h2>" : ""}</div></div>
   ${ACCIONES}
-  ${receso ? `<p class="pista receso ${alm ? "almuerzo" : ""}"><span>Modo ${alm ? "almuerzo" : "receso"}: cada toque manda o regresa a la persona. Mientras está activo no se asigna gente.</span> <button class="btn small" data-salir-modo>Salir</button></p>`
+  ${receso ? `<p class="pista receso ${alm ? "almuerzo" : ""}"><span>${alm ? "🍽️ <b>Almuerzo</b>" : "☕ <b>Receso</b>"}: toca a cada persona que sale. Cuando regrese, tócala otra vez. Para terminar, toca <b>${alm ? "Terminar almuerzo" : "Terminar receso"}</b> arriba.</span></p>`
     : ui.moviendo && w ? `<p class="pista mover">Toca el lugar exacto a donde va <b>${esc(primerNombre(w.nombre))}</b> <button class="btn small" data-cancelar-mover>Cancelar</button></p>`
     : ui.punta ? `<p class="pista mover">Toca a dónde llega la pared.</p>`
     : ui.nuevo?.tipo === "muro" ? `<p class="pista mover">${ui.nuevo.p1 ? "Ahora toca donde termina (o arrastra)." : "Toca donde empieza la pared, o arrástrala de punta a punta."}</p>`
     : ui.nuevo?.tipo ? `<p class="pista mover">${ui.nuevo.p1 ? "Toca la esquina opuesta." : "Toca una esquina."}</p>`
     : ui.editar && ui.inicio ? `<p class="pista mover">Ahora toca dónde termina la pared. Toca el mismo punto para una columna.</p>`
     : ui.editar ? `<p class="pista mover">${PISTA_HERR[ui.herr]}</p>`
-    : `<p class="pista">Toca un área o a una persona.${es3d ? "" : " Arrastra a alguien para ponerlo en el lugar exacto donde trabaja."}${es3d ? " Arrastra para moverte; con dos dedos giras." : ""}</p>`}
+    : ""}
   ${BARRA_MAPA}
   ${HERR}
   <div class="mapa-caja">
