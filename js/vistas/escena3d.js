@@ -241,7 +241,7 @@ const ABAJO = 0, MEDIO = 1.04, ARRIBA = 2.96;
 function nivelFijo(a) {
   const n = a.nombre || "";
   if (a.es_receso) return ABAJO;                   // bodega: abajo, al nivel del rebalse técnico
-  if (/t[eé]cnico|taller|gwm|marca 4|comedor|lockers/i.test(n)) return ABAJO;
+  if (/t[eé]cnico|taller|gwm|marca [34]|demo, entrega y exhibici|comedor|lockers|el[eé]ctric|compresor|repuestos|desvestid|^ba[ñn]os$/i.test(n)) return ABAJO;   // (nombres del plano 19-nov incluidos: renombrar no cambia el piso)
   if (/patio|rebalse|empleados|entrega de veh|caf[eé]|atenci|lavado/i.test(n)) return ARRIBA;   // el lavado va al nivel del patio de maniobras
   return MEDIO;
 }
