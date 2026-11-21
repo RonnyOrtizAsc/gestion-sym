@@ -257,7 +257,9 @@ const LADO_BOULEVARD = [
   // G-02 + foto 20-nov: rampa frente a la oficina. La calle del sur va en pendiente: junto a las gradas el piso está en N 869.95
   // y hacia la calle sube hasta casi el nivel del pasillo (al final del pasillo queda casi al ras). Esquinas: [NO, NE, SO, SE]
   { c: { x0: 352, y0: 1322, x1: 556, y1: 1446 }, esq: [-0.64, 0.99, -0.64, 1.5], n: [-0.64, 1.5] },
-  { c: { x0: 330, y0: 1446, x1: 760, y1: 1520 }, eje: "x", n: [0.9, 1.9], sinRotulo: true },   // calle del sur: sube hacia el este (G-02: 870.25 → 870.50…)
+  // calle del sur (video 20-nov): sigue la orilla de la rampa, sin escalón: abajo al oeste (adoquín) y sube hacia el este
+  { c: { x0: 330, y0: 1446, x1: 556, y1: 1520 }, eje: "x", n: [-0.64, 1.5], sinRotulo: true },
+  { c: { x0: 556, y0: 1446, x1: 760, y1: 1520 }, eje: "x", n: [1.5, 1.9], sinRotulo: true },
   // GWM junto al boulevard (G-02 entre Mo16 y Mo18 + AR-01): el estacionamiento de clientes está hundido (N 867.90) y a cada lado
   // una rampa (los triángulos del plano) que sube de la acera (N 867.37) a la exhibición (N 868.95)
   { c: { x0: 85, y0: 276, x1: 245, y1: 482 }, eje: "x", n: [-1.06, -1.06], sinRotulo: true },
@@ -632,8 +634,24 @@ function zonaBoulevard() {
   const cur = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16, 1, false, 0, Math.PI), matE(0xd9dad4)), ca = aEscena(X0, Y0), cb = aEscena(X1, Y1);
   cur.scale.set((cb.x - ca.x) / 2 + 0.05, cb.z - ca.z, 0.12 * M); cur.rotation.set(Math.PI / 2, 0, 0); cur.position.set((ca.x + cb.x) / 2, pc + 2.4 * M, (ca.z + cb.z) / 2); cur.castShadow = true; g.add(cur);
   caja(X1 - 0.2, Y0 + 6, X1 + 0.3, Y1 - 6, pc + 0.12 * M, pc + 2.3 * M, matE(0x24282c));   // puerta de dos hojas (este)
-  // gradas de concreto (foto): pegadas al muro del mural, al lado norte de la rampa; suben hacia el este hasta la plataforma
-  for (let k = 0; k < 6; k++) { const x0 = 400 + k * 9, b = suelo(x0 + 4, 1324); caja(x0, 1318, x0 + 9, 1332, b, b + Math.max(0.05, (plat - b) * (k + 1) / 6), concreto); }
+  // gradas de concreto (foto 20-nov): abajo, junto a la esquina del muro del mural (x 330), pegadas a su cara sur; 6 escalones
+  // anchos (~1.6 m) que suben hacia el este desde el adoquín hasta la plataforma de la caseta
+  { const ini = 332, paso = 10, n = 6, b0 = suelo(ini - 2, 1330);
+    for (let k = 0; k < n; k++) { const x0 = ini + k * paso; caja(x0, 1318, x0 + paso, 1346, Math.min(b0, suelo(x0, 1340)) - 0.05, b0 + (plat - b0) * (k + 1) / n, concreto); }
+    caja(ini + n * paso - 0.1, 1318, ini + n * paso + 6, 1346, suelo(ini + n * paso, 1340) - 0.05, plat, concreto); }   // descanso arriba
+  // piso: la rampa es de concreto ranurado (rayas a lo ancho) y abajo, hacia la calle, adoquín
+  const piel = (x0, y0, x1, y1, mat, nx = 24, ny = 16) => {
+    const geo = new THREE.PlaneGeometry(1, 1, nx, ny), pos = geo.attributes.position, a = aEscena(x0, y0), c = aEscena(x1, y1);
+    for (let i = 0; i < pos.count; i++) { const u = pos.getX(i) + 0.5, v = 0.5 - pos.getY(i), px = x0 + (x1 - x0) * u, py = y0 + (y1 - y0) * v;
+      pos.setXYZ(i, a.x + (c.x - a.x) * u, suelo(px, py) + 0.03, a.z + (c.z - a.z) * v); }
+    geo.computeVertexNormals(); const m = new THREE.Mesh(geo, mat); m.receiveShadow = true; m.material.side = THREE.DoubleSide; g.add(m); };
+  const textura = (dibujar, rx, ry) => { const cv = document.createElement("canvas"); cv.width = cv.height = 64; dibujar(cv.getContext("2d"));
+    const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); return new THREE.MeshStandardMaterial({ map: t, roughness: 0.95 }); };
+  const ranurado = textura((x) => { x.fillStyle = "#d8d5ce"; x.fillRect(0, 0, 64, 64); x.fillStyle = "#8f8b82"; for (let k = 0; k < 64; k += 16) x.fillRect(k, 0, 5, 64); }, 60, 1);
+  const adoquin = textura((x) => { x.fillStyle = "#9a978f"; x.fillRect(0, 0, 64, 64); x.fillStyle = "#b9b5ab";
+    for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) x.fillRect(i * 16 + (j % 2) * 8 + 1, j * 16 + 1, 14, 14); }, 30, 25);
+  piel(352, 1346, 556, 1446, ranurado); piel(400, 1318, 556, 1346, ranurado, 12, 2);
+  piel(220, 1318, 352, 1446, adoquin, 6, 6);
   // rótulo: columna alta amarilla con base azul y marco blanco arriba (fotos 5 y 7), junto a la calle
   for (const [x, yy] of [[255, 1432]]) {
     const b = suelo(x, yy), v = aEscena(x, yy), h = 9 * M;
