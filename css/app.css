@@ -535,3 +535,7 @@ nav.tabs a{font-size:11px;min-width:0;white-space:nowrap}
 .color{display:flex;align-items:center;gap:7px;border:1.5px solid var(--line);background:var(--bg);border-radius:12px;padding:7px 8px;font-weight:700;font-size:12px;text-align:left}
 .color i{width:22px;height:22px;border-radius:7px;border:1px solid rgba(0,0,0,.18);flex:none}
 .color[aria-pressed="true"]{border-color:var(--ink);box-shadow:0 0 0 2px var(--lime)}
+
+/* botones de receso / almuerzo con su ícono */
+.seg-ico button{display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.ico-seg{width:22px;height:22px;fill:none;stroke:var(--break);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}

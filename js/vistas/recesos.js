@@ -84,9 +84,8 @@ export function render(V, { hacer, redibujar }) {
   const excesoHoyTotal = Math.round(S.trabajadores.reduce((a, w) => a + excesoHoy(w.id) + excesoAlmuerzo(w.id), 0));
   const registro = S.recesos.filter((r) => r.fin).slice().reverse().slice(0, 30);
 
-  V.innerHTML = `<p class="eyebrow">Tiempos · receso ${lim} min mañana y ${lim} min tarde · almuerzo ${LIMITE_ALMUERZO} min</p><h2>Receso</h2>
-  <p class="lead">Toca a cualquiera para mandarlo o regresarlo. Si lo toma en varios pedazos, se van sumando.</p>
-  <div class="seg" role="group" aria-label="Al tocar a alguien" style="margin-bottom:12px"><button data-tipo="receso" aria-pressed="${ui.tipo === "receso"}">Mandar a receso</button><button data-tipo="almuerzo" aria-pressed="${ui.tipo === "almuerzo"}">Mandar a almorzar</button></div>
+  V.innerHTML = `<h2>Receso</h2>
+  <div class="seg seg-ico" role="group" aria-label="Al tocar a alguien" style="margin-bottom:12px"><button data-tipo="receso" aria-pressed="${ui.tipo === "receso"}"><svg class="ico-seg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="5.6" r="1.5"/><path d="M8.6 8.5L3.6 7.6l2.9-3.7"/><path d="M12.9 3.6h3.3l-3.9 4.7"/><path d="M10.2 8.8l1.8 5.7"/><path d="M12 14.5l4.6-1.9 3 5.2"/><path d="M12 14.5h3.2v6"/><path d="M5.4 10.2l2 7.3h6.6"/><path d="M8.2 17.5l-.4 3"/></svg>Mandar a receso</button><button data-tipo="almuerzo" class="almuerzo" aria-pressed="${ui.tipo === "almuerzo"}"><svg class="ico-seg" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 21V3c-2 1-3 4-3 7h3"/></svg>Mandar a almorzar</button></div>
   <div class="stats">
     <div class="stat b"><b>${enRec.length}</b><span>${enRec.some((w) => esAlmuerzo(recesoAbierto(w.id))) ? "en pausa ahora" : "en receso ahora"}</span></div>
     <div class="stat"><b>${NOMBRE_TURNO[ahoraT]}</b><span>turno actual</span></div>
