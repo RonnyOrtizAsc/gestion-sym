@@ -86,10 +86,6 @@ export function render(V, { hacer, redibujar }) {
 
   V.innerHTML = `<h2>Receso</h2>
   <div class="seg seg-ico" role="group" aria-label="Al tocar a alguien" style="margin-bottom:12px"><button data-tipo="receso" aria-pressed="${ui.tipo === "receso"}"><svg class="ico-seg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="5.6" r="1.5"/><path d="M8.6 8.5L3.6 7.6l2.9-3.7"/><path d="M12.9 3.6h3.3l-3.9 4.7"/><path d="M10.2 8.8l1.8 5.7"/><path d="M12 14.5l4.6-1.9 3 5.2"/><path d="M12 14.5h3.2v6"/><path d="M5.4 10.2l2 7.3h6.6"/><path d="M8.2 17.5l-.4 3"/></svg>Mandar a receso</button><button data-tipo="almuerzo" class="almuerzo" aria-pressed="${ui.tipo === "almuerzo"}"><svg class="ico-seg" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 21V3c-2 1-3 4-3 7h3"/></svg>Mandar a almorzar</button></div>
-  <div class="stats">
-    <div class="stat b"><b>${enRec.length}</b><span>${enRec.some((w) => esAlmuerzo(recesoAbierto(w.id))) ? "en pausa ahora" : "en receso ahora"}</span></div>
-    <div class="stat"><b>${NOMBRE_TURNO[ahoraT]}</b><span>turno actual</span></div>
-    <div class="stat ${excesoHoyTotal ? "rojo" : "w"}"><b>${excesoHoyTotal} min</b><span>excedidos hoy</span></div></div>
   ${almHora && ui.tipo === "almuerzo" ? `<p class="aviso-alm almuerzo">🍽️ Es hora de almuerzo: al tocar a alguien lo manda a <b>almorzar</b>.</p>
     ${S.trabajadores.some((w) => !recesoAbierto(w.id) && !almuerzoHoy(w.id)) ? `<button class="btn big" id="todosAlm" style="margin-bottom:12px">Todos a almorzar</button>` : ""}` : ""}
   ${enRec.length ? `<button class="btn primary big" id="fin" style="margin-bottom:12px">Todos a trabajar</button>` : ""}
