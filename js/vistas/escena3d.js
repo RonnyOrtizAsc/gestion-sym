@@ -846,7 +846,7 @@ function figura3d(e) {
   }
   const alto = altoDe(e) * M * (proceso ? 0.5 : 1);
   const mat = new THREE.MeshStandardMaterial({ color: proceso ? 0xc98a2c : COL_FIG[e.tipo] || 0x7d6bb3, roughness: 0.9,
-    transparent: falta || e.tipo === "techo", opacity: falta ? 0.2 : e.tipo === "techo" ? 0.6 : 1, depthWrite: !falta && e.tipo !== "techo",
+    transparent: falta || proceso && e.tipo === "techo", opacity: falta ? 0.2 : e.tipo === "techo" && proceso ? 0.6 : 1, depthWrite: !falta,
     flatShading: e.tipo === "monticulo", side: e.tipo === "techo" ? THREE.DoubleSide : THREE.FrontSide });
   if (e.tipo === "monticulo") {   // pirámide de tierra: cada esquina sube a la punta en el centro
     const c = centroFig(pts), cv = aEscena(c[0], c[1]), top = arriba + alto, pos = [];
@@ -855,6 +855,7 @@ function figura3d(e) {
     const gm = new THREE.BufferGeometry(); gm.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); gm.computeVertexNormals();
     mat.side = THREE.DoubleSide; const m = new THREE.Mesh(gm, mat); m.castShadow = !falta; m.receiveShadow = true; g.add(m); return g;
   }
+  if (e.tipo === "columna" && !falta && !proceso && !(e.nombre || "").match(/concreto/i)) mat.color.set(0xdfe2e3);   // columnas de acero pintadas claro (fotos)
   if (e.tipo === "inodoro" || e.tipo === "lavamanos" || e.tipo === "mueble") { g.add(mueble3d(e, pts, base, alto, mat)); return g; }
   if (e.tipo === "grada") {   // escalones: suben del lado 0–3 al lado 1–2, cada uno un bloque de la forma
     const n = nEscalones(e), [p0, p1, p2, p3] = pts, en = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
@@ -870,7 +871,15 @@ function figura3d(e) {
     const y = base + alto, viga = falta ? MAT.falta : proceso ? MAT.en_proceso : new THREE.MeshStandardMaterial({ color: 0x8b949b, metalness: 0.4, roughness: 0.5 });
     g.userData.techo = true;
     if (!proceso) g.add(tapa(pts, y + 0.1, mat));
-    pts.forEach(([x, yy], i) => { const [x2, y2] = pts[(i + 1) % pts.length], a = aEscena(x, yy), b = aEscena(x2, y2), L = a.distanceTo(b);
+    if (!falta && !proceso) {   // ya está: lámina gris claro con vigas de celosía blancas en las orillas y polines por debajo (foto)
+      mat.color.set(0xd7dadc); mat.metalness = 0.2; mat.roughness = 0.5; mat.emissive = new THREE.Color(0x55595c);   // por debajo se ve claro, como en la foto
+      const blanco = new THREE.MeshStandardMaterial({ color: 0xe9ebec, metalness: 0.3, roughness: 0.5 });
+      pts.forEach(([x, yy], i) => { const [x2, y2] = pts[(i + 1) % pts.length], a = aEscena(x, yy), b = aEscena(x2, y2); a.y = b.y = y - 0.05; celosia(g, a, b, 0.6 * M, blanco, 0.07); });
+      const [p0, p1, p2, p3] = pts, largo01 = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) >= Math.hypot(p3[0] - p0[0], p3[1] - p0[1]);
+      const [A0, A1, B0, B1] = largo01 ? [p0, p1, p3, p2] : [p0, p3, p1, p2], n = Math.max(2, Math.round(Math.hypot(A1[0] - A0[0], A1[1] - A0[1]) / 22));
+      for (let k = 1; k < n; k++) { const t = k / n, a = aEscena(A0[0] + (A1[0] - A0[0]) * t, A0[1] + (A1[1] - A0[1]) * t), b = aEscena(B0[0] + (B1[0] - B0[0]) * t, B0[1] + (B1[1] - B0[1]) * t);
+        const v = new THREE.Mesh(new THREE.BoxGeometry(a.distanceTo(b), 0.2 * M, 0.1 * M), blanco); v.position.set((a.x + b.x) / 2, y - 0.15 * M, (a.z + b.z) / 2); v.rotation.y = -Math.atan2(b.z - a.z, b.x - a.x); g.add(v); }
+    } else pts.forEach(([x, yy], i) => { const [x2, y2] = pts[(i + 1) % pts.length], a = aEscena(x, yy), b = aEscena(x2, y2), L = a.distanceTo(b);
       const v = new THREE.Mesh(new THREE.BoxGeometry(L, 0.45, 0.3), viga); v.position.set((a.x + b.x) / 2, y - 0.3, (a.z + b.z) / 2); v.rotation.y = -Math.atan2(b.z - a.z, b.x - a.x); g.add(v); });
     return g;
   }
@@ -1365,10 +1374,10 @@ function bodega(a, base) {
   const alero = box(xp0 - 0.5 * M, xp1 + 0.5 * M, base + hp + 0.55 * M, base + hp + 0.58 * M, zN - 0.75 * M, zN, new THREE.MeshStandardMaterial({ color: 0x9ea5aa, metalness: 0.5, roughness: 0.5 }));
   alero.rotation.x = -0.1;
   for (const x of [xp0 - 0.3 * M, xp1 + 0.3 * M]) box(x - 0.02, x + 0.02, base + hp + 0.2 * M, base + hp + 0.55 * M, zN - 0.5 * M, zN, metal);   // ménsulas
-  // piso de arriba: block café sobre la parte de la rampa
-  const w = W, xc = xE - w / 2, block = cuadros("#8f7a66", "#857060", [Math.round(h / 0.4), Math.round(piso2 / 0.4)]);
+  // piso de arriba: block de cara partida pintado GRIS (fotos 21-nov, ya intervenido) sobre la parte de la rampa
+  const w = W, xc = xE - w / 2, block = cuadros("#9a9fa3", "#8e9397", [Math.round(h / 0.4), Math.round(piso2 / 0.4)]);
   box(xE - w, xE, yb, yb + piso2, zN, zS, block);
-  box(xE - w - 0.02, xE + 0.02, yb + piso2, yb + piso2 + 0.1, zN - 0.02, zS + 0.02, new THREE.MeshStandardMaterial({ color: 0x7a6656, roughness: 0.95 }));
+  box(xE - w - 0.02, xE + 0.02, yb + piso2, yb + piso2 + 0.1, zN - 0.02, zS + 0.02, new THREE.MeshStandardMaterial({ color: 0x8a8f93, roughness: 0.95 }));
   const celosia = new THREE.MeshStandardMaterial({ color: 0x9aa3a8, metalness: 0.4, roughness: 0.45 });
   const zd = (d) => zN + d * h;   // d: fracción desde el norte
   const huecoE = (mat, an, alto, desde, d) => box(xE, xE + 0.08, yb + desde * M, yb + (desde + alto) * M, zd(d) - (an * M) / 2, zd(d) + (an * M) / 2, mat);
