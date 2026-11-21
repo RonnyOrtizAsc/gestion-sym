@@ -254,7 +254,10 @@ const RAMPA_CHERY = { c: { x0: 140, y0: 748, x1: 325, y1: 813 }, eje: "x", n: [A
 const LADO_BOULEVARD = [
   { c: { x0: 85, y0: 715, x1: 330, y1: 1310 }, eje: "y", n: [0.01, -0.64], sinRotulo: true },   // baja parejo, sin hundirse en medio (no es rampa)
   { c: { x0: 85, y0: 1310, x1: 352, y1: 1446 }, eje: "y", n: [-0.64, -0.64], sinRotulo: true },
-  { c: { x0: 352, y0: 1322, x1: 556, y1: 1446 }, eje: "x", n: [-0.64, 1.04] },   // G-02: rampa de la calle a la oficina
+  // G-02 + foto 20-nov: rampa frente a la oficina. La calle del sur va en pendiente: junto a las gradas el piso está en N 869.95
+  // y hacia la calle sube hasta casi el nivel del pasillo (al final del pasillo queda casi al ras). Esquinas: [NO, NE, SO, SE]
+  { c: { x0: 352, y0: 1322, x1: 556, y1: 1446 }, esq: [-0.64, 0.99, -0.64, 1.5], n: [-0.64, 1.5] },
+  { c: { x0: 330, y0: 1446, x1: 760, y1: 1520 }, eje: "x", n: [0.9, 1.9], sinRotulo: true },   // calle del sur: sube hacia el este (G-02: 870.25 → 870.50…)
   // GWM junto al boulevard (G-02 entre Mo16 y Mo18 + AR-01): el estacionamiento de clientes está hundido (N 867.90) y a cada lado
   // una rampa (los triángulos del plano) que sube de la acera (N 867.37) a la exhibición (N 868.95)
   { c: { x0: 85, y0: 276, x1: 245, y1: 482 }, eje: "x", n: [-1.06, -1.06], sinRotulo: true },
@@ -308,6 +311,8 @@ function prepararNiveles(areas, piezas = {}) {
   E.altura = (x, y) => EXAGERA * alturaReal(x, y);
   const alturaReal = (x, y) => {
     for (const r of rampas) if (x >= r.c.x0 && x <= r.c.x1 && y >= r.c.y0 && y <= r.c.y1) {
+      if (r.esq) { const u = (x - r.c.x0) / (r.c.x1 - r.c.x0), v = (y - r.c.y0) / (r.c.y1 - r.c.y0), [a, b, c, d] = r.esq;
+        return a * (1 - u) * (1 - v) + b * u * (1 - v) + c * (1 - u) * v + d * u * v; }
       const t = r.eje === "x" ? (x - r.c.x0) / (r.c.x1 - r.c.x0) : (y - r.c.y0) / (r.c.y1 - r.c.y0);
       return r.n[0] + (r.n[1] - r.n[0]) * t;
     }
@@ -725,10 +730,7 @@ function oficinaExistente() {
   caja(X0, Y0 + 1.5, XV, Y1, TOP - FAS, TOP - FAS + 0.15 * M, blanco);
   caja(X0 - 1.2, Y0 - 3, X0, Y1, TOP - FAS, TOP + 0.08 * M, amarillo);
   for (let y = Y0 + 22; y < Y1; y += 25) caja(X0 - 1.4, y - 0.3, X0 - 1.1, y + 0.3, TOP - FAS, TOP + 0.08 * M, matE(0x8a7430, { metalness: 0 }));   // juntas de los paneles del rótulo
-  // al final del pasillo (sur) una rampita baja al piso
-  { const a = aEscena(X0, Y1), b2 = aEscena(XV, Y1 + 14), w = Math.abs(b2.x - a.x), L = Math.abs(b2.z - a.z), ang = Math.atan2(PL, L);
-    const r = new THREE.Mesh(new THREE.BoxGeometry(w, 0.12, Math.hypot(L, PL)), mosaico); r.position.set((a.x + b2.x) / 2, base + PL / 2 - 0.05, (a.z + b2.z) / 2);
-    r.rotation.x = -ang * Math.sign(b2.z - a.z) * -1; r.receiveShadow = true; g.add(r); }
+  // al final del pasillo el piso de afuera ya llega casi al ras (la calle sube): no lleva rampita
   // gradas (G-02): 4 huellas dentro del pasillo, en su punta norte; bajan hacia el norte
   for (let k = 0; k < 4; k++) caja(X0, Y0 + k * 5, XV, Y0 + (k + 1) * 5, base, base + (PL * (k + 1)) / 5, k % 2 ? mosaico : piso);
   return g;
