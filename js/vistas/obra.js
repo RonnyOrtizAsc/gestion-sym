@@ -363,8 +363,7 @@ export function render(V, { hacer, redibujar }) {
   const FLOTANTES = `<div class="flot flot-abajo">${es3d ? `<button class="flot-btn icono" id="centrar" aria-label="Volver a la vista inicial">${ICONO.centrar}</button>`
       : `<button class="flot-btn icono" data-z="1" aria-label="Acercar" ${ui.zoom === ZOOMS.at(-1) ? "disabled" : ""}>+</button><button class="flot-btn icono" data-z="-1" aria-label="Alejar" ${ui.zoom === ZOOMS[0] ? "disabled" : ""}>−</button>`}</div>`;
 
-  V.innerHTML = `<div class="titulo-obra"><div><p class="eyebrow">${esc(o.nombre)}${o.propietario ? " · " + esc(o.propietario) : ""}</p>
-    ${ui.editar ? "<h2>Editando el plano</h2>" : ""}</div></div>
+  V.innerHTML = `${ui.editar ? `<div class="titulo-obra"><div><h2>Editando el plano</h2></div></div>` : ""}
   ${ACCIONES}
   ${receso ? `<p class="pista receso ${alm ? "almuerzo" : ""}"><span>${alm ? "🍽️ <b>Almuerzo</b>" : "☕ <b>Receso</b>"}: toca a cada persona que sale. Cuando regrese, tócala otra vez. Para terminar, toca <b>${alm ? "Terminar almuerzo" : "Terminar receso"}</b> arriba.</span></p>`
     : ui.moviendo && w ? `<p class="pista mover">Toca el lugar exacto a donde va <b>${esc(primerNombre(w.nombre))}</b> <button class="btn small" data-cancelar-mover>Cancelar</button></p>`
