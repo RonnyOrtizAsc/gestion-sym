@@ -309,8 +309,8 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
 .receso-card.on-break:not(.almuerzo){--break:var(--lost);--break-soft:var(--lost-soft);--on-break:#fff}
 .receso-card:not(.on-break) .turno.pasado b,.receso-card:not(.on-break) .turno.pasado small{color:var(--muted)}
 .receso-card:not(.on-break) .turno.pasado .bar i{background:var(--muted);opacity:.45}
-.receso-card .who{padding-right:50px;min-width:0}
-.sello-exc{position:absolute;top:8px;right:8px;font-family:var(--f-mono);font-size:11px;font-weight:700;color:var(--lost);background:var(--lost-soft);border-radius:999px;padding:2px 7px}
+.aviso-alm{background:var(--break-soft);border:1px solid var(--break);border-radius:10px;padding:8px 12px;margin:0 0 10px;font-size:14px}
+.sello-exc{display:inline-block;margin-top:3px;font-size:11px;font-weight:700;color:var(--lost);background:var(--lost-soft);border-radius:999px;padding:1px 7px;white-space:nowrap}
 .receso-card.olvido{animation:olvidoR 1.4s ease-in-out infinite}
 @keyframes olvidoR{50%{box-shadow:0 0 0 5px color-mix(in srgb,var(--lost) 45%,transparent)}}
 @media (prefers-reduced-motion:reduce){.receso-card.olvido{animation:none;box-shadow:0 0 0 4px var(--lost)}}

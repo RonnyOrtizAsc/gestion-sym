@@ -6,7 +6,7 @@ import { S, recesoAbierto, cambiarReceso, terminarReceso, trabajador, borrarRece
 import { cara } from "./fotos.js";
 import { esc, minutos, dur, hhmm, ms } from "../util.js";
 
-const ui = { periodo: "semana", borrar: false, tipo: "receso", pregunta: null };   // pregunta: { w, que: "almuerzo" | "olvido" }
+const ui = { periodo: "semana", borrar: false, tipo: "receso", pregunta: null, tipoElegido: null };   // pregunta: { w, que: "almuerzo" | "olvido" }
 // ¿Es hora de almuerzo? (11:45 a 13:30): si en ese rato lo mandan "a receso", se pregunta si no será almuerzo
 const horaAlmuerzo = () => { const d = new Date(), mm = d.getHours() * 60 + d.getMinutes(); return mm >= 11 * 60 + 45 && mm <= 13 * 60 + 30; };
 const OLVIDO = 10;   // minutos pasado del límite: ahí se pregunta si ya regresó y se olvidó marcarlo
@@ -56,6 +56,8 @@ function pregunta() {
 }
 
 export function render(V, { hacer, redibujar }) {
+  // a la hora del almuerzo (todos salen a las 12) el toque manda a ALMORZAR, salvo que ella escoja "receso" a mano
+  const almHora = horaAlmuerzo(); ui.tipo = ui.tipoElegido && ui.tipoElegido.dia === new Date().toDateString() && ui.tipoElegido.alm === almHora ? ui.tipoElegido.tipo : almHora ? "almuerzo" : "receso";
   const admin = S.perfil?.rol === "admin", lim = limiteReceso(), ahoraT = turnoActual();
   const enRec = S.trabajadores.filter((w) => recesoAbierto(w.id));
   const hoy = new Date(), lunes = new Date(hoy); lunes.setDate(hoy.getDate() - ((hoy.getDay() + 6) % 7));
@@ -72,14 +74,15 @@ export function render(V, { hacer, redibujar }) {
     <div class="stat b"><b>${enRec.length}</b><span>${enRec.some((w) => esAlmuerzo(recesoAbierto(w.id))) ? "en pausa ahora" : "en receso ahora"}</span></div>
     <div class="stat"><b>${NOMBRE_TURNO[ahoraT]}</b><span>turno actual</span></div>
     <div class="stat ${excesoHoyTotal ? "rojo" : "w"}"><b>${excesoHoyTotal} min</b><span>excedidos hoy</span></div></div>
+  ${almHora && ui.tipo === "almuerzo" ? `<p class="aviso-alm almuerzo">🍽️ Es hora de almuerzo: al tocar a alguien lo manda a <b>almorzar</b>.</p>
+    ${S.trabajadores.some((w) => !recesoAbierto(w.id) && !almuerzoHoy(w.id)) ? `<button class="btn big" id="todosAlm" style="margin-bottom:12px">Todos a almorzar</button>` : ""}` : ""}
   ${enRec.length ? `<button class="btn primary big" id="fin" style="margin-bottom:12px">Todos a trabajar</button>` : ""}
   ${pregunta()}
   ${(() => { const olv = S.trabajadores.filter((w) => pasadoAbierto(w) >= OLVIDO); return olv.length && !ui.pregunta ? `<div class="pregunta-r olvido" role="status">⏰ <b>${olv.map((w) => esc(w.nombre)).join(", ")}</b> ${olv.length === 1 ? "sigue" : "siguen"} en pausa desde hace rato. Si ya ${olv.length === 1 ? "regresó" : "regresaron"}, tócal${olv.length === 1 ? "o" : "os"} para corregir la hora.</div>` : ""; })()}
   <div class="grid">${S.trabajadores.map((w) => { const r = recesoAbierto(w.id);
     const exc = Math.round(excesoHoy(w.id) + excesoAlmuerzo(w.id)), olvido = pasadoAbierto(w) >= OLVIDO;
     return `<button class="card receso-card ${r ? "on-break" : ""} ${esAlmuerzo(r) ? "almuerzo" : ""} ${olvido ? "olvido" : ""}" data-w="${w.id}" aria-pressed="${!!r}">
-      ${exc >= 1 ? `<span class="sello-exc" title="Hoy se pasó ${exc} min de su tiempo">⏱ +${exc}</span>` : ""}
-      <span class="fila"><span class="av">${cara(w)}</span><span class="who"><b>${esc(w.nombre)}</b><small>${r ? (esAlmuerzo(r) ? "Almorzando" : "En receso") + (olvido ? " · ¿ya regresó?" : "") : "Trabajando"}</small></span></span>
+      <span class="fila"><span class="av">${cara(w)}</span><span class="who"><b>${esc(w.nombre)}</b><small>${r ? (esAlmuerzo(r) ? "Almorzando" : "En receso") + (olvido ? " · ¿ya regresó?" : "") : "Trabajando"}</small>${exc >= 1 ? `<span class="sello-exc" title="Hoy se pasó ${exc} min de su tiempo">⏱ +${exc} min</span>` : ""}</span></span>
       ${turno(w, "manana")}${turno(w, "almuerzo")}${turno(w, "tarde")}</button>`; }).join("")}</div>
 
   <div class="section"><div class="titulo-fila"><p class="eyebrow" style="margin:0">Datos por persona</p>
@@ -127,8 +130,11 @@ export function render(V, { hacer, redibujar }) {
     if (v === "ahora") return mandar(p.w);
     if (v === "atiempo") { ui.pregunta = null; hacer(async () => { await regresarEn(p.w, finALaHora(w)); return `${w.nombre} regresó a las ${hhmm(new Date(finALaHora(w)).toISOString())}`; }); }
   }));
-  V.querySelectorAll("[data-tipo]").forEach((b) => (b.onclick = () => { ui.tipo = b.dataset.tipo; redibujar(); }));
+  V.querySelectorAll("[data-tipo]").forEach((b) => (b.onclick = () => { ui.tipoElegido = { tipo: b.dataset.tipo, dia: new Date().toDateString(), alm: horaAlmuerzo() }; redibujar(); }));
+  on2("#todosAlm", () => hacer(async () => { const ws = S.trabajadores.filter((w) => !recesoAbierto(w.id) && !almuerzoHoy(w.id));
+    for (const w of ws) await cambiarReceso(w.id, "almuerzo"); return `${ws.length} a almorzar`; }));
   V.querySelectorAll("[data-periodo]").forEach((b) => (b.onclick = () => { ui.periodo = b.dataset.periodo; redibujar(); }));
+  function on2(id, f) { const e = V.querySelector(id); if (e) e.onclick = f; }
   const on = (id, f) => { const e = V.querySelector(id); if (e) e.onclick = f; };
   on("#borrar", () => { ui.borrar = true; redibujar(); });
   on("#borrarNo", () => { ui.borrar = false; redibujar(); });
