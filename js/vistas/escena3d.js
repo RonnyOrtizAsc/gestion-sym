@@ -925,6 +925,7 @@ function estructuraTaller(base) {
   }
   for (const [x, h] of [[941, hO], [1085, H], [1085, hC], [1138, hC + CUMBRE], [1192, hC], [1192, H], [1331, hE]]) barra(Pt(x, h - 0.2, za), Pt(x, h - 0.2, zb), 0.22);   // largueros a lo largo
   filaNorteTaller(base, H);
+  rampaEste();
   g.userData.techo = true;   // al editar el plano se esconde, igual que los techos
   return g;
 }
@@ -936,6 +937,33 @@ function cuadros(c1, c2, rep = [40, 4]) {
   const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(...rep); t.magFilter = THREE.NearestFilter;
   return new THREE.MeshStandardMaterial({ map: t, roughness: 0.6 });
 }
+// Rampa del lado este (foto 20-nov + G-06): pasillo angosto entre el muro del vecino (con contrafuertes de concreto) y el muro
+// de contención de block del rebalse; piso de adopasto (bloque con zacate). Abajo, junto al taller, la puerta del SÓTANO 1
+// (G-06: "Sótano 1", con su chimenea) que queda debajo del rebalse.
+function rampaEste() {
+  const r = RAMPA_ESTE, g = E.edificios, h = (x, y) => E.altura(x, y) * M;
+  const caja = (x0, y0, x1, y1, b, t, mat) => { const a = aEscena(x0, y0), c = aEscena(x1, y1), m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.05, Math.abs(c.x - a.x)), Math.max(0.02, t - b), Math.max(0.05, Math.abs(c.z - a.z))), mat);
+    m.position.set((a.x + c.x) / 2, (b + t) / 2, (a.z + c.z) / 2); m.castShadow = m.receiveShadow = true; g.add(m); return m; };
+  // piso de adopasto: losa inclinada con cuadros de concreto y zacate
+  const cv = document.createElement("canvas"); cv.width = cv.height = 32; const x = cv.getContext("2d");
+  x.fillStyle = "#6f8a3c"; x.fillRect(0, 0, 32, 32); x.fillStyle = "#8d8f86"; for (const [a, b] of [[2, 2], [18, 2], [2, 18], [18, 18]]) x.fillRect(a, b, 12, 12);
+  const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(7, 60); t.magFilter = THREE.NearestFilter;
+  const a = aEscena(r.c.x0 + 1, r.c.y0), b = aEscena(r.c.x1 - 2, r.c.y1), y0 = r.n[0] * M + 0.04, y1 = r.n[1] * M + 0.04;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute([a.x, y0, a.z, b.x, y0, a.z, b.x, y1, b.z, a.x, y1, b.z], 3));
+  geo.setAttribute("uv", new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2)); geo.setIndex([0, 2, 1, 0, 3, 2]); geo.computeVertexNormals();
+  const piso = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: t, roughness: 0.95, side: THREE.DoubleSide })); piso.receiveShadow = true; g.add(piso);
+  // muro de contención de block (oeste) hasta el nivel del rebalse, y muro del vecino (este) con contrafuertes
+  const block = cuadros("#8f918b", "#83857f", [60, 4]), concreto = new THREE.MeshStandardMaterial({ color: 0x8c8b84, roughness: 0.95 });
+  caja(1262, r.c.y0, 1264, r.c.y1, r.n[0] * M, ARRIBA * M + 0.3 * M, block);
+  for (let y = r.c.y0 + 8; y < r.c.y0 + 160; y += 16) { const hh = h(1330, y); caja(1331, y - 2, 1335, y + 2, hh, hh + 2.3 * M, concreto); }
+  // puerta del sótano: vano oscuro con marco amarillo, en el muro de contención al pie de la rampa
+  const p0 = 736, p1 = 754, hb = r.n[0] * M, vano = new THREE.MeshStandardMaterial({ color: 0x121416, roughness: 1 }), amarillo = new THREE.MeshStandardMaterial({ color: 0xd8a72a, roughness: 0.6 });
+  caja(1264, p0, 1264.6, p1, hb, hb + 2.1 * M, vano);
+  caja(1264, p0 - 0.8, 1265, p0, hb, hb + 2.15 * M, amarillo); caja(1264, p1, 1265, p1 + 0.8, hb, hb + 2.15 * M, amarillo); caja(1264, p0 - 0.8, 1265, p1 + 0.8, hb + 2.1 * M, hb + 2.2 * M, amarillo);
+  const rot = etiqueta("Sótano 1 (bodega)", "#24435e"); rot.scale.set(11, 1.4, 1); const v = aEscena(1268, (p0 + p1) / 2); rot.position.set(v.x, hb + 2.9 * M, v.z); g.add(rot);
+}
+
 // Paredes del taller y la fila del norte (Model.pdf para las medidas, fotos para materiales):
 //  oeste: azulejo amarillo y blanco abajo, lámina arriba; este: azulejo naranja y blanco abajo, lámina arriba; norte: lámina.
 //  Fila norte (y 5–62): estantería de repuestos (x 1028–1143) abierta; bodega y lockers (1144–1251) y baños (1252–1336)
