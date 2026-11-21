@@ -803,6 +803,17 @@ function techoElemento(e) {
   const c = aEscena(X + W / 2, Y + H / 2), y = E.altura(X + W / 2, Y + H / 2) * M + (+e.alto || 4.5) * M, w = W * ESC, h = H * ESC;
   const marco = e.estado === "falta" ? MAT.falta : e.estado === "en_proceso" ? MAT.en_proceso : new THREE.MeshStandardMaterial({ color: 0x8b949b, metalness: 0.4, roughness: 0.5 });
   const viga = (lx, lz, px, pz) => { const v = new THREE.Mesh(new THREE.BoxGeometry(lx, 0.45, lz), marco); v.position.set(c.x + px, y - 0.3, c.z + pz); v.castShadow = e.estado !== "falta"; g.add(v); };
+  if (e.estado === "existe") {   // ya está (fotos): lámina gris claro, vigas macomber (celosía) blancas en las orillas y polines por debajo
+    const blanco = new THREE.MeshStandardMaterial({ color: 0xeceeef, metalness: 0.3, roughness: 0.5 });
+    const P = (dx, dz) => new THREE.Vector3(c.x + dx, y - 0.02, c.z + dz);
+    for (const [a1, b1] of [[P(-w / 2, -h / 2), P(w / 2, -h / 2)], [P(w / 2, -h / 2), P(w / 2, h / 2)], [P(w / 2, h / 2), P(-w / 2, h / 2)], [P(-w / 2, h / 2), P(-w / 2, -h / 2)]]) celosia(g, a1, b1, 0.55 * M, blanco, 0.09);
+    const largoZ = h >= w, n = Math.max(2, Math.round((largoZ ? h : w) / (1.4 * M)));
+    for (let k = 1; k < n; k++) { const t = -0.5 + k / n, v = new THREE.Mesh(new THREE.BoxGeometry(largoZ ? w : 0.12 * M, 0.18 * M, largoZ ? 0.12 * M : h), blanco);
+      v.position.set(c.x + (largoZ ? 0 : t * w), y - 0.1 * M, c.z + (largoZ ? t * h : 0)); g.add(v); }
+    const lam = new THREE.MeshStandardMaterial({ color: 0xd3d7da, metalness: 0.35, roughness: 0.45, side: THREE.DoubleSide, emissive: 0x3a3d40 });
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w + 0.3, 0.08, h + 0.3), lam); m.position.set(c.x, y + 0.04, c.z); m.castShadow = m.receiveShadow = true; g.add(m);
+    return g;
+  }
   viga(w, 0.3, 0, -h / 2); viga(w, 0.3, 0, h / 2); viga(0.3, h, -w / 2, 0); viga(0.3, h, w / 2, 0);
   const n = Math.max(1, Math.round(h / (3 * M))); for (let k = 1; k < n; k++) viga(w, 0.22, 0, -h / 2 + (h * k) / n);   // largueros cada ~3 m
   if (e.estado !== "en_proceso") {
