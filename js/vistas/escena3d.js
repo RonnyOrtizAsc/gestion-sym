@@ -826,7 +826,7 @@ function techoElemento(e) {
 
 // ---------- Figuras agregadas (se pueden deformar): bloque, columna, gradas, hoyo, montón de tierra, techo ----------
 const COL_FIG = { grada: 0x8a8f96, jardinera: 0x5f9a45, bano: 0x4f9fd0, muro: 0x3b4046, puerta: 0x6c5a3d, columna: 0x8d8a80, bodega: 0xee8420, otro: 0x7d6bb3,
-  losa: 0xa5a196, monticulo: 0xb98d4f, techo: 0xb9c0c6, inodoro: 0xf4f4f2, lavamanos: 0xe6e4df, mueble: 0x8a6a45 };
+  losa: 0xa5a196, monticulo: 0xb98d4f, techo: 0xb9c0c6, inodoro: 0xf4f4f2, lavamanos: 0xe6e4df, mueble: 0x8a6a45, locker: 0x9aa4ad };
 const MAT_TIERRA = new THREE.MeshLambertMaterial({ color: 0x7a5636, side: THREE.DoubleSide });
 const MAT_FONDO = new THREE.MeshLambertMaterial({ color: 0x5a3e27 });
 const MAT_MASCARA = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, stencilWrite: true, stencilRef: 1,
@@ -868,7 +868,7 @@ function figura3d(e) {
     mat.side = THREE.DoubleSide; const m = new THREE.Mesh(gm, mat); m.castShadow = !falta; m.receiveShadow = true; g.add(m); return g;
   }
   if (e.tipo === "columna" && !falta && !proceso && !(e.nombre || "").match(/concreto/i)) mat.color.set(0xdfe2e3);   // columnas de acero pintadas claro (fotos)
-  if (e.tipo === "inodoro" || e.tipo === "lavamanos" || e.tipo === "mueble") { g.add(mueble3d(e, pts, base, alto, mat)); return g; }
+  if (e.tipo === "inodoro" || e.tipo === "lavamanos" || e.tipo === "mueble" || e.tipo === "locker") { g.add(mueble3d(e, pts, base, alto, mat)); return g; }
   if (e.tipo === "grada") {   // escalones: suben del lado 0–3 al lado 1–2, cada uno un bloque de la forma
     const n = nEscalones(e), [p0, p1, p2, p3] = pts, en = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
     if (!falta && !proceso) mat.color.set(0xd9d6cf);
@@ -922,6 +922,11 @@ function mueble3d(e, pts, base, alto, mat) {
     for (let k = 0; k < n; k++) { const x = -W / 2 + (W * (k + 0.5)) / n;
       caja(Math.min(0.45 * M, (W / n) * 0.7), 0.06 * M, D * 0.55, x, alto + 0.03 * M, D * 0.05, oscuro);
       caja(0.04 * M, 0.25 * M, 0.04 * M, x, alto + 0.15 * M, -D / 2 + D * 0.12, oscuro); }       // chorro
+  } else if (e.tipo === "locker") {   // fila de casilleros: un bloque con las rayas de cada puertita (cada ~40 cm) y su rejilla
+    caja(W, alto, D, 0, alto / 2, 0);
+    const n = Math.max(1, Math.round((W / M) / 0.4));
+    for (let k = 1; k < n; k++) caja(0.015 * M, alto * 0.98, 0.01, -W / 2 + (W * k) / n, alto / 2, D / 2 + 0.005, oscuro);
+    caja(W * 0.99, 0.015 * M, 0.01, 0, alto / 2, D / 2 + 0.005, oscuro);   // dos alturas de casilleros
   } else {
     caja(W, 0.05 * M, D, 0, alto, 0);                                                              // tablero
     for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) caja(0.05 * M, alto, 0.05 * M, sx * (W / 2 - 0.05 * M), alto / 2, sz * (D / 2 - 0.05 * M));
@@ -1520,7 +1525,8 @@ function ponerEdificios(areas, elementos = [], piezas = {}) {
     if (/supervisor/i.test(a.nombre || "")) { E.edificios.add(supervisor(base)); continue; }
     if (/lavado/i.test(a.nombre || "")) { E.edificios.add(lavado(base)); continue; }
     if (/sucursal/i.test(a.nombre || "") && a.estado === "existe") { E.edificios.add(oficinaExistente()); continue; }
-    if (/comedor/i.test(a.nombre || "")) continue;   // la fila norte (casita, bodega de repuestos, lockers, baños) se dibuja aparte
+    if (/comedor/i.test(a.nombre || "") || (c.y1 < 110 && c.x0 > 700)) continue;   // la fila norte (comedor, eléctrico, compresor, repuestos, lockers, baños) se dibuja aparte
+    if (/marca 3/i.test(a.nombre || "")) continue;   // las oficinas Marca 3 van debajo del techo GWM que ya existe (sus paredes son elementos)
     const bajoTechoExistente = TECHO_EXISTENTE.some((t) => { const cx = (c.x0 + c.x1) / 2, cy = (c.y0 + c.y1) / 2; return cx > t.x0 && cx < t.x1 && cy > t.y0 && cy < t.y1; });
     if (ALTO_MURO[a.tipo] && !bajoTechoExistente) { const t = techo(a, base, ALTO_MURO[a.tipo] * M * (a.estado === "en_proceso" ? 0.5 : 1)); t.userData.techo = true; E.edificios.add(t); }
   }

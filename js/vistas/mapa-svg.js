@@ -22,7 +22,7 @@ const ESTILO = {
   falta:      { lamina: 'stroke="#8ea3b8" stroke-opacity=".5" stroke-width="2.4"', grada: 'stroke="#8ea3b8" stroke-opacity=".6" stroke-width="1.4"', muro: 'stroke="#8ea3b8" stroke-opacity=".5" stroke-width="2.4"', fino: 'stroke="#9fb0c2" stroke-opacity=".45" stroke-width="1"', borde: 'stroke="#8ea3b8" stroke-opacity=".5" stroke-width="1.8"', columna: 'stroke="#8ea3b8" stroke-opacity=".5" stroke-width="1.6" fill="#8ea3b8" fill-opacity=".2"', jardin: 'stroke="#7fae6c" stroke-opacity=".35" stroke-width="1"' },
 };
 const ELEM = { grada: "#8a8f96", jardinera: "#5f9a45", bano: "#4f9fd0", muro: "#1d2125", puerta: "#6c5a3d", columna: "#1d2125", bodega: "#ee8420", otro: "#7d6bb3",
-  hoyo: "#7a5230", monticulo: "#b98d4f", losa: "#8d8a80", inodoro: "#9fb3c2", lavamanos: "#9fb3c2", mueble: "#8a6a45" };
+  hoyo: "#7a5230", monticulo: "#b98d4f", losa: "#8d8a80", inodoro: "#9fb3c2", lavamanos: "#9fb3c2", mueble: "#8a6a45", locker: "#7d8a96" };
 
 const px = (a) => ({ X: (a.x / 100) * ANCHO, Y: (a.y / 100) * ALTO, W: (a.w / 100) * ANCHO, H: (a.h / 100) * ALTO });
 const dentro = (x, y, r) => x >= r.X && x <= r.X + r.W && y >= r.Y && y <= r.Y + r.H;

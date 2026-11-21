@@ -20,6 +20,7 @@ export const FICHAS = [
   { tipo: "inodoro", nombre: "Inodoro", icono: "🚽", w: 0.45, h: 0.7 },
   { tipo: "lavamanos", nombre: "Lavamanos", icono: "🚰", w: 1.2, h: 0.5 },
   { tipo: "mueble", nombre: "Mueble / mesa", icono: "▭", w: 1.5, h: 0.6 },
+  { tipo: "locker", nombre: "Lockers", icono: "🗄️", w: 2.4, h: 0.45 },
   { tipo: "area", nombre: "Área / zona", icono: "⬚", w: 6, h: 6 },
 ];
 // Áreas: siempre rectángulos derechos. Esquina = la opuesta queda fija; lado = se corre ese lado; centro = mover.
@@ -35,13 +36,13 @@ export function rectPct(pts) {
   return { x: +((x0 / ANCHO) * 100).toFixed(2), y: +((y0 / ALTO) * 100).toFixed(2), w: +Math.max(0.3, ((Math.max(...xs) - x0) / ANCHO) * 100).toFixed(2), h: +Math.max(0.3, ((Math.max(...ys) - y0) / ALTO) * 100).toFixed(2) };
 }
 // Alto (m) cuando no se ha cambiado. Hoyo: profundidad. Los demás: desde el piso.
-export const ALTO_DEF = { grada: 1.2, jardinera: 0.7, bano: 1.7, puerta: 1.7, columna: 3.4, bodega: 2.2, otro: 1.1, losa: 0.3, hoyo: 1, monticulo: 1, techo: 3.5, inodoro: 0.78, lavamanos: 0.85, mueble: 0.9 };
+export const ALTO_DEF = { grada: 1.2, jardinera: 0.7, bano: 1.7, puerta: 1.7, columna: 3.4, bodega: 2.2, otro: 1.1, losa: 0.3, hoyo: 1, monticulo: 1, techo: 3.5, inodoro: 0.78, lavamanos: 0.85, mueble: 0.9, locker: 1.8 };
 export const altoDe = (e) => (+e.alto > 0 ? +e.alto : ALTO_DEF[e.tipo] ?? 1.1);
 // gradas: cuántos escalones (guardado, o uno cada ~18 cm de alto). Suben del lado 0–3 al lado 1–2 de la figura.
 export const nEscalones = (e) => +e.escalones > 0 ? +e.escalones : Math.max(2, Math.round(altoDe(e) / 0.18));
 export const NOMBRE_TIPO = { grada: "Gradas", jardinera: "Jardinera", bano: "Baño", muro: "Pared", puerta: "Puerta", columna: "Columna", bodega: "Bodega",
   techo: "Techo", otro: "Otro", hoyo: "Hoyo / zanja", monticulo: "Montón de tierra", losa: "Bloque / losa",
-  inodoro: "Inodoro", lavamanos: "Lavamanos", mueble: "Mueble / mesa" };
+  inodoro: "Inodoro", lavamanos: "Lavamanos", mueble: "Mueble / mesa", locker: "Lockers" };
 
 // Esquinas de un elemento (en unidades): las guardadas, o las del rectángulo de siempre
 export function esquinas(e) {
