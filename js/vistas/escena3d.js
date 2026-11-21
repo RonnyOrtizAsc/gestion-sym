@@ -379,7 +379,7 @@ function polilineas(d) {
 const MAT = {
   existe: new THREE.MeshStandardMaterial({ color: 0xd5cfc3, roughness: 0.9 }),
   en_proceso: new THREE.MeshStandardMaterial({ color: 0xc98a2c, roughness: 0.8 }),
-  falta: new THREE.MeshStandardMaterial({ color: 0x6f93b8, transparent: true, opacity: 0.2, depthWrite: false }),
+  falta: new THREE.MeshStandardMaterial({ color: 0x5f88b3, transparent: true, opacity: 0.27, depthWrite: false }),
 };
 function ponerParedes(areas, piezas) {
   const lista = { existe: [], en_proceso: [], falta: [] };
@@ -1432,8 +1432,8 @@ function paredDibujada(e, areas) {
     const marco = new THREE.MeshStandardMaterial({ color: 0xc8ccd0, metalness: 0.6, roughness: 0.4 }), hoja = new THREE.MeshStandardMaterial({ color: 0x2f3438, roughness: 0.5 }),
       vidrio = new THREE.MeshStandardMaterial({ color: 0x23282d, roughness: 0.3, metalness: 0.4 });
     // estado de cada una: ya está (normal), "abierto" (hueco hecho, sin puerta todavía), "falta" (por abrir) o "quitar" (no va)
-    const fantasma = (c) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.45, depthWrite: false });
-    const mFalta = fantasma(0x3d8fd1), mQuitar = fantasma(0xd0342c), mVano = new THREE.MeshStandardMaterial({ color: 0x0e1012, roughness: 1 });
+    const fantasma = (c, o = 0.45) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false });
+    const mFalta = fantasma(0x2f80c8, 0.55), mQuitar = fantasma(0xd0342c), mVano = new THREE.MeshStandardMaterial({ color: 0x0e1012, roughness: 1 });
     for (const h of tramosPared(e).huecos) {
       const puerta = h.t === "puerta", d = h.d ?? (puerta ? 0 : 1), alto = h.h ?? (puerta ? 2.1 : 1), L2 = (h.s1 - h.s0) * ESC, x = ((h.s0 + h.s1) / 2 - L / 2) * ESC;
       for (const lado of [-1, 1]) {
@@ -1482,7 +1482,7 @@ function paredDibujada(e, areas) {
   const dintel = Math.min(2.1, tope - 0.1);
   for (const h of huecos) {
     if (h.e === "falta" || h.e === "quitar") {   // por abrir / se quita: marca transparente encima de la pared (que sigue entera o con su hueco)
-      const m = new THREE.Mesh(new THREE.BoxGeometry((h.s1 - h.s0) * ESC, (h.h ?? 2.1) * M, grueso * 1.3), new THREE.MeshBasicMaterial({ color: h.e === "falta" ? 0x3d8fd1 : 0xd0342c, transparent: true, opacity: 0.45, depthWrite: false }));
+      const m = new THREE.Mesh(new THREE.BoxGeometry((h.s1 - h.s0) * ESC, (h.h ?? 2.1) * M, grueso * 1.3), new THREE.MeshBasicMaterial({ color: h.e === "falta" ? 0x2f80c8 : 0xd0342c, transparent: true, opacity: h.e === "falta" ? 0.55 : 0.45, depthWrite: false }));
       m.position.set(((h.s0 + h.s1) / 2 - L / 2) * ESC, ((h.d ?? 0) + (h.h ?? 2.1) / 2) * M, 0); m.userData.hueco = h.k; g.add(m);
       if (h.e === "falta") continue;
     }
