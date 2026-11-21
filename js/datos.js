@@ -137,6 +137,12 @@ export async function regresarEn(wid, fin) {
   const abierto = recesoAbierto(wid); if (!abierto) return;
   ok(await sb.from("recesos").update({ fin: new Date(Math.max(ms(abierto.inicio) + 60000, Math.min(Date.now(), fin))).toISOString() }).eq("id", abierto.id));
 }
+// Corregir a qué hora regresó (receso abierto o ya cerrado)
+export async function ponerFin(id, fin) {
+  const r = S.recesos.find((x) => x.id === id); if (!r) return;
+  const t = new Date(Math.max(ms(r.inicio) + 60000, Math.min(Date.now(), fin))).toISOString();
+  ok(await sb.from("recesos").update({ fin: t }).eq("id", id)); r.fin = t;
+}
 // Terminar: todos los que están en ese tipo de pausa regresan a trabajar
 export async function terminarReceso(tipo = "receso") {
   const t = ahora();
