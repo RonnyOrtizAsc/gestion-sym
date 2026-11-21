@@ -996,39 +996,44 @@ function filaNorteTaller(base, H) {
   for (const xd of [1143.5, 1251.5]) { caja(xd - 1, 6, xd + 1, yS, 0, 1.2, naranja); caja(xd - 1, 6, xd + 1, yS, 1.2, ALTO, blanco); }
   // baños: cubículos (Model.pdf) y el mueble del lavamanos frente a la puerta
   for (const xc of [1282, 1303]) caja(xc - 0.6, 6, xc + 0.6, 26, 0, 2.1, blanco);
-  // bodega y lockers (x 1144–1251, foto 20-nov): pared norte de block visto, estantería en L (norte y fondo) pintada gris perla,
-  // jaulas de malla (lockers) a la entrada, mesa de trabajo al sur, ventana de celosía en el fondo y cielo de lámina con vigas
-  caja(1144.6, 6, 1250.4, 7.2, 0, ALTO, new THREE.MeshStandardMaterial({ color: 0xc6c1b5, roughness: 0.95 }));
-  const estante = (x0, y0, x1, y1, niveles, alto) => {   // postes en las 4 esquinas (y cada ~1.4 m) y sus repisas
+  const estante = (x0, y0, x1, y1, niveles, alto, mat = azul) => {   // postes cada ~1.4 m a los dos lados y sus repisas
     const largoX = x1 - x0 >= y1 - y0, L = largoX ? x1 - x0 : y1 - y0, n = Math.max(1, Math.round(L / 25));
     for (let k = 0; k <= n; k++) { const t = k / n;
       const pts = largoX ? [[x0 + (x1 - x0) * t, y0], [x0 + (x1 - x0) * t, y1]] : [[x0, y0 + (y1 - y0) * t], [x1, y0 + (y1 - y0) * t]];
-      for (const [px, py] of pts) caja(px - 0.4, py - 0.4, px + 0.4, py + 0.4, 0, alto, azul); }
-    for (const h of niveles) { caja(x0, y0, x1, y1, h, h + 0.04, azul); caja(x0, largoX ? y1 - 0.5 : y0, x1, largoX ? y1 : y1, h - 0.06, h + 0.04, azul); }
+      for (const [px, py] of pts) caja(px - 0.4, py - 0.4, px + 0.4, py + 0.4, 0, alto, mat); }
+    for (const h of niveles) { caja(x0, y0, x1, y1, h, h + 0.04, mat); caja(x0, largoX ? y1 - 0.5 : y0, x1, y1, h - 0.06, h + 0.04, mat); }
   };
-  estante(1175, 7.5, 1239, 18, [0.3, 0.9, 1.5, 2.1], 2.2);          // a lo largo de la pared norte
-  estante(1239, 7.5, 1250, 54, [0.55, 1.15, 1.75], 1.85);           // en el fondo (pared de los baños)
-  caja(1239.5, 18, 1250, 54, 0, 0.3, new THREE.MeshStandardMaterial({ color: 0xb08a55, roughness: 0.8 }));   // tabla de abajo
-  estante(1205, 48, 1236, 58, [0.95], 1.0);                          // mesa de trabajo junto a la pared sur
-  // jaulas de malla (lockers) a la entrada, una a cada lado
-  const malla = new THREE.MeshStandardMaterial({ color: 0xcfd0cc, transparent: true, opacity: 0.35, metalness: 0.4, roughness: 0.5, side: THREE.DoubleSide, depthWrite: false });
+  const cieloLam = new THREE.MeshStandardMaterial({ color: 0xa9afb3, metalness: 0.5, roughness: 0.5, side: THREE.DoubleSide });
+  const celosia = (xw, y0, y1, h0, h1) => { caja(xw - 1.3, y0, xw + 1.3, y1, h0, h1, oscuro);
+    for (let h = h0 + 0.08; h < h1 - 0.05; h += 0.1) for (const sx of [-1.4, 1.1]) caja(xw + sx, y0 + 0.6, xw + sx + 0.3, y1 - 0.6, h, h + 0.04, new THREE.MeshStandardMaterial({ color: 0xd8dcd8, metalness: 0.5 })); };
+  // 1 · BODEGA DE REPUESTOS (x 1028–1143, fotos 20-nov): cerrada al taller con malla en marco gris perla; adentro estantería en L
+  // (pared norte de block y la pared del fondo), estantes al frente con un tapanco de tablas arriba; cielo de lámina con vigas.
+  // La ventana de celosía está en la pared del fondo (la que da a los lockers): por ahí se ven los estantes desde el 2.
+  const malla = new THREE.MeshStandardMaterial({ color: 0xcfd0cc, transparent: true, opacity: 0.3, metalness: 0.4, roughness: 0.5, side: THREE.DoubleSide, depthWrite: false });
   malla.userData = azul.userData;
-  for (const [y0, y1] of [[7.5, 20], [44, 58]]) {
-    for (const [px, py] of [[1147, y0], [1170, y0], [1147, y1], [1170, y1]]) caja(px - 0.5, py - 0.5, px + 0.5, py + 0.5, 0, 2.4, azul);
-    for (const h of [0.05, 1.2, 2.35]) { caja(1147, y0, 1170, y0 + 0.6, h, h + 0.08, azul); caja(1147, y1 - 0.6, 1170, y1, h, h + 0.08, azul); caja(1170 - 0.5, y0, 1170, y1, h, h + 0.08, azul); }
-    caja(1147, y0, 1170, y0 + 0.2, 0.05, 2.4, malla); caja(1147, y1 - 0.2, 1170, y1, 0.05, 2.4, malla); caja(1169.8, y0, 1170, y1, 0.05, 2.4, malla);
-  }
-  // ventana de celosía en el fondo (foto: a la derecha del centro, de 1.42 a 2.26 m)
-  caja(1250.2, 33, 1252.8, 50, 1.42, 2.26, oscuro);
-  for (let h = 1.5; h < 2.2; h += 0.1) caja(1250, 33.6, 1250.4, 49.4, h, h + 0.04, new THREE.MeshStandardMaterial({ color: 0xd8dcd8, metalness: 0.5 }));
-  // cielo de lámina con vigas (se esconde al editar)
-  const cielo = new THREE.MeshStandardMaterial({ color: 0xa9afb3, metalness: 0.5, roughness: 0.5, side: THREE.DoubleSide });
-  caja(1144.6, 6, 1250.4, 60, ALTO, ALTO + 0.05, cielo).userData.techo = true;
-  for (const yv of [6.5, 33, 59.5]) caja(1144.6, yv - 0.5, 1250.4, yv + 0.5, ALTO - 0.15, ALTO, azul).userData.techo = true;
-  // bodega de repuestos: estantería azul de dos niveles, abierta al taller
-  for (const xb of [1032, 1060, 1088, 1116, 1140]) for (const yb of [8, 58]) caja(xb - 0.5, yb - 0.5, xb + 0.5, yb + 0.5, 0, 4.6, azul);
-  for (const h of [0.15, 2.2, 4.4]) { caja(1031, 7, 1141, 9, h, h + 0.15, azul); caja(1031, 57, 1141, 59, h, h + 0.15, azul); }
-  caja(1031, 8, 1141, 58, 2.3, 2.38, new THREE.MeshStandardMaterial({ color: 0x5b636b, metalness: 0.4, roughness: 0.5 }));   // entrepiso de la estantería
+  caja(1029, 6, 1143, 7.2, 0, 3.0, new THREE.MeshStandardMaterial({ color: 0xc6c1b5, roughness: 0.95 }));   // block visto
+  for (let x = 1030; x <= 1142; x += 18.6) caja(x - 0.6, 57.4, x + 0.6, 58.6, 0, 3.0, azul);                  // frente de malla: parales
+  for (const h of [0.05, 1.0, 2.0, 2.95]) caja(1030, 57.4, 1142.6, 58.6, h, h + 0.08, azul);                    //   y travesaños
+  caja(1030, 57.8, 1142.6, 58.2, 0.05, 3.0, malla);
+  for (let y = 7; y <= 58; y += 17) caja(1029.4, y - 0.6, 1030.6, y + 0.6, 0, 3.0, azul);                     // costado oeste de malla
+  for (const h of [0.05, 1.0, 2.0, 2.95]) caja(1029.4, 7, 1030.6, 58.6, h, h + 0.08, azul);
+  caja(1029.8, 7, 1030.2, 58.6, 0.05, 3.0, malla);
+  estante(1032, 7.5, 1131, 18, [0.3, 0.9, 1.5, 2.1], 2.2);          // a lo largo de la pared norte (block)
+  estante(1131, 7.5, 1142.5, 50, [0.55, 1.15, 1.75], 1.85);         // en el fondo, debajo de la ventana
+  caja(1131.5, 18, 1142.5, 50, 0, 0.3, new THREE.MeshStandardMaterial({ color: 0xb08a55, roughness: 0.8 }));
+  estante(1032, 47, 1128, 57, [0.5, 1.2, 1.9], 2.6);                // estantes al frente (se ven detrás de la malla)
+  caja(1032, 40, 1128, 57, 2.6, 2.66, new THREE.MeshStandardMaterial({ color: 0xa8784a, roughness: 0.8 }));   // tapanco de tablas
+  celosia(1143.5, 34, 52, 1.4, 2.5);
+  caja(1029, 6, 1143, 59, 3.0, 3.05, cieloLam).userData.techo = true;
+  for (const yv of [6.5, 33, 58]) caja(1029, yv - 0.5, 1143, yv + 0.5, 2.85, 3.0, azul).userData.techo = true;
+  // 2 · LOCKERS (x 1144–1251, foto 20-nov): cuarto vacío de vestidor, piso de cerámica blanca, paredes repelladas, una repisa
+  // de metal alta junto a la ventana y cielo de lámina con vigas
+  caja(1144.6, 6.2, 1250.4, 60, 0, 0.03, cuadros("#efeeea", "#e2e0da", [30, 15]));
+  const gris = new THREE.MeshStandardMaterial({ color: 0x8e9499, metalness: 0.5, roughness: 0.45 });
+  caja(1145, 44, 1149, 60, 2.25, 2.3, gris); caja(1145, 44, 1146, 45, 1.9, 2.3, gris); caja(1145, 59, 1146, 60, 1.9, 2.3, gris);
+  caja(1144.6, 6, 1250.4, 60, ALTO, ALTO + 0.05, cieloLam).userData.techo = true;
+  for (const xv of [1170, 1197, 1224]) caja(xv - 0.5, 6, xv + 0.5, 60, ALTO - 0.15, ALTO, gris).userData.techo = true;
+
 }
 
 // Jardineras del plano (piezas "jardin"): cajón bajo de concreto con plantas, como en el render
