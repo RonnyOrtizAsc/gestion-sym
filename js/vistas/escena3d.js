@@ -259,7 +259,8 @@ const LADO_BOULEVARD = [
   // foto marcada 20-nov: la rampa sube pareja hacia el este (x 352 → 530) y arriba queda un descanso angosto frente al pasillo
   // (x 530 → 555) al nivel de la plataforma; hacia el sur (junto a la valla) el descanso se levanta un poco. Esquinas [NO, NE, SO, SE]
   //   (G-02: la rampa va de x 352 a la oficina; las gradas del plano, junto a ella, terminan antes, en x 420)
-  { c: { x0: 352, y0: 1302, x1: 556, y1: 1446 }, esq: [-0.64, 1.04, -0.64, 1.35], n: [-0.64, 1.35] },   // las gradas (elemento de la app) van encima, junto al muro
+  { c: { x0: 352, y0: 1302, x1: 556, y1: 1446 }, esq: [-0.64, 1.04, -0.64, 1.35], n: [-0.64, 1.35] },
+  { c: { x0: 300, y0: 1300, x1: 352, y1: 1310 }, eje: "x", n: [-0.64, -0.64], sinRotulo: true },   // abajo de la esquina del muro: al nivel del adoquín   // las gradas (elemento de la app) van encima, junto al muro
   // calle del sur (video 20-nov): sigue la orilla de la rampa, sin escalón: abajo al oeste (adoquín) y sube hacia el este
   { c: { x0: 330, y0: 1446, x1: 556, y1: 1520 }, eje: "x", n: [-0.64, 1.35], sinRotulo: true },
   { c: { x0: 556, y0: 1446, x1: 760, y1: 1520 }, eje: "x", n: [1.35, 1.9], sinRotulo: true },
@@ -616,7 +617,7 @@ function zonaBoulevard() {
   for (let y0 = 718; y0 < 1302; y0 += 18) { const y1 = Math.min(1302, y0 + 18), b = suelo(322, (y0 + y1) / 2); caja(328, y0, 332, y1, b, plat + 0.3 * M, concreto); }
   // muro del sur (y 1316), de x 330 a 450: se va haciendo bajo porque la rampa sube hacia la oficina; con mural
   // muro del sur (y 1316) detrás de las gradas: un solo muro liso de concreto que llega al nivel de la plataforma
-  { const a = aEscena(330, 1300), c = aEscena(436, 1302), b0 = suelo(340, 1312) - 0.05, L = Math.abs(c.x - a.x), z = (a.z + c.z) / 2, d = Math.abs(c.z - a.z);
+  { const a = aEscena(330, 1298), c = aEscena(556, 1302), b0 = -0.75 * M, L = Math.abs(c.x - a.x), z = (a.z + c.z) / 2, d = Math.abs(c.z - a.z);
     const geo = new THREE.BufferGeometry(), x0 = a.x, x1 = c.x, y0 = b0, yt = plat;
     const v = [x0, y0, z - d / 2, x1, y0, z - d / 2, x1, yt, z - d / 2, x0, yt, z - d / 2, x0, y0, z + d / 2, x1, y0, z + d / 2, x1, yt, z + d / 2, x0, yt, z + d / 2];
     geo.setAttribute("position", new THREE.Float32BufferAttribute(v, 3)); geo.setIndex([0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 3, 7, 6, 3, 6, 2, 0, 4, 7, 0, 7, 3]); geo.computeVertexNormals();
