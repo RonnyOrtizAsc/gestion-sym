@@ -30,7 +30,7 @@ const ICONO = {
   ojo: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>`,
   ojoNo: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A10.6 10.6 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6C3.8 8.4 2 12 2 12s3.5 7 10 7c1.8 0 3.4-.5 4.8-1.3M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>`,
   comida: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 21V3c-2 1-3 4-3 7h3"/></svg>`,
-  reloj: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="6.5" r="2.2"/><path d="M16.5 9.5L12 14.5H4"/><path d="M3 17h11l5-6.5"/><path d="M5 17l-1 3M14 17l1.5 3"/></svg>`,   // persona descansando en una tumbona
+  reloj: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="5.3" r="1.9"/><path d="M8.6 8.4L4.4 7.4l3-3.3"/><path d="M12.3 3.9h3.2l-3.4 4.2"/><path d="M10.2 8.6l1.8 5.9"/><path d="M12 14.5l4.6-1.9 3 5.2"/><path d="M12 14.5h3.2v6"/><path d="M5.4 10.2l2 7.3h6.6"/><path d="M8.2 17.5l-.4 3"/></svg>`,   // persona echada en un sillón, manos detrás de la cabeza y piernas cruzadas
   deshacer: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>`,
   rehacer: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>`,
   centrar: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>`,
