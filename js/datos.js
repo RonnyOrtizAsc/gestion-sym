@@ -132,6 +132,11 @@ export async function cambiarReceso(wid, tipo = "receso") {
   ok(await sb.from("recesos").insert({ trabajador_id: wid, sesion_id: s.id, registrado_por: yo(), tipo }));
   return true;
 }
+// Regresa a alguien con una hora dada (cuando se olvidó marcarlo a tiempo)
+export async function regresarEn(wid, fin) {
+  const abierto = recesoAbierto(wid); if (!abierto) return;
+  ok(await sb.from("recesos").update({ fin: new Date(Math.max(ms(abierto.inicio) + 60000, Math.min(Date.now(), fin))).toISOString() }).eq("id", abierto.id));
+}
 // Terminar: todos los que están en ese tipo de pausa regresan a trabajar
 export async function terminarReceso(tipo = "receso") {
   const t = ahora();

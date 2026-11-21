@@ -305,7 +305,19 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
 .turno.activo b{color:var(--break)}
 .turno.pasado b,.turno.pasado small{color:var(--lost)}
 .turno.pasado .bar i{background:var(--lost)}
-.receso-card.con-exceso{box-shadow:inset 0 0 0 2px var(--lost)}
+/* Trabajando = verde y sin rojo. En receso = tarjeta ROJA. Si hoy se pasó: un sellito ⏱ +min arriba a la derecha */
+.receso-card.on-break:not(.almuerzo){--break:var(--lost);--break-soft:var(--lost-soft);--on-break:#fff}
+.receso-card:not(.on-break) .turno.pasado b,.receso-card:not(.on-break) .turno.pasado small{color:var(--muted)}
+.receso-card:not(.on-break) .turno.pasado .bar i{background:var(--muted);opacity:.45}
+.receso-card .who{padding-right:50px;min-width:0}
+.sello-exc{position:absolute;top:8px;right:8px;font-family:var(--f-mono);font-size:11px;font-weight:700;color:var(--lost);background:var(--lost-soft);border-radius:999px;padding:2px 7px}
+.receso-card.olvido{animation:olvidoR 1.4s ease-in-out infinite}
+@keyframes olvidoR{50%{box-shadow:0 0 0 5px color-mix(in srgb,var(--lost) 45%,transparent)}}
+@media (prefers-reduced-motion:reduce){.receso-card.olvido{animation:none;box-shadow:0 0 0 4px var(--lost)}}
+.pregunta-r{background:var(--surface);border:2px solid var(--break);border-radius:14px;padding:12px 14px;margin-bottom:12px}
+.pregunta-r p{margin:0 0 10px;font-size:15px}
+.pregunta-r.olvido{border-color:var(--lost);font-size:14px}
+.pregunta-r .acts{display:flex;flex-wrap:wrap;gap:8px}
 .stat.rojo b{color:var(--lost)}
 .tok.pasado .bub{background:var(--lost);color:#fff}
 .hud-btn.activo-receso{background:var(--surface);color:var(--break);box-shadow:0 0 0 3px color-mix(in srgb,var(--break) 45%,transparent)}
