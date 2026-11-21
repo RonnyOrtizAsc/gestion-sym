@@ -30,7 +30,7 @@ const ICONO = {
   ojo: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>`,
   ojoNo: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A10.6 10.6 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6C3.8 8.4 2 12 2 12s3.5 7 10 7c1.8 0 3.4-.5 4.8-1.3M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>`,
   comida: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 21V3c-2 1-3 4-3 7h3"/></svg>`,
-  reloj: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="5.3" r="1.9"/><path d="M8.6 8.4L4.4 7.4l3-3.3"/><path d="M12.3 3.9h3.2l-3.4 4.2"/><path d="M10.2 8.6l1.8 5.9"/><path d="M12 14.5l4.6-1.9 3 5.2"/><path d="M12 14.5h3.2v6"/><path d="M5.4 10.2l2 7.3h6.6"/><path d="M8.2 17.5l-.4 3"/></svg>`,   // persona echada en un sillón, manos detrás de la cabeza y piernas cruzadas
+  reloj: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="5.6" r="1.5"/><path d="M8.6 8.5L3.6 7.6l2.9-3.7"/><path d="M12.9 3.6h3.3l-3.9 4.7"/><path d="M10.2 8.8l1.8 5.7"/><path d="M12 14.5l4.6-1.9 3 5.2"/><path d="M12 14.5h3.2v6"/><path d="M5.4 10.2l2 7.3h6.6"/><path d="M8.2 17.5l-.4 3"/></svg>`,   // persona echada en un sillón, manos detrás de la cabeza y piernas cruzadas
   deshacer: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>`,
   rehacer: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>`,
   centrar: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>`,
@@ -341,13 +341,11 @@ export function render(V, { hacer, redibujar }) {
 
   // Tres botones grandes (lo de todos los días); los controles del mapa van encima del mapa
   const nPrest = prestamosActivos().reduce((a, p) => a + p.cantidad, 0), recOn = ui.modo === "receso";
-  const ACCIONES = ui.editar ? "" : `<div class="acciones" role="toolbar" aria-label="Acciones de la obra">
+  const ACCIONES = ui.editar ? "" : `<div class="acciones dos" role="toolbar" aria-label="Acciones de la obra">
     <button class="accion pausa ${recOn ? "on" : ""}" id="hudReceso" aria-pressed="${recOn}">${ICONO.reloj}
       <b>${recOn ? "Terminar receso" : "Receso"}</b><small>${recOn ? (nRec ? `${nRec} afuera` : "Toca a quien sale") : nRec ? `${nRec} en receso` : "15 minutos"}</small></button>
     <button class="accion pausa almuerzo ${alm ? "on" : ""}" id="hudAlmuerzo" aria-pressed="${alm}">${ICONO.comida}
       <b>${alm ? "Terminar almuerzo" : "Almuerzo"}</b><small>${alm ? (nAlm ? `${nAlm} afuera` : "Toca a quien sale") : nAlm ? `${nAlm} almorzando` : "1 hora"}</small></button>
-    <button class="accion herram" id="hudHerr">${ICONO.llave}<b>Herramientas</b><small>${nPrest ? `${nPrest} prestada${nPrest > 1 ? "s" : ""}` : "Todo en bodega"}</small>
-      ${nPrest ? `<i class="cuenta">${nPrest}</i>` : ""}</button>
   </div>`;
   const BARRA_MAPA = `<div class="barra-mapa">
       <div class="flot-grupo"><button class="flot-btn ${ui.editar ? "on" : ""}" id="hudEditar">${ui.editar ? "✓" : ICONO.lapiz}<span>${ui.editar ? "Listo" : "Editar"}</span></button>

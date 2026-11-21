@@ -328,6 +328,7 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
 
 /* ---- Obra: tres botones grandes y controles encima del mapa ---- */
 .acciones{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.acciones.dos{grid-template-columns:repeat(2,1fr)}
 .accion{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:96px;padding:12px 6px 10px;border-radius:18px;border:2px solid transparent;text-align:center}
 .accion svg{width:30px;height:30px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;margin-bottom:2px}
 .accion b{font-size:15px;font-weight:800;line-height:1.15}
