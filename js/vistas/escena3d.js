@@ -71,6 +71,7 @@ function crear() {
     const golpe = ray.intersectObjects([piso, ...edificios.children], true).find((h) => !h.object.isSprite && visible(h.object));
     if (!golpe) return -1;
     const i = piezaEn(golpe.point.x / ESC + ANCHO / 2, golpe.point.z / ESC + ALTO / 2, 10);
+    if (i >= 0 && E.cajasCuerpo?.some((q) => { const [x, y] = segmentos(i)[0]?.[0] || [0, 0]; return x > q[0] - 4 && x < q[2] + 4 && y > q[1] - 4 && y < q[3] + 4; })) return -1;   // dentro de una caseta de paredes de la app
     return CHICAS.has(i) ? -1 : i;   // los cuadritos sueltos del plano no se tocan en 3D
   };
   const puntoSuelo = (cx, cy) => {   // punto del mapa bajo el mouse (sobre lo que se vea primero)
@@ -1229,7 +1230,8 @@ const MATS_CASETA = () => ({
 });
 // Caja de paredes con franja naranja (0–0.45 naranja, raya blanca, 0.57–0.95 naranja) y piezas pegadas a sus caras
 // hueca = solo las 4 paredes (sin relleno), para que se vea lo que se construye adentro (p. ej. el comedor)
-function caseta(g, q, base, alto, pared, m, hueca = false) {
+function caseta(g, q, base, alto, pared, m, hueca = false, clave = null) {
+  if (clave && CUERPO_CARAS.has(clave) && editable(clave)) return () => {};   // la arman sus 4 paredes (elementos de la app)
   const w = (q.x1 - q.x0) * ESC, h = (q.y1 - q.y0) * ESC, c = aEscena((q.x0 + q.x1) / 2, (q.y0 + q.y1) / 2);
   // caja maciza, o anillo de 4 paredes de grosor "gr" (escena) con el mismo contorno
   const bloque = (W, H, y0, a, mat, sombra) => {
@@ -1250,7 +1252,7 @@ const puertaV = (cara, lado, t0, t1, m) => { cara(lado, t0 - 0.8, t1 + 0.8, 0, 2
 const ventanas = (cara, lado, t0, t1, n, desde, a, m) => { cara(lado, t0, t1, desde, a, m.vidrio); for (let k = 0; k <= n; k++) { const t = t0 + ((t1 - t0) * k) / n; cara(lado, t - 0.3, t + 0.3, desde, a, m.alum, 0.07); } };
 function supervisor(base) {
   const g = new THREE.Group(), m = MATS_CASETA();
-  const cara = caseta(g, SUPERVISOR, base, 3, m.blanco, m);
+  const cara = caseta(g, SUPERVISOR, base, 3, m.blanco, m, false, "Oficina supervisor");
   if (!editable("Oficina supervisor")) { ventanas(cara, "s", 836, 928, 5, 1.0, 0.75, m);   // cara sur: fila de ventanas
   puertaV(cara, "o", 182, 198, m); ventanas(cara, "o", 200, 220, 1, 1.0, 0.75, m); ventanas(cara, "o", 222, 241, 1, 1.0, 0.75, m); puertaV(cara, "o", 243, 259, m); }   // cara oeste: puerta (con espacio a la esquina norte), dos ventanas, puerta pegada a la esquina sur
   // techo (G-01): lámina de x 797 a 932 y de y 168 a 362, cae al 19% hacia el este (la pared de lámina).
@@ -1421,7 +1423,20 @@ function paredDibujada(e, areas) {
     }
     // se mide desde el piso del CENTRO de la caseta (el mismo que usa su dibujo), no desde el borde: la cara puede estar
     // junto a un piso más alto (la bodega junto al café) o sobre un talud
-    const ctr = E.centrosCaseta?.get((e.nombre || "").split(" · ")[0]), baseC = ctr ? E.altura(ctr[0], ctr[1]) * M : base;
+    const clave = (e.nombre || "").split(" · ")[0];
+    if (CUERPO_CARAS.has(clave)) {   // la pared misma: blanca con franja naranja abajo (0–0.45 naranja, raya blanca, 0.57–0.95 naranja)
+      const alto = +e.alto || 3, gr = gruesoPared(e) * M, blanco = new THREE.MeshStandardMaterial({ color: 0xeeeeea, roughness: 0.85 }), naranja = new THREE.MeshStandardMaterial({ color: 0xe0662e, roughness: 0.8 });
+      const trozo = (s0, s1, d, h, mat, g2 = gr) => { if (s1 - s0 < 0.2 || h <= 0) return;
+        const m = new THREE.Mesh(new THREE.BoxGeometry((s1 - s0) * ESC + (s0 <= 0 || s1 >= L ? gr : 0), h * M, g2), mat);
+        m.position.set(((s0 + s1) / 2 - L / 2) * ESC, (d + h / 2) * M, 0); m.castShadow = m.receiveShadow = true; g.add(m); };
+      const capas = (s0, s1, d0, d1) => {   // de d0 a d1 m: la franja donde toca, blanco en lo demás
+        for (const [a0, a1, mt] of [[0, 0.45, naranja], [0.45, 0.57, blanco], [0.57, 0.95, naranja], [0.95, alto, blanco]]) {
+          const x0 = Math.max(a0, d0), x1 = Math.min(a1, d1); if (x1 > x0) trozo(s0, s1, x0, x1 - x0, mt, mt === naranja ? gr + 0.06 : gr); } };
+      for (const [s0, s1] of solidos) capas(s0, s1, 0, alto);
+      for (const h of huecos) { if (h.e === "falta") { capas(h.s0, h.s1, 0, alto); continue; }
+        const d = h.d ?? (h.t === "puerta" ? 0 : 1), hh = h.h ?? (h.t === "puerta" ? 2.1 : 1); capas(h.s0, h.s1, 0, d); capas(h.s0, h.s1, d + hh, alto); }
+    }
+    const ctr = E.centrosCaseta?.get(clave), baseC = ctr ? E.altura(ctr[0], ctr[1]) * M : base;
     const p = aEscena(mx, my); g.position.set(p.x, baseC, p.z); g.rotation.y = -Math.atan2(b[1] - a[1], b[0] - a[0]);
     return g;
   }
@@ -1459,15 +1474,18 @@ function paredDibujada(e, areas) {
 
 // Casetas existentes con sus caras guardadas como paredes "caseta": las puertas y ventanas salen de ahí (se editan en la app)
 const editable = (clave) => E.caras?.has(clave);
+// casetas que son SOLO sus 4 paredes (cada pared se elige, se pinta y lleva sus puertas y ventanas); las demás aún tienen su dibujo de fotos
+const CUERPO_CARAS = new Set(["Oficina supervisor"]);
 function ponerEdificios(areas, elementos = [], piezas = {}) {
   E.edificios.clear(); E.areas = areas;
   E.caras = new Set(elementos.filter((e) => e.material === "caseta" && e.nombre).map((e) => e.nombre.split(" · ")[0]));
   // centro de cada caseta (promedio de las puntas de sus caras): de ahí se mide el piso de sus puertas y ventanas
-  E.centrosCaseta = new Map();
+  E.centrosCaseta = new Map(); E.cajasCuerpo = [];
   for (const ed of E.caras) {
     const pts = elementos.filter((e) => e.material === "caseta" && (e.nombre || "").split(" · ")[0] === ed).flatMap((e) => puntas(e.trazo));
     const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
     E.centrosCaseta.set(ed, [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2]);
+    if (CUERPO_CARAS.has(ed)) (E.cajasCuerpo ||= []).push([Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]);
   }
   ponerParedes(areas, piezas);
   ponerGradas(piezas);
