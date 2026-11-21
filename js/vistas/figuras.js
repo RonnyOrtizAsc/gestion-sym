@@ -37,6 +37,8 @@ export function rectPct(pts) {
 // Alto (m) cuando no se ha cambiado. Hoyo: profundidad. Los demás: desde el piso.
 export const ALTO_DEF = { grada: 1.2, jardinera: 0.7, bano: 1.7, puerta: 1.7, columna: 3.4, bodega: 2.2, otro: 1.1, losa: 0.3, hoyo: 1, monticulo: 1, techo: 3.5, inodoro: 0.78, lavamanos: 0.85, mueble: 0.9 };
 export const altoDe = (e) => (+e.alto > 0 ? +e.alto : ALTO_DEF[e.tipo] ?? 1.1);
+// gradas: cuántos escalones (guardado, o uno cada ~18 cm de alto). Suben del lado 0–3 al lado 1–2 de la figura.
+export const nEscalones = (e) => +e.escalones > 0 ? +e.escalones : Math.max(2, Math.round(altoDe(e) / 0.18));
 export const NOMBRE_TIPO = { grada: "Gradas", jardinera: "Jardinera", bano: "Baño", muro: "Pared", puerta: "Puerta", columna: "Columna", bodega: "Bodega",
   techo: "Techo", otro: "Otro", hoyo: "Hoyo / zanja", monticulo: "Montón de tierra", losa: "Bloque / losa",
   inodoro: "Inodoro", lavamanos: "Lavamanos", mueble: "Mueble / mesa" };
@@ -99,7 +101,7 @@ export function medidasFigura(e, pts = esquinas(e)) {
   const largo = Math.max((lados[0] + lados[2]) / 2, (lados[1] + lados[3]) / 2), ancho = Math.min((lados[0] + lados[2]) / 2, (lados[1] + lados[3]) / 2);
   let area = 0; for (let i = 0; i < n; i++) { const [x0, y0] = pts[i], [x1, y1] = pts[(i + 1) % n]; area += x0 * y1 - x1 * y0; }
   area = Math.abs(area / 2) * MxU * MxU;
-  const alto = altoDe(e), extra = e.tipo === "hoyo" ? ` · ${fm(alto)} de hondo` : e.tipo === "techo" ? "" : ` · ${fm(alto)} de alto`;
+  const alto = altoDe(e), extra = e.tipo === "hoyo" ? ` · ${fm(alto)} de hondo` : e.tipo === "techo" ? "" : ` · ${fm(alto)} de alto` + (e.tipo === "grada" ? ` · ${nEscalones(e)} escalones` : "");
   return `${fm(largo)} × ${fm(ancho)}${extra}${e.tipo === "hoyo" ? ` · ${(Math.round(area * alto * 10) / 10).toLocaleString("es-SV")} m³` : ""}`;
 }
 // Texto corto mientras se arrastra

@@ -2,7 +2,7 @@
 // y cada trabajador como un muñequito con casco que camina a su área (o a la bodega en el receso).
 import * as THREE from "three";
 import { MapControls } from "three/addons/controls/MapControls.js";
-import { esquinas, centro as centroFig, altoDe, ALTO_MURO, esZona } from "./figuras.js";
+import { esquinas, centro as centroFig, altoDe, ALTO_MURO, esZona, nEscalones } from "./figuras.js";
 import { medidasArea, ANCHO, ALTO, PIEZAS, CAJAS, estadoPieza, piezaEn, grupoDe, segmentos, puntas, gruesoPared, tramosPared, CHICAS, RAMPAS, rampaDe } from "./mapa-svg.js";
 
 const ESC = 0.1;                                   // unidades del plano → metros de la escena
@@ -259,9 +259,7 @@ const LADO_BOULEVARD = [
   // foto marcada 20-nov: la rampa sube pareja hacia el este (x 352 → 530) y arriba queda un descanso angosto frente al pasillo
   // (x 530 → 555) al nivel de la plataforma; hacia el sur (junto a la valla) el descanso se levanta un poco. Esquinas [NO, NE, SO, SE]
   //   (G-02: la rampa va de x 352 a la oficina; las gradas del plano, junto a ella, terminan antes, en x 420)
-  { c: { x0: 352, y0: 1322, x1: 556, y1: 1446 }, esq: [-0.64, 1.04, -0.64, 1.35], n: [-0.64, 1.35] },
-  { c: { x0: 298, y0: 1302, x1: 426, y1: 1322 }, esq: [-0.64, -0.64 + 1.68 * 74 / 204, -0.64, -0.64 + 1.68 * 74 / 204], n: [-0.64, 0], sinRotulo: true },   // piso bajo las gradas (sigue la orilla de la rampa)
-  { c: { x0: 426, y0: 1302, x1: 556, y1: 1322 }, esq: [-0.64 + 1.68 * 74 / 204, 1.04, -0.64 + 1.68 * 74 / 204, 1.04], n: [0, 1.04], sinRotulo: true },   // la rampa llega hasta el muro junto a las gradas
+  { c: { x0: 352, y0: 1302, x1: 556, y1: 1446 }, esq: [-0.64, 1.04, -0.64, 1.35], n: [-0.64, 1.35] },   // las gradas (elemento de la app) van encima, junto al muro
   // calle del sur (video 20-nov): sigue la orilla de la rampa, sin escalón: abajo al oeste (adoquín) y sube hacia el este
   { c: { x0: 330, y0: 1446, x1: 556, y1: 1520 }, eje: "x", n: [-0.64, 1.35], sinRotulo: true },
   { c: { x0: 556, y0: 1446, x1: 760, y1: 1520 }, eje: "x", n: [1.35, 1.9], sinRotulo: true },
@@ -618,7 +616,7 @@ function zonaBoulevard() {
   for (let y0 = 718; y0 < 1302; y0 += 18) { const y1 = Math.min(1302, y0 + 18), b = suelo(322, (y0 + y1) / 2); caja(328, y0, 332, y1, b, plat + 0.3 * M, concreto); }
   // muro del sur (y 1316), de x 330 a 450: se va haciendo bajo porque la rampa sube hacia la oficina; con mural
   // muro del sur (y 1316) detrás de las gradas: un solo muro liso de concreto que llega al nivel de la plataforma
-  { const a = aEscena(330, 1300), c = aEscena(424, 1302), b0 = suelo(300, 1312) - 0.05, L = Math.abs(c.x - a.x), z = (a.z + c.z) / 2, d = Math.abs(c.z - a.z);
+  { const a = aEscena(330, 1300), c = aEscena(436, 1302), b0 = suelo(340, 1312) - 0.05, L = Math.abs(c.x - a.x), z = (a.z + c.z) / 2, d = Math.abs(c.z - a.z);
     const geo = new THREE.BufferGeometry(), x0 = a.x, x1 = c.x, y0 = b0, yt = plat;
     const v = [x0, y0, z - d / 2, x1, y0, z - d / 2, x1, yt, z - d / 2, x0, yt, z - d / 2, x0, y0, z + d / 2, x1, y0, z + d / 2, x1, yt, z + d / 2, x0, yt, z + d / 2];
     geo.setAttribute("position", new THREE.Float32BufferAttribute(v, 3)); geo.setIndex([0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 3, 7, 6, 3, 6, 2, 0, 4, 7, 0, 7, 3]); geo.computeVertexNormals();
@@ -628,7 +626,7 @@ function zonaBoulevard() {
   const baranda = (pa, pb) => { const alt = (p) => (p[1] === 1302 ? plat : plat + 0.3 * M), a = PA(pa[0], pa[1], alt(pa)), b = PA(pb[0], pb[1], alt(pb)), up = new THREE.Vector3(0, 1.1 * M, 0), L = a.distanceTo(b), n = Math.round(L / (0.12 * M));
     barraE(g, a.clone().add(up), b.clone().add(up), 0.09, gris); barraE(g, a.clone().addScaledVector(up, 0.1), b.clone().addScaledVector(up, 0.1), 0.07, gris);
     for (let k = 0; k <= n; k++) { const p = a.clone().lerp(b, k / n); barraE(g, p, p.clone().add(up), k % 12 ? 0.04 : 0.09, k % 12 ? amar : gris); } };
-  baranda([330, 1150], [330, 1302]); baranda([330, 1302], [420, 1302]);
+  baranda([330, 1150], [330, 1302]); baranda([330, 1302], [436, 1302]);
   // caseta (fotos 13:36): bajo el techo grande, junto a la columna amarilla de base roja (x 333, y 1237), con la baranda detrás.
   // Rectangular ~1.7 × 2.2 m, 2.4 m de alto: abajo lámina gris, franja de ventanas con marco blanco, arriba lámina amarilla con techito
   // curvo; puerta de dos hojas oscuras en la cara este.
@@ -643,13 +641,7 @@ function zonaBoulevard() {
   const cur = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16, 1, false, 0, Math.PI), matE(0xd9dad4)), ca = aEscena(X0, Y0), cb = aEscena(X1, Y1);
   cur.scale.set((cb.x - ca.x) / 2 + 0.05, cb.z - ca.z, 0.12 * M); cur.rotation.set(Math.PI / 2, 0, 0); cur.position.set((ca.x + cb.x) / 2, pc + 2.4 * M, (ca.z + cb.z) / 2); cur.castShadow = true; g.add(cur);
   caja(X1 - 0.2, Y0 + 6, X1 + 0.3, Y1 - 6, pc + 0.12 * M, pc + 2.3 * M, matE(0x24282c));   // puerta de dos hojas (este)
-  // gradas de concreto (foto marcada 20-nov): empiezan abajo en la esquina del muro del mural (x 332, a nivel del adoquín) y van
-  // a todo lo largo del lado norte de la rampa hasta arriba (x 530), donde llegan al descanso. 6 huellas largas: la orilla de la
-  // rampa sube en diagonal junto a ellas.
-  // 8 escalones; el último se sale un poco del descanso
-  // G-02 (rayas del plano): 8 escalones de x 303.6 a 420.4, y 1302–1322; el de arriba se sale un poco
-  { const ini = 303.6, fin = 420.4, n = 8, paso = (fin - ini) / n, b0 = suelo(ini - 2, 1312);
-    for (let k = 0; k < n; k++) { const x0 = ini + k * paso, x1 = k === n - 1 ? fin + 4 : x0 + paso; caja(x0, 1302, x1, 1322, Math.min(b0, suelo(x0, 1320)) - 0.05, b0 + (plat - b0) * (k + 1) / n, concreto); } }
+  // las gradas de la entrada son un elemento de la app ("Gradas de la entrada"): se mueven y editan en 2D y 3D
   // piso: la rampa es de concreto ranurado (rayas a lo ancho) y abajo, hacia la calle, adoquín
   const piel = (x0, y0, x1, y1, mat, nx = 24, ny = 16) => {
     const geo = new THREE.PlaneGeometry(1, 1, nx, ny), pos = geo.attributes.position, a = aEscena(x0, y0), c = aEscena(x1, y1);
@@ -661,8 +653,8 @@ function zonaBoulevard() {
   const ranurado = textura((x) => { x.fillStyle = "#d8d5ce"; x.fillRect(0, 0, 64, 64); x.fillStyle = "#8f8b82"; for (let k = 0; k < 64; k += 16) x.fillRect(k, 0, 5, 64); }, 60, 1);
   const adoquin = textura((x) => { x.fillStyle = "#9a978f"; x.fillRect(0, 0, 64, 64); x.fillStyle = "#b9b5ab";
     for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) x.fillRect(i * 16 + (j % 2) * 8 + 1, j * 16 + 1, 14, 14); }, 30, 25);
-  piel(352, 1322, 556, 1446, ranurado); piel(424, 1302, 556, 1322, ranurado, 12, 2);
-  piel(220, 1322, 352, 1446, adoquin, 6, 6); piel(220, 1302, 303, 1322, adoquin, 4, 2);
+  piel(352, 1302, 556, 1446, ranurado);
+  piel(220, 1302, 352, 1446, adoquin, 6, 6);
   // rótulo: columna alta amarilla con base azul y marco blanco arriba (fotos 5 y 7), junto a la calle
   for (const [x, yy] of [[255, 1432]]) {
     const b = suelo(x, yy), v = aEscena(x, yy), h = 9 * M;
@@ -696,7 +688,7 @@ function oficinaExistente() {
   const vidrio = new THREE.MeshStandardMaterial({ color: 0xa9c2cc, metalness: 0.3, roughness: 0.05, transparent: true, opacity: 0.25, depthWrite: false });
   const oscuro = new THREE.MeshStandardMaterial({ color: 0x1d2328, metalness: 0.6, roughness: 0.1 }), F = base + PL;
   // piso del edificio y pasillo (zócalo de mosaico)
-  const YG = 1265;   // G-02: las gradas ocupan la punta norte del pasillo (y 1245–1265) y bajan hacia el norte
+  const YG = 1260;   // G-02: las gradas ocupan la punta norte del pasillo (y 1245–1265) y bajan hacia el norte
   caja(X0, YG, XV, Y1, base, F, mosaico); caja(X0, YG, XV, Y1, F - 0.01, F, piso); caja(XV, Y0, X1, Y1, base, F, marino); caja(XV + 0.4, Y0 + 1.2, X1 - 1.2, Y1 - 1.2, F - 0.01, F + 0.01, piso);   // piso de las oficinas
   // muros: norte, este, sur (azul marino) y el divisorio entre las dos oficinas
   caja(XV, Y0, X1, Y0 + 1.2, F, TOP, marino); caja(X1 - 1.2, Y0, X1, Y1, F, TOP, marino); caja(XV, Y1 - 1.2, X1, Y1, F, TOP, marino);
@@ -760,8 +752,7 @@ function oficinaExistente() {
   caja(X0 - 1.2, Y0 - 3, X0, Y1, TOP - FAS, TOP + 0.08 * M, amarillo);
   for (let y = Y0 + 22; y < Y1; y += 25) caja(X0 - 1.4, y - 0.3, X0 - 1.1, y + 0.3, TOP - FAS, TOP + 0.08 * M, matE(0x8a7430, { metalness: 0 }));   // juntas de los paneles del rótulo
   // al final del pasillo el piso de afuera ya llega casi al ras (la calle sube): no lleva rampita
-  // gradas (G-02): 4 huellas dentro del pasillo, en su punta norte; bajan hacia el norte
-  for (let k = 0; k < 4; k++) caja(X0, Y0 + k * 5, XV, Y0 + (k + 1) * 5, base, base + (PL * (k + 1)) / 5, k % 2 ? mosaico : piso);
+  // las gradas del pasillo (3 escalones, foto) son un elemento de la app ("Gradas del pasillo de la oficina")
   return g;
 }
 
@@ -863,6 +854,16 @@ function figura3d(e) {
     mat.side = THREE.DoubleSide; const m = new THREE.Mesh(gm, mat); m.castShadow = !falta; m.receiveShadow = true; g.add(m); return g;
   }
   if (e.tipo === "inodoro" || e.tipo === "lavamanos" || e.tipo === "mueble") { g.add(mueble3d(e, pts, base, alto, mat)); return g; }
+  if (e.tipo === "grada") {   // escalones: suben del lado 0–3 al lado 1–2, cada uno un bloque de la forma
+    const n = nEscalones(e), [p0, p1, p2, p3] = pts, en = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+    if (!falta && !proceso) mat.color.set(0xd9d6cf);
+    for (let k = 0; k < n; k++) {
+      const t0 = k / n, t1 = (k + 1) / n, q = [en(p0, p1, t0), en(p0, p1, t1), en(p3, p2, t1), en(p3, p2, t0)];
+      const h = alto * (k + 1) / n, gq = new THREE.ExtrudeGeometry(forma2d(q), { depth: h + (base - Math.min(...q.map(([x, y]) => E.altura(x, y) * M))) + 0.05, bevelEnabled: false });
+      gq.rotateX(-Math.PI / 2); const m = new THREE.Mesh(gq, mat); m.position.y = Math.min(...q.map(([x, y]) => E.altura(x, y) * M)) - 0.05; m.castShadow = !falta; m.receiveShadow = true; g.add(m);
+    }
+    return g;
+  }
   if (e.tipo === "techo") {   // lámina a la altura del techo, con vigas en las orillas
     const y = base + alto, viga = falta ? MAT.falta : proceso ? MAT.en_proceso : new THREE.MeshStandardMaterial({ color: 0x8b949b, metalness: 0.4, roughness: 0.5 });
     g.userData.techo = true;

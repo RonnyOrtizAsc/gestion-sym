@@ -10,10 +10,10 @@ import { esc, iniciales, primerNombre, ms, hhmm } from "../util.js";
 import { lugarEn, lugarDe, nombreArea, areaEn } from "./lugares.js";
 import * as planDia from "./dashboard.js";
 import { miniatura, tarjeta, avatares, cara } from "./fotos.js";
-import { FICHAS, esquinas, agarraderas, moverFigura, girar, correr, guardable, figuraNueva, medidasFigura, medidaCorta, altoDe, dentroDe, centro, U, altoPared, moverRect, rectPct, cercaDe } from "./figuras.js";
+import { FICHAS, nEscalones, esquinas, agarraderas, moverFigura, girar, correr, guardable, figuraNueva, medidasFigura, medidaCorta, altoDe, dentroDe, centro, U, altoPared, moverRect, rectPct, cercaDe } from "./figuras.js";
 import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, CAJAS, grupoDe, queEs, pegar, ANCHO, ALTO, MATERIALES, puntas, pared, largoPared, gruesoPared, enderezar, distPared, enLinea, sobrePared, ANCHO_HUECO, CHICAS, rampaDe, piezaEn, medidasPieza, medidasArea, medidasElemento } from "./mapa-svg.js";
 // el 3D se pide con la versión: así el celular no se queda con un 3D viejo guardado (súbelo junto con sw.js)
-const ESCENA = "./escena3d.js?v=152";
+const ESCENA = "./escena3d.js?v=153";
 
 const ZOOMS = [1, 1.6, 2.4, 3.4];
 let vistaGuardada = "2d"; try { vistaGuardada = localStorage.getItem("sym-vista") || "2d"; } catch (e) {}
@@ -225,6 +225,8 @@ function hojaElemento(e) {
     <div class="juego">
       ${jbtn('data-alto="1"', "▲", hoyo ? "Más hondo" : techo ? "Más arriba" : "Más alto")}${jbtn('data-alto="-1"', "▼", hoyo ? "Menos hondo" : techo ? "Más abajo" : "Más bajo")}
       ${jbtn('data-girar="15"', "↻", "Girar")}${jbtn("data-copiar", "⧉", "Copiar")}${jbtn("data-borrar", "✕", "Borrar", "borrar")}</div>
+    ${e.tipo === "grada" ? `<div class="juego" style="margin-top:6px">${jbtn('data-escalon="1"', "＋", "Un escalón más")}${jbtn('data-escalon="-1"', "－", "Un escalón menos")}
+      ${jbtn('data-subida="1"', "⟲", "Sube por otro lado")}</div>` : ""}
     ${borrarSiNo(`Borrar ${hoyo ? "este hoyo" : "esto"} del plano`)}
     <div style="margin-top:10px">${botonesEstado(e.estado, "data-estado-el", hoyo ? ESTADOS_HOYO : ESTADOS)}</div>
     <div style="margin-top:8px">${masOpciones()}</div>
@@ -893,6 +895,10 @@ export function render(V, { hacer, redibujar }) {
   $$("[data-borrar-area-si]").forEach((b) => (b.onclick = () => { const a = area(ui.areaSel); ui.areaSel = null; ui.borrar = false;
     S.areas = S.areas.filter((q) => q !== a); redibujar();
     hacer(async () => { await borrarArea(a.id); return `Área borrada: ${nombreArea(a)}`; }); }));
+  $$("[data-escalon]").forEach((b) => (b.onclick = () => { const e = elegido(); if (!e) return;
+    const escalones = Math.max(1, Math.min(40, nEscalones(e) + +b.dataset.escalon)); Object.assign(e, { escalones }); redibujar();
+    hacer(async () => { await editarElemento(e.id, { escalones }); return `${escalones} escalones`; }); }));
+  $$("[data-subida]").forEach((b) => (b.onclick = () => { const e = elegido(); if (!e) return; const p = esquinas(e); guardarFigura(e, [p[1], p[2], p[3], p[0]]); }));
   $$("[data-girar]").forEach((b) => (b.onclick = () => { const e = elegido(); if (e && !e.trazo) guardarFigura(e, girar(esquinas(e), +b.dataset.girar)); }));
   $$("[data-copiar]").forEach((b) => (b.onclick = () => { const e = elegido(); if (!e || e.trazo) return;
     ponerFigura({ tipo: e.tipo, estado: e.estado, nombre: e.nombre || null, alto: e.alto ?? null, ...guardable(correr(esquinas(e), U(1), U(1))) }, "Copia lista: muévela con el punto del centro"); }));

@@ -4,7 +4,7 @@
 // Unidades: el mapa mide 1388 × 1520 (desde la línea M1 hasta la calle); áreas y elementos vienen en %.
 import { esc } from "../util.js";
 import TRAZO from "../planos/automall-ar01.js";
-import { esquinas, centro, medidasFigura } from "./figuras.js";
+import { esquinas, centro, medidasFigura, nEscalones } from "./figuras.js";
 
 export const ANCHO = 1388, ALTO = 1520;
 const LOTE = { x: 85, y: 5, w: 1250, h: 1440 };
@@ -121,9 +121,10 @@ function elemento(e) {
   const trazo = falta ? `stroke="${col}" stroke-width="2.5" stroke-dasharray="8 6" fill="${col}" fill-opacity=".08"`
     : proceso ? `stroke="${col}" stroke-width="3" fill="url(#rayado)"` : `stroke="${col}" stroke-width="3" fill="${col}" fill-opacity="${e.tipo === "monticulo" ? ".55" : ".28"}"`;
   let detalle = "";
-  if (e.tipo === "grada") {   // escalones a lo largo del lado más largo
-    const largo01 = L(pts[0], pts[1]) >= L(pts[1], pts[2]), [a0, a1, b0, b1] = largo01 ? [pts[0], pts[1], pts[3], pts[2]] : [pts[0], pts[3], pts[1], pts[2]];
-    const n = Math.max(3, Math.round(L(a0, a1) / 14));
+  if (e.tipo === "grada") {   // una raya por escalón (suben del lado 0–3 al 1–2, igual que en 3D) y una flecha que sube
+    const [a0, a1, b0, b1] = [pts[0], pts[1], pts[3], pts[2]], n = nEscalones(e);
+    { const m0 = entre(a0, b0, 0.5), m1 = entre(a1, b1, 0.5), p = entre(m0, m1, 0.85);
+      detalle += `<line x1="${entre(m0, m1, 0.15)[0]}" y1="${entre(m0, m1, 0.15)[1]}" x2="${p[0]}" y2="${p[1]}" stroke-width="1.2"/>`; }
     for (let i = 1; i < n; i++) detalle += `<line x1="${entre(a0, a1, i / n)[0]}" y1="${entre(a0, a1, i / n)[1]}" x2="${entre(b0, b1, i / n)[0]}" y2="${entre(b0, b1, i / n)[1]}"/>`;
     detalle = `<g stroke="${col}" stroke-width="1.6" ${falta ? 'stroke-dasharray="4 4"' : ""}>${detalle}</g>`;
   } else if (e.tipo === "bano") { const [cx, cy] = centro(pts); detalle = `<text class="et chico" x="${cx}" y="${cy}" font-size="16" text-anchor="middle" dominant-baseline="middle">WC</text>`; }
