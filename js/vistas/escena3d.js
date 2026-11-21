@@ -20,11 +20,12 @@ function crear() {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xcfe3ef);
   scene.fog = new THREE.Fog(0xcfe3ef, 260, 520);
-  const camera = new THREE.PerspectiveCamera(42, 1, 1, 1200);
+  const camera = new THREE.PerspectiveCamera(42, 1, 0.3, 1200);
   camera.position.set(-35, 120, 135);
   // Se mueve como un mapa: arrastrar = desplazar, dos dedos / clic derecho = girar, pellizcar / rueda = acercar hacia donde apuntas
   const controls = new MapControls(camera, renderer.domElement);
-  controls.enableDamping = true; controls.dampingFactor = 0.12; controls.maxPolarAngle = 1.32; controls.minDistance = 12; controls.maxDistance = 360;
+  controls.enableDamping = true; controls.dampingFactor = 0.12; controls.maxPolarAngle = Math.PI * 0.62; controls.minDistance = 2.5;   // puede bajar y mirar hacia arriba (dentro de una estructura)
+  controls.maxDistance = 360;
   controls.zoomToCursor = true; controls.screenSpacePanning = false; controls.panSpeed = 1.2; controls.rotateSpeed = 0.6;
   renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
   controls.target.set(0, 0, 5);
@@ -1687,7 +1688,10 @@ function animar() {
   const tg = E.controls.target, bx = (ANCHO * ESC) / 2 + 10, bz = (ALTO * ESC) / 2 + 10;
   const cx = Math.max(-bx, Math.min(bx, tg.x)), cz = Math.max(-bz, Math.min(bz, tg.z));
   if (cx !== tg.x || cz !== tg.z) { E.camera.position.x += cx - tg.x; E.camera.position.z += cz - tg.z; tg.x = cx; tg.z = cz; }
-  E.controls.update(); E.renderer.render(E.scene, E.camera);
+  E.controls.update();
+  // la cámara nunca se mete bajo el piso: si baja de 1.5 m sobre el terreno, se queda ahí (y sigue pudiendo mirar hacia arriba)
+  if (E.altura) { const c = E.camera.position, piso = E.altura(c.x / ESC + ANCHO / 2, c.z / ESC + ALTO / 2) * M + 1.5 * M; if (c.y < piso) c.y = piso; }
+  E.renderer.render(E.scene, E.camera);
 }
 
 // Pone la escena dentro del contenedor y la actualiza con los datos actuales
