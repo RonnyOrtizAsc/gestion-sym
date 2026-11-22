@@ -172,7 +172,13 @@ function crear() {
     pendiente = ev;
     requestAnimationFrame(() => {
       const { x, y } = pendiente; pendiente = null;
-      const ob = E.editar ? objetoBajo(x, y) : null;
+      const ob0 = E.editar ? objetoBajo(x, y) : null, ob = ob0?.tipo === "pieza" ? null : ob0;
+      if (ob0?.tipo === "pieza") {   // una pared/lámina del plano que se ve: se resalta su objeto
+        brillo(null); const g = grupoDe(ob0.i), r = renderer.domElement.getBoundingClientRect(); renderer.domElement.style.cursor = "pointer";
+        resaltar(E.hover, g, "hovKey", 0xc4ee4a, 0.5); const html = E.handlers?.textoPieza?.(g) || "";
+        if (html) { tip.innerHTML = html; tip.hidden = false; tip.style.left = x - r.left + 14 + "px"; tip.style.top = y - r.top + 14 + "px"; }
+        return;
+      }
       if (ob) {   // primero lo que se ve: casa, techo, columna, pared, puerta, ventana…
         resaltar(E.hover, null, "hovKey"); brillo(ob.obj); renderer.domElement.style.cursor = "pointer";
         const html = ob.tipo === "elemento" ? E.handlers?.textoElemento?.(ob.id, ob.hk, ob.punto) : `<b>${ob.nombre}</b><span>Toca para pintarlo</span>`;
@@ -206,6 +212,7 @@ function crear() {
     const marcado = (o) => { while (o) { if (o.userData.elemento || o.userData.piezas) return true; o = o.parent; } return false; };
     const hit = (hits[0] && !solido(hits[0]) ? hits.find((h) => solido(h) && marcado(h.object)) : null) || hits[0];
     if (!hit) return null;
+    if (hit.object.userData.idxPiezas && hit.instanceId != null) { const i = hit.object.userData.idxPiezas[hit.instanceId]; if (i != null) return { tipo: "pieza", i }; }
     let o = hit.object, hk = null; while (o && !o.userData.elemento && !o.userData.piezas) { if (o.userData.hueco != null && hk == null) hk = o.userData.hueco; o = o.parent; }
     if (o?.userData.elemento) return { tipo: "elemento", obj: o, id: o.userData.elemento, hk, punto: [hit.point.x / ESC + ANCHO / 2, hit.point.z / ESC + ALTO / 2] };
     if (o?.userData.piezas) return null;   // gradas del plano: las resalta el plano
@@ -243,6 +250,8 @@ function crear() {
       // si lo primero es transparente y detrás hay un objeto propio (elemento o gradas), se elige ese
       const detras = hits[0] && !solido(hits[0]) ? hits.find((h) => solido(h) && marcado(h.object)) : null;
       const hit = detras || hits[0];
+      // una pared/lámina del plano dibujada en 3D: se elige esa pieza
+      if (hit?.object.userData.idxPiezas && hit.instanceId != null) { const i = hit.object.userData.idxPiezas[hit.instanceId]; if (i != null && E.handlers?.pieza) { tip.hidden = true; return E.handlers.pieza(i); } }
       // una pieza del plano dibujada en 3D (gradas): se elige la pieza
       { let o = hit?.object; while (o && !o.userData.piezas && !o.userData.elemento) o = o.parent;
         if (o?.userData.piezas && E.handlers?.pieza) { tip.hidden = true; return E.handlers.pieza(o.userData.piezas[0]); } }
@@ -453,14 +462,14 @@ function ponerParedes(areas, piezas) {
     if (clase === "columna") {
       if (enTaller(cx, cy) || enGalera(cx, cy)) return;   // las del taller son de acero y van con su estructura (ver estructuraTaller)
       const alto = (ALTO_MURO[tipo] || 4.5) * M * (est === "en_proceso" ? 0.5 : 1), lado = Math.max(0.7, Math.min(2.5, c.largo * ESC));
-      lista[est].push([cx, cy, lado, lado, 0, base, alto]); return;
+      lista[est].push([cx, cy, lado, lado, 0, base, alto, i]); return;
     }
     const alto = (especial ? 2.72 : ALTO_MURO[tipo] || 1.1) * M * (est === "en_proceso" ? 0.5 : 1);   // adentro de las casitas: hasta el cielo (2.72 m, G-06)
     for (const pl of polilineas(d)) for (let k = 1; k < pl.length; k++) {
       const [x0, y0] = pl[k - 1], [x1, y1] = pl[k], L = Math.hypot(x1 - x0, y1 - y0);
       if (L < 1.5) continue;
       const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
-      lista[est].push([mx, my, L * ESC + 0.35, 0.38, Math.atan2(y1 - y0, x1 - x0), E.altura(mx, my) * M, alto]);
+      lista[est].push([mx, my, L * ESC + 0.35, 0.38, Math.atan2(y1 - y0, x1 - x0), E.altura(mx, my) * M, alto, i]);
     }
   });
   // el plano dibuja cada pared con dos rayas (sus dos caras): en 3D va UNA sola pared, no dos o tres pegadas
@@ -481,6 +490,7 @@ function ponerParedes(areas, piezas) {
       const p = aEscena(x, y); p.y = base + alto / 2; q.setFromAxisAngle(eje, -ang);
       im.setMatrixAt(k, m4.compose(p, q, new THREE.Vector3(largo, alto, grueso)));
     });
+    im.userData.idxPiezas = items.map((it) => it[7]);
     im.castShadow = est !== "falta"; im.receiveShadow = true; E.edificios.add(im);
   }
 }
@@ -500,9 +510,9 @@ function ponerLamina(piezas, lista) {
       const [x0, y0] = pl[k - 1], [x1, y1] = pl[k], L = Math.hypot(x1 - x0, y1 - y0);
       if (L < 1.5) continue;
       const mx = (x0 + x1) / 2, my = (y0 + y1) / 2, base = E.altura(mx, my) * M, ang = Math.atan2(y1 - y0, x1 - x0), largo = L * ESC + 0.2;
-      if (est !== "existe") { lista[est].push([mx, my, largo, 0.38, ang, base, ALTO_LAMINA * M * (est === "en_proceso" ? 0.5 : 1)]); continue; }
-      murito.push([mx, my, largo, 0.5, ang, base, MURITO * M]);
-      lamina.push([mx, my, largo, 0.18, ang, base + MURITO * M, (ALTO_LAMINA - MURITO) * M]);
+      if (est !== "existe") { lista[est].push([mx, my, largo, 0.38, ang, base, ALTO_LAMINA * M * (est === "en_proceso" ? 0.5 : 1), i]); continue; }
+      murito.push([mx, my, largo, 0.5, ang, base, MURITO * M, i]);
+      lamina.push([mx, my, largo, 0.18, ang, base + MURITO * M, (ALTO_LAMINA - MURITO) * M, i]);
     }
   });
   const geo = new THREE.BoxGeometry(1, 1, 1), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), eje = new THREE.Vector3(0, 1, 0);
@@ -513,6 +523,7 @@ function ponerLamina(piezas, lista) {
       const p = aEscena(x, y); p.y = base + alto / 2; q.setFromAxisAngle(eje, -ang);
       im.setMatrixAt(k, m4.compose(p, q, new THREE.Vector3(largo, alto, grueso)));
     });
+    im.userData.idxPiezas = items.map((it) => it[7]);   // qué pieza del plano es cada pedazo (para tocarla)
     im.castShadow = true; im.receiveShadow = true; E.edificios.add(im);
   }
 }
