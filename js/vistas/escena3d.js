@@ -133,7 +133,12 @@ function crear() {
     p.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(p, camera);
     const h = ray.intersectObject(piso)[0]; if (!h) return;
     e.stopImmediatePropagation(); try { renderer.domElement.setPointerCapture(e.pointerId); } catch (_) {}
-    const a = [h.point.x / ESC + ANCHO / 2, h.point.z / ESC + ALTO / 2];
+    let a = [h.point.x / ESC + ANCHO / 2, h.point.z / ESC + ALTO / 2];
+    if (E.dibujo.tipo === "lapiz") {   // tocando una pared/puerta/figura que se ve (transparente o roja): el punto es ese, no el piso de atrás
+      const vis = (o) => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+      const g = ray.intersectObjects(edificios.children, true).find((x) => !x.object.isSprite && vis(x.object) && (() => { let o = x.object; while (o && !o.userData.elemento) o = o.parent; return !!o; })());
+      if (g && g.distance < h.distance + 0.01) a = [g.point.x / ESC + ANCHO / 2, g.point.z / ESC + ALTO / 2];
+    }
     planoT.set(new THREE.Vector3(0, 1, 0), -h.point.y); trazo = { a, b: a, y: h.point.y }; controls.enabled = false; verTrazo(a, a, e);
   }, { capture: true });
   renderer.domElement.addEventListener("pointermove", (e) => {
@@ -191,7 +196,8 @@ function crear() {
       { let o = hit?.object; while (o && !o.userData.piezas && !o.userData.elemento) o = o.parent;
         if (o?.userData.piezas && E.handlers?.pieza) { tip.hidden = true; return E.handlers.pieza(o.userData.piezas[0]); } }
       let o = hit?.object, hk = null; while (o && !o.userData.elemento) { if (o.userData.hueco != null && hk == null) hk = o.userData.hueco; o = o.parent; }
-      if (o && E.handlers?.elemento?.(o.userData.elemento, hk)) { tip.hidden = true; return; }
+      const qh = hit ? [hit.point.x / ESC + ANCHO / 2, hit.point.z / ESC + ALTO / 2] : null;   // dónde se tocó (en el plano)
+      if (o && E.handlers?.elemento?.(o.userData.elemento, hk, qh)) { tip.hidden = true; return; }
       const q = puntoBajo(e.clientX, e.clientY);
       // cualquier otra cosa que se ve (estante, columna, caseta, techo…): se elige para pintarla
       const mat = hit && !hit.object.isInstancedMesh && [].concat(hit.object.material)[0];
