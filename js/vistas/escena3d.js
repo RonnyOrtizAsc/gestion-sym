@@ -1068,7 +1068,7 @@ function cuadros(c1, c2, rep = [40, 4]) {
   const cv = document.createElement("canvas"); cv.width = cv.height = 32; const x = cv.getContext("2d");
   x.fillStyle = c1; x.fillRect(0, 0, 32, 32); x.fillStyle = c2; x.fillRect(0, 0, 16, 16); x.fillRect(16, 16, 16, 16);
   const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(...rep); t.magFilter = THREE.NearestFilter;
-  return new THREE.MeshStandardMaterial({ map: t, roughness: 0.6 });
+  const m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.6 }); m.userData.tipo = "azulejo"; return m;
 }
 // Rampa del lado este (foto 20-nov + G-06): pasillo angosto entre el muro del vecino (con contrafuertes de concreto) y el muro
 // de contención de block del rebalse; piso de adopasto (bloque con zacate). Abajo, junto al taller, la puerta del SÓTANO 1
@@ -1629,7 +1629,52 @@ function ponerEdificios(areas, elementos = [], piezas = {}) {
     t.position.set(p.x, yc + 2, p.z); const c = new THREE.Mesh(new THREE.SphereGeometry(3.2 + (i % 3) * 0.5, 10, 8), copa);
     c.position.set(p.x, yc + 6, p.z); c.castShadow = true; t.castShadow = true; E.edificios.add(t, c);
   }
+  partirLargos();
   prepararColores();
+}
+
+// Paredes, láminas, bandas de azulejo, vigas… dibujadas de un tirón se parten en paños (en cada columna, o cada ~5 m si no
+// hay columnas) para poder elegir, pintar o quitar un paño solo. La textura sigue igual: se ajustan las coordenadas UV.
+function partirLargos() {
+  const LARGO = 8 * M, PANO = 5 * M, CERCA = 1.2 * M;
+  E.edificios.updateWorldMatrix(true, true);
+  const cols = [];   // centros (x, z) de columnas: del plano y de lo dibujado (cajas delgadas y altas)
+  PIEZAS.forEach(([clase, cx, cy]) => { if (clase === "columna") { const v = aEscena(cx, cy); cols.push([v.x, v.z]); } });
+  const bx = new THREE.Box3(), sz = new THREE.Vector3(), cc = new THREE.Vector3(), lista = [];
+  E.edificios.traverse((o) => {
+    if (!o.isMesh || o.isInstancedMesh) return;
+    let g = o; while (g && !g.userData.elemento) g = g.parent; if (g) return;   // lo agregado en la app ya va por pieza
+    bx.setFromObject(o).getSize(sz); bx.getCenter(cc);
+    if (sz.x < 1.2 * M && sz.z < 1.2 * M && sz.y > 2.2 * M) cols.push([cc.x, cc.z]);
+    const gp = o.geometry?.parameters;
+    if (o.geometry?.type === "BoxGeometry" && o.rotation.x === 0 && o.rotation.y === 0 && o.rotation.z === 0 && o.scale.x === 1 && o.scale.z === 1
+      && Math.max(gp.width, gp.depth) > LARGO && Math.min(gp.width, gp.depth) < 1.5 * M && !o.userData.techo) lista.push(o);
+  });
+  for (const o of lista) {
+    const { width: W, height: H, depth: D } = o.geometry.parameters, enX = W >= D, L = enX ? W : D;
+    const pa = o.parent, q = new THREE.Quaternion(); pa.getWorldQuaternion(q); if (Math.abs(q.w) < 0.9999) continue;   // solo sin girar
+    const po = new THREE.Vector3(); pa.getWorldPosition(po);
+    const p = o.position, ini = (enX ? p.x : p.z) - L / 2, fin = ini + L, otro = (enX ? p.z + po.z : p.x + po.x), dx = enX ? po.x : po.z;
+    let cortes = cols.filter(([x, z]) => Math.abs((enX ? z : x) - otro) < CERCA).map(([x, z]) => (enX ? x : z) - dx).filter((t) => t > ini + 1.5 * M && t < fin - 1.5 * M).sort((a, b) => a - b);
+    cortes = cortes.filter((t, k) => k === 0 || t - cortes[k - 1] > 1.5 * M);
+    const tramos = []; let a0 = ini;
+    for (const t of [...cortes, fin]) { const n = Math.max(1, Math.round((t - a0) / PANO)); for (let k = 1; k <= n; k++) tramos.push([a0 + ((t - a0) * (k - 1)) / n, a0 + ((t - a0) * k) / n]); a0 = t; }
+    if (tramos.length < 2) continue;
+    for (const [t0, t1] of tramos) {
+      const l = t1 - t0, geo = new THREE.BoxGeometry(enX ? l : W, H, enX ? D : l), uv = geo.attributes.uv, nr = geo.attributes.normal;
+      for (let k = 0; k < uv.count; k++) {   // misma textura que la pared entera: la u (o v) del paño es su parte del largo total
+        const nx = nr.getX(k), ny = nr.getY(k), nz = nr.getZ(k);
+        if (enX) { if (Math.abs(nx) > 0.5) continue; const crece = nz > -0.5; const u = uv.getX(k);
+          uv.setX(k, crece ? (u * l + (t0 - ini)) / L : (u * l + (fin - t1)) / L); }
+        else { if (Math.abs(nz) > 0.5) continue;
+          if (Math.abs(nx) > 0.5) { const crece = nx < 0, u = uv.getX(k); uv.setX(k, crece ? (u * l + (t0 - ini)) / L : (u * l + (fin - t1)) / L); }
+          else { const crece = ny < 0, v = uv.getY(k); uv.setY(k, crece ? (v * l + (t0 - ini)) / L : (v * l + (fin - t1)) / L); } }
+      }
+      const m = new THREE.Mesh(geo, o.material); m.position.copy(p); if (enX) m.position.x = (t0 + t1) / 2; else m.position.z = (t0 + t1) / 2;
+      m.castShadow = o.castShadow; m.receiveShadow = o.receiveShadow; m.renderOrder = o.renderOrder; m.userData = { ...o.userData }; o.parent.add(m);
+    }
+    o.parent.remove(o); o.geometry.dispose();
+  }
 }
 
 // Dos esferas verdes en las puntas de la pared elegida y una línea entre ellas
@@ -1857,7 +1902,7 @@ function prepararColores() {
           gr = { clave: a ? "area-" + a.id : "afuera", nombre: a ? (a.nombre || "Zona") : "Afuera" };
         }
         m.userData.clave = `${gr.clave}:${m.userData.color0}`;
-        m.userData.nombre = `${gr.nombre} · ${NOMBRE_COLOR[m.userData.color0] ? "lo " + NOMBRE_COLOR[m.userData.color0] : "pieza " + m.userData.color0}`;
+        m.userData.nombre = `${gr.nombre} · ${m.userData.tipo || (NOMBRE_COLOR[m.userData.color0] ? "lo " + NOMBRE_COLOR[m.userData.color0] : "pieza")}`;
       }
       m.color.set(col[m.userData.clave] || m.userData.color0);
     }
