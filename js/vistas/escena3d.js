@@ -172,6 +172,15 @@ function crear() {
     pendiente = ev;
     requestAnimationFrame(() => {
       const { x, y } = pendiente; pendiente = null;
+      const ob = E.editar ? objetoBajo(x, y) : null;
+      if (ob) {   // primero lo que se ve: casa, techo, columna, pared, puerta, ventana…
+        resaltar(E.hover, null, "hovKey"); brillo(ob.obj); renderer.domElement.style.cursor = "pointer";
+        const html = ob.tipo === "elemento" ? E.handlers?.textoElemento?.(ob.id, ob.hk, ob.punto) : `<b>${ob.nombre}</b><span>Toca para pintarlo</span>`;
+        const r = renderer.domElement.getBoundingClientRect();
+        if (html) { tip.innerHTML = html; tip.hidden = false; tip.style.left = x - r.left + 14 + "px"; tip.style.top = y - r.top + 14 + "px"; } else tip.hidden = true;
+        return;
+      }
+      brillo(null);
       const q0 = E.editar ? null : puntoSuelo(x, y), i = E.editar ? piezaBajo(x, y) : q0 ? piezaEn(q0[0], q0[1], 3) : -1;
       const grupo = i < 0 || CHICAS.has(i) ? null : grupoDe(i), r = renderer.domElement.getBoundingClientRect();
       if (E.editar) { renderer.domElement.style.cursor = grupo ? "pointer" : ""; resaltar(E.hover, grupo, "hovKey", 0xc4ee4a, 0.5); }
@@ -185,7 +194,37 @@ function crear() {
       tip.style.left = x - r.left + 14 + "px"; tip.style.top = y - r.top + 14 + "px";
     });
   });
-  renderer.domElement.addEventListener("pointerleave", () => { tip.hidden = true; resaltar(E.hover, null, "hovKey"); });
+  renderer.domElement.addEventListener("pointerleave", () => { tip.hidden = true; resaltar(E.hover, null, "hovKey"); brillo(null); });
+
+  // Lo que se ve bajo el puntero en Editar: un elemento (pared, figura, puerta/ventana) o una parte para pintar (casa, techo, columna…)
+  const rayH = new THREE.Raycaster(), pH = new THREE.Vector2();
+  function objetoBajo(cx, cy) {
+    const r = renderer.domElement.getBoundingClientRect(); pH.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); rayH.setFromCamera(pH, camera);
+    const vis = (o) => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+    const hits = rayH.intersectObjects(edificios.children, true).filter((h) => !h.object.isSprite && vis(h.object) && !h.object.userData.mascara);
+    const solido = (h) => { const m = [].concat(h.object.material)[0]; return !(m?.transparent && (m.opacity ?? 1) < 0.6); };
+    const marcado = (o) => { while (o) { if (o.userData.elemento || o.userData.piezas) return true; o = o.parent; } return false; };
+    const hit = (hits[0] && !solido(hits[0]) ? hits.find((h) => solido(h) && marcado(h.object)) : null) || hits[0];
+    if (!hit) return null;
+    let o = hit.object, hk = null; while (o && !o.userData.elemento && !o.userData.piezas) { if (o.userData.hueco != null && hk == null) hk = o.userData.hueco; o = o.parent; }
+    if (o?.userData.elemento) return { tipo: "elemento", obj: o, id: o.userData.elemento, hk, punto: [hit.point.x / ESC + ANCHO / 2, hit.point.z / ESC + ALTO / 2] };
+    if (o?.userData.piezas) return null;   // gradas del plano: las resalta el plano
+    const mat = !hit.object.isInstancedMesh && [].concat(hit.object.material)[0];
+    if (mat?.userData?.clave && !mat.userData.sinColor) return { tipo: "parte", obj: mat, nombre: mat.userData.nombre || "Pieza" };   // obj = el material: se resaltan todas sus piezas
+    return null;
+  }
+  // brillo encima de un objeto (para que se note qué se va a tocar)
+  const capaObj = new THREE.Group(); scene.add(capaObj); let objKey = null;
+  function brillo(obj, color = 0xc4ee4a) {
+    if (objKey === obj) return; objKey = obj; capaObj.clear(); if (!obj) return;
+    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.35, depthWrite: false, depthTest: false });
+    const poner = (m) => { const h = new THREE.Mesh(m.geometry, mat); h.matrixAutoUpdate = false; h.matrix.copy(m.matrixWorld); h.renderOrder = 6; capaObj.add(h); };
+    if (obj.isMaterial) { edificios.updateWorldMatrix(true, true); edificios.traverse((m) => { if (m.isMesh && !m.isInstancedMesh && [].concat(m.material).includes(obj) && vis2(m)) poner(m); }); return; }
+    obj.updateWorldMatrix(true, true);
+    obj.traverse((m) => { if (m.isMesh && !m.isInstancedMesh) poner(m); });
+  }
+  const vis2 = (o) => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+  E.brillo = brillo;
 
   // Tocar (sin arrastrar) = seleccionar persona o área
   const ray = new THREE.Raycaster(), p = new THREE.Vector2(); let ini = null;

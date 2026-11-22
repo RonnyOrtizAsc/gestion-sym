@@ -13,7 +13,7 @@ import { miniatura, tarjeta, avatares, cara } from "./fotos.js";
 import { FICHAS, nEscalones, esquinas, agarraderas, moverFigura, girar, correr, guardable, figuraNueva, medidasFigura, medidaCorta, altoDe, dentroDe, centro, U, altoPared, moverRect, rectPct, cercaDe } from "./figuras.js";
 import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, CAJAS, grupoDe, queEs, pegar, ANCHO, ALTO, MATERIALES, puntas, pared, largoPared, gruesoPared, enderezar, distPared, enLinea, sobrePared, ANCHO_HUECO, CHICAS, rampaDe, piezaEn, medidasPieza, medidasArea, medidasElemento } from "./mapa-svg.js";
 // el 3D se pide con la versión: así el celular no se queda con un 3D viejo guardado (súbelo junto con sw.js)
-const ESCENA = "./escena3d.js?v=164";
+const ESCENA = "./escena3d.js?v=165";
 
 const ZOOMS = [1, 1.6, 2.4, 3.4];
 let vistaGuardada = "2d"; try { vistaGuardada = localStorage.getItem("sym-vista") || "2d"; } catch (e) {}
@@ -500,6 +500,10 @@ export function render(V, { hacer, redibujar }) {
         trazoMueve: (a, q) => { const [a2, b] = ajustarTrazo(a, q); return { a: a2, b, texto: textoTrazo(a2, b) }; },
         trazo: (a, b) => hacerTrazo(a, b),
         persona: tocarPersona, pieza: tocarPieza, textoPieza,
+        textoElemento: (id, hk, q) => { const e = S.elementos.find((x) => x.id === id); if (!e) return "";
+          const k = hk ?? huecoEn(e, q?.[0], q?.[1]), h = k != null ? e.huecos?.[k] : null;
+          if (h) return `<b>${nombreHueco(h)} ${fmtM(h.w)}</b><span>${h.e ? EST_HUECO[h.e] : "Ya está"}</span><span class="med">${esc((e.nombre || "Pared").split(" · ")[0])}</span>`;
+          return `<b>${esc(e.nombre || TIPOS_ELEMENTO[e.tipo] || "Elemento")}</b><span class="med">${medidasElemento(e)}</span><span>${ESTADOS[e.estado] || ""}</span>`; },
         pared: (x, y) => { const e = S.elementos.filter((q) => q.trazo).find((q) => distPared(x, y, q) < 8); if (!e) return false; tocarElemento(e.id, null, [x, y]); return true; },
         punto: (px, py) => { // el área más pequeña que contiene el punto tocado
           if (tocarPunto(px, py)) return;

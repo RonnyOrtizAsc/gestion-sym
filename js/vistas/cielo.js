@@ -41,7 +41,7 @@ const mezcla = (a, b, t) => { t = Math.max(0, Math.min(1, t)); const ca = [(a >>
 export function ambiente(altGrados) {
   const dia = Math.max(0, Math.min(1, (altGrados + 4) / 14));            // 0 de noche … 1 de día (amanecer suave)
   const dorado = Math.max(0, 1 - Math.abs(altGrados - 3) / 9);           // luz naranja cerca del horizonte
-  const cieloDia = 0xcfe3ef, cieloNoche = 0x1b2536, atardecer = 0xf2b98a;
+  const cieloDia = 0xcfe3ef, cieloNoche = 0x2a3a52, atardecer = 0xf2b98a;
   const cielo = mezcla(mezcla(cieloNoche, cieloDia, dia), atardecer, dorado * 0.55);
-  return { dia, dorado, cielo, luzSol: mezcla(0xffffff, 0xffb46b, dorado), hemi: 0.35 + 0.8 * dia, fuerzaSol: 1.6 * Math.max(0, Math.sin(Math.max(0, altGrados) * rad) * 1.6) };
+  return { dia, dorado, cielo, luzSol: mezcla(0xffffff, 0xffb46b, dorado), hemi: 0.7 + 0.45 * dia, fuerzaSol: 1.6 * Math.max(0, Math.sin(Math.max(0, altGrados) * rad) * 1.6) };
 }
