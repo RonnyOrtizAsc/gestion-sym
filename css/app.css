@@ -539,3 +539,11 @@ nav.tabs a{font-size:11px;min-width:0;white-space:nowrap}
 /* botones de receso / almuerzo con su ícono */
 .seg-ico button{display:inline-flex;align-items:center;justify-content:center;gap:8px}
 .ico-seg{width:22px;height:22px;fill:none;stroke:var(--break);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* brújula y hora en el 3D */
+.brujula{position:absolute;top:10px;right:10px;display:flex;flex-direction:column;align-items:center;gap:2px;pointer-events:none;z-index:3}
+.brujula svg{width:44px;height:44px;transition:transform .15s linear;overflow:visible}
+.brujula circle{fill:#ffffffd9;stroke:#1d2125;stroke-width:1.2}
+.brujula .n{fill:#d0342c}.brujula .s{fill:#9aa0a6}
+.brujula text{font:800 7px Manrope,Arial,sans-serif;fill:#1d2125;text-anchor:middle;dominant-baseline:auto}
+.hora-cielo{font:700 11px Manrope,Arial,sans-serif;background:#ffffffd9;color:#1d2125;border-radius:999px;padding:1px 7px;white-space:nowrap}

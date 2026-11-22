@@ -2,6 +2,7 @@
 // y cada trabajador como un muñequito con casco que camina a su área (o a la bodega en el receso).
 import * as THREE from "three";
 import { MapControls } from "three/addons/controls/MapControls.js";
+import { sol as posSol, luna as posLuna, direccion, ambiente, NORTE_PLANO } from "./cielo.js";
 import { esquinas, centro as centroFig, altoDe, ALTO_MURO, esZona, nEscalones } from "./figuras.js";
 import { medidasArea, ANCHO, ALTO, PIEZAS, CAJAS, estadoPieza, piezaEn, grupoDe, segmentos, puntas, gruesoPared, tramosPared, CHICAS, RAMPAS, rampaDe } from "./mapa-svg.js";
 
@@ -30,12 +31,20 @@ function crear() {
   renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
   controls.target.set(0, 0, 5);
 
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f7a, 1.15));
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x8a8f7a, 1.15); scene.add(hemi);
   const sol = new THREE.DirectionalLight(0xffffff, 1.6);
   sol.position.set(-80, 160, 60); sol.castShadow = true;
   sol.shadow.mapSize.set(2048, 2048);
   Object.assign(sol.shadow.camera, { left: -100, right: 100, top: 100, bottom: -100, near: 10, far: 400 });
-  scene.add(sol);
+  scene.add(sol); scene.add(sol.target);
+  // la luna: luz suave azulada (sin sombras) y los dos discos en el cielo
+  const lunaLuz = new THREE.DirectionalLight(0x9fb6e0, 0); scene.add(lunaLuz);
+  const disco = (color, r) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 24, 16), new THREE.MeshBasicMaterial({ color, fog: false })); m.renderOrder = -1; scene.add(m); return m; };
+  const discoSol = disco(0xfff2c4, 9), discoLuna = disco(0xe8edf5, 6);
+  // halo del sol
+  { const cv = document.createElement("canvas"); cv.width = cv.height = 64; const x = cv.getContext("2d"), gr = x.createRadialGradient(32, 32, 4, 32, 32, 32);
+    gr.addColorStop(0, "rgba(255,240,190,.9)"); gr.addColorStop(1, "rgba(255,220,150,0)"); x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), fog: false, depthWrite: false, transparent: true })); halo.scale.set(70, 70, 1); discoSol.add(halo); }
 
   // Terreno alrededor del lote
   const suelo = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), new THREE.MeshLambertMaterial({ color: 0xb7c99a }));
@@ -52,8 +61,11 @@ function crear() {
   const hover = new THREE.Group(), marcado = new THREE.Group(), asas = new THREE.Group(); scene.add(hover, marcado, asas);
   const tip = document.createElement("div"); tip.className = "tip"; tip.hidden = true;
 
+  // brújula: la N apunta al norte de verdad (se gira con la cámara)
+  const brujula = document.createElement("div"); brujula.className = "brujula"; brujula.title = "Norte";
+  brujula.innerHTML = `<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18"/><path class="n" d="M20 5l5 15h-10z"/><path class="s" d="M20 35l-5-15h10z"/><text x="20" y="4.2">N</text></svg><span class="hora-cielo"></span>`;
   E = { renderer, scene, camera, controls, piso, edificios, gente, hover, marcado, asas, tip, figuras: new Map(), clave: "", corriendo: false, reloj: new THREE.Clock(),
-    editar: false, hovKey: "", selKey: "" };
+    editar: false, hovKey: "", selKey: "", cielo: { hemi, sol, lunaLuz, discoSol, discoLuna, brujula, ultimo: 0 } };
 
   // Editar plano: qué pieza hay bajo el puntero (pared, grada, puerta…), o -1
   const puntoBajo = (cx, cy) => {
@@ -1684,6 +1696,26 @@ function ponerPersonas(personas) {
   for (const [id, f] of E.figuras) if (!vistos.has(id)) { E.gente.remove(f); E.figuras.delete(id); }
 }
 
+// Sol, luna y luz según la hora real en la obra (se recalcula cada 30 s); la brújula sigue a la cámara
+function ponerCielo() {
+  const C = E.cielo, ahora = Date.now();
+  const az = Math.atan2(E.camera.position.x - E.controls.target.x, E.camera.position.z - E.controls.target.z);   // hacia dónde mira la cámara
+  C.brujula.querySelector("svg").style.transform = `rotate(${(az * 180) / Math.PI + NORTE_PLANO}deg)`;
+  if (ahora - C.ultimo < 30000) return; C.ultimo = ahora;
+  const f = new Date(), s = posSol(f), l = posLuna(f), amb = ambiente((s.alt * 180) / Math.PI), R = 330;
+  const ds = direccion(s.alt, s.az), dl = direccion(l.alt, l.az);
+  E.scene.background.setHex(amb.cielo); E.scene.fog.color.setHex(amb.cielo);
+  C.hemi.intensity = amb.hemi; C.hemi.color.setHex(amb.dia > 0.2 ? 0xffffff : 0x8fa3c8);
+  C.sol.color.setHex(amb.luzSol); C.sol.intensity = amb.fuerzaSol; C.sol.castShadow = s.alt > 0.02;
+  C.sol.position.set(ds[0] * 200, Math.max(ds[1], 0.05) * 200, ds[2] * 200); C.sol.target.position.set(0, 0, 0);
+  C.discoSol.visible = s.alt > -0.05; C.discoSol.position.set(ds[0] * R, ds[1] * R, ds[2] * R);
+  const ilum = 1 - Math.abs(l.fase - 0.5) * 2;                   // 1 = luna llena
+  C.discoLuna.visible = l.alt > -0.05; C.discoLuna.position.set(dl[0] * R, dl[1] * R, dl[2] * R);
+  C.discoLuna.material.color.setHex(ilum > 0.15 ? 0xe8edf5 : 0x8d97a8);
+  C.lunaLuz.intensity = l.alt > 0 && amb.dia < 0.5 ? 0.35 * ilum * (1 - amb.dia * 2) : 0; C.lunaLuz.position.set(dl[0] * 200, dl[1] * 200, dl[2] * 200);
+  const h = C.brujula.querySelector(".hora-cielo"); if (h) h.textContent = (amb.dia > 0.3 ? "☀️ " : "🌙 ") + f.toLocaleTimeString("es-SV", { hour: "numeric", minute: "2-digit" });
+}
+
 function animar() {
   if (!E.renderer.domElement.isConnected) { E.corriendo = false; return; }
   requestAnimationFrame(animar);
@@ -1701,6 +1733,7 @@ function animar() {
   const cx = Math.max(-bx, Math.min(bx, tg.x)), cz = Math.max(-bz, Math.min(bz, tg.z));
   if (cx !== tg.x || cz !== tg.z) { E.camera.position.x += cx - tg.x; E.camera.position.z += cz - tg.z; tg.x = cx; tg.z = cz; }
   E.controls.update();
+  ponerCielo();
   // la cámara nunca se mete bajo el piso: si baja de 1.5 m sobre el terreno, se queda ahí (y sigue pudiendo mirar hacia arriba)
   if (E.altura) { const c = E.camera.position, piso = E.altura(c.x / ESC + ANCHO / 2, c.z / ESC + ALTO / 2) * M + 1.5 * M; if (c.y < piso) c.y = piso; }
   E.renderer.render(E.scene, E.camera);
@@ -1710,7 +1743,7 @@ function animar() {
 export function montar(contenedor, { dibujo = null, colores = null, svg, clave, areas, elementos, piezas, personas, handlers, editar = false, seleccion = null, asas = null }) {
   if (!E) crear();
   E.handlers = handlers; E.dibujo = dibujo; E.colores = colores || {};
-  contenedor.appendChild(E.renderer.domElement); contenedor.appendChild(E.tip); E.tip.hidden = true;
+  contenedor.appendChild(E.renderer.domElement); contenedor.appendChild(E.tip); contenedor.appendChild(E.cielo.brujula); E.tip.hidden = true; E.cielo.ultimo = 0;
   ajustar();
   E.areasUlt = areas;
   if (E.clave !== clave) { E.clave = clave; E.hovKey = E.selKey = "-"; prepararNiveles(areas, piezas); ponerTerreno(); ponerPiso(svg); ponerEdificios(areas, elementos, piezas); E.coloresUlt = JSON.stringify(E.colores); }
