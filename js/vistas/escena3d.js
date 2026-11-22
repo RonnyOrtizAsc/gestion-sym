@@ -174,14 +174,16 @@ function crear() {
       const { x, y } = pendiente; pendiente = null;
       const ob0 = E.editar ? objetoBajo(x, y) : null, ob = ob0?.tipo === "pieza" ? null : ob0;
       if (ob0?.tipo === "pieza") {   // una pared/lámina del plano que se ve: se resalta su objeto
-        brillo(null); const g = grupoDe(ob0.i), r = renderer.domElement.getBoundingClientRect(); renderer.domElement.style.cursor = "pointer";
-        resaltar(E.hover, g, "hovKey", 0xc4ee4a, 0.5); const html = E.handlers?.textoPieza?.(g) || "";
+        const g = grupoDe(ob0.i), r = renderer.domElement.getBoundingClientRect(); renderer.domElement.style.cursor = "pointer";
+        if (ob0.parte) { resaltar(E.hover, null, "hovKey"); brillo(ob0.im, 0xc4ee4a, ob0.i); }   // murito o lámina: solo esa parte
+        else { brillo(null); resaltar(E.hover, g, "hovKey", 0xc4ee4a, 0.5); }
+        const html = E.handlers?.textoPieza?.(g, ob0.parte) || "";
         if (html) { tip.innerHTML = html; tip.hidden = false; tip.style.left = x - r.left + 14 + "px"; tip.style.top = y - r.top + 14 + "px"; }
         return;
       }
       if (ob) {   // primero lo que se ve: casa, techo, columna, pared, puerta, ventana…
-        resaltar(E.hover, null, "hovKey"); brillo(ob.obj); renderer.domElement.style.cursor = "pointer";
-        const html = ob.tipo === "elemento" ? E.handlers?.textoElemento?.(ob.id, ob.hk, ob.punto) : `<b>${ob.nombre}</b><span>Toca para pintarlo</span>`;
+        resaltar(E.hover, null, "hovKey"); brillo(ob.obj, 0xc4ee4a, ob.hk == null ? ob.parte : null); renderer.domElement.style.cursor = "pointer";
+        const html = ob.tipo === "elemento" ? E.handlers?.textoElemento?.(ob.id, ob.hk, ob.punto, ob.parte) : `<b>${ob.nombre}</b><span>Toca para pintarlo</span>`;
         const r = renderer.domElement.getBoundingClientRect();
         if (html) { tip.innerHTML = html; tip.hidden = false; tip.style.left = x - r.left + 14 + "px"; tip.style.top = y - r.top + 14 + "px"; } else tip.hidden = true;
         return;
@@ -212,9 +214,9 @@ function crear() {
     const marcado = (o) => { while (o) { if (o.userData.elemento || o.userData.piezas) return true; o = o.parent; } return false; };
     const hit = (hits[0] && !solido(hits[0]) ? hits.find((h) => solido(h) && marcado(h.object)) : null) || hits[0];
     if (!hit) return null;
-    if (hit.object.userData.idxPiezas && hit.instanceId != null) { const i = hit.object.userData.idxPiezas[hit.instanceId]; if (i != null) return { tipo: "pieza", i }; }
+    if (hit.object.userData.idxPiezas && hit.instanceId != null) { const i = hit.object.userData.idxPiezas[hit.instanceId]; if (i != null) return { tipo: "pieza", i, parte: hit.object.userData.parte || null, im: hit.object }; }
     let o = hit.object, hk = null; while (o && !o.userData.elemento && !o.userData.piezas) { if (o.userData.hueco != null && hk == null) hk = o.userData.hueco; o = o.parent; }
-    if (o?.userData.elemento) return { tipo: "elemento", obj: o, id: o.userData.elemento, hk, punto: [hit.point.x / ESC + ANCHO / 2, hit.point.z / ESC + ALTO / 2] };
+    if (o?.userData.elemento) return { tipo: "elemento", obj: o, id: o.userData.elemento, hk, parte: hit.object.userData.parte || null, punto: [hit.point.x / ESC + ANCHO / 2, hit.point.z / ESC + ALTO / 2] };
     if (o?.userData.piezas) return null;   // gradas del plano: las resalta el plano
     const mat = !hit.object.isInstancedMesh && [].concat(hit.object.material)[0];
     if (mat?.userData?.clave && !mat.userData.sinColor) return { tipo: "parte", obj: mat, nombre: mat.userData.nombre || "Pieza" };   // obj = el material: se resaltan todas sus piezas
@@ -222,13 +224,17 @@ function crear() {
   }
   // brillo encima de un objeto (para que se note qué se va a tocar)
   const capaObj = new THREE.Group(); scene.add(capaObj); let objKey = null;
-  function brillo(obj, color = 0xc4ee4a) {
-    if (objKey === obj) return; objKey = obj; capaObj.clear(); if (!obj) return;
+  let partKey = null;
+  function brillo(obj, color = 0xc4ee4a, parte = null) {
+    if (objKey === obj && partKey === parte) return; objKey = obj; partKey = parte; capaObj.clear(); if (!obj) return;
     const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.35, depthWrite: false, depthTest: false });
-    const poner = (m) => { const h = new THREE.Mesh(m.geometry, mat); h.matrixAutoUpdate = false; h.matrix.copy(m.matrixWorld); h.renderOrder = 6; capaObj.add(h); };
+    const poner = (m, mtx = m.matrixWorld) => { const h = new THREE.Mesh(m.geometry, mat); h.matrixAutoUpdate = false; h.matrix.copy(mtx); h.renderOrder = 6; capaObj.add(h); };
+    if (obj.isInstancedMesh) {   // solo los pedazos de esa pieza (parte = índice de la pieza)
+      obj.updateWorldMatrix(true, false); const mi = new THREE.Matrix4();
+      obj.userData.idxPiezas.forEach((i, k) => { if (i === parte) { obj.getMatrixAt(k, mi); poner(obj, mi.premultiply(obj.matrixWorld).clone()); } }); return; }
     if (obj.isMaterial) { edificios.updateWorldMatrix(true, true); edificios.traverse((m) => { if (m.isMesh && !m.isInstancedMesh && [].concat(m.material).includes(obj) && vis2(m)) poner(m); }); return; }
     obj.updateWorldMatrix(true, true);
-    obj.traverse((m) => { if (m.isMesh && !m.isInstancedMesh) poner(m); });
+    obj.traverse((m) => { if (m.isMesh && !m.isInstancedMesh && (!parte || m.userData.parte === parte)) poner(m); });
   }
   const vis2 = (o) => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
   E.brillo = brillo;
@@ -251,13 +257,13 @@ function crear() {
       const detras = hits[0] && !solido(hits[0]) ? hits.find((h) => solido(h) && marcado(h.object)) : null;
       const hit = detras || hits[0];
       // una pared/lámina del plano dibujada en 3D: se elige esa pieza
-      if (hit?.object.userData.idxPiezas && hit.instanceId != null) { const i = hit.object.userData.idxPiezas[hit.instanceId]; if (i != null && E.handlers?.pieza) { tip.hidden = true; return E.handlers.pieza(i); } }
+      if (hit?.object.userData.idxPiezas && hit.instanceId != null) { const i = hit.object.userData.idxPiezas[hit.instanceId]; if (i != null && E.handlers?.pieza) { tip.hidden = true; return E.handlers.pieza(i, hit.object.userData.parte || null); } }
       // una pieza del plano dibujada en 3D (gradas): se elige la pieza
       { let o = hit?.object; while (o && !o.userData.piezas && !o.userData.elemento) o = o.parent;
         if (o?.userData.piezas && E.handlers?.pieza) { tip.hidden = true; return E.handlers.pieza(o.userData.piezas[0]); } }
       let o = hit?.object, hk = null; while (o && !o.userData.elemento) { if (o.userData.hueco != null && hk == null) hk = o.userData.hueco; o = o.parent; }
       const qh = hit ? [hit.point.x / ESC + ANCHO / 2, hit.point.z / ESC + ALTO / 2] : null;   // dónde se tocó (en el plano)
-      if (o && E.handlers?.elemento?.(o.userData.elemento, hk, qh)) { tip.hidden = true; return; }
+      if (o && E.handlers?.elemento?.(o.userData.elemento, hk, qh, hit.object.userData.parte || null)) { tip.hidden = true; return; }
       const q = puntoBajo(e.clientX, e.clientY);
       // cualquier otra cosa que se ve (estante, columna, caseta, techo…): se elige para pintarla
       const mat = hit && !hit.object.isInstancedMesh && [].concat(hit.object.material)[0];
@@ -524,6 +530,7 @@ function ponerLamina(piezas, lista) {
       im.setMatrixAt(k, m4.compose(p, q, new THREE.Vector3(largo, alto, grueso)));
     });
     im.userData.idxPiezas = items.map((it) => it[7]);   // qué pieza del plano es cada pedazo (para tocarla)
+    im.userData.parte = mat === MAT_MURITO ? "murito" : "lamina";   // se puede borrar solo el murito o solo la lámina
     im.castShadow = true; im.receiveShadow = true; E.edificios.add(im);
   }
 }
@@ -1543,12 +1550,15 @@ function paredDibujada(e, areas) {
     if (s1 - s0 < 0.2 || alto <= 0) return;
     const m = new THREE.Mesh(new THREE.BoxGeometry((s1 - s0) * ESC + (s0 <= 0 || s1 >= L ? grueso / 2 : 0), alto * M, gr), material);
     m.position.set(((s0 + s1) / 2 - L / 2) * ESC, (desde + alto / 2) * M, 0);
-    m.castShadow = material !== MAT.falta && material !== MAT_VIDRIO; m.receiveShadow = true; g.add(m);
+    m.castShadow = material !== MAT.falta && material !== MAT_VIDRIO; m.receiveShadow = true; g.add(m); return m;
   };
+  const marca = (m, parte) => { if (m) m.userData.parte = parte; };
   const tope = proceso ? altoM * 0.5 : altoM, macizo = falta ? MAT.falta : proceso ? MAT.en_proceso : enBodega && !+e.alto ? MAT_AMARILLO : MAT.existe;   // la pared de abajo de la bodega está pintada de amarillo (foto)
   for (const [s0, s1] of solidos) {
     if (falta || proceso || mat === "block") trozo(s0, s1, 0, tope, macizo);
-    else if (mat === "lamina") { trozo(s0, s1, 0, MURITO, MAT_MURITO, grueso * 1.4); trozo(s0, s1, MURITO, altoM - MURITO, MAT_LAMINA, grueso * 0.6); }
+    else if (mat === "lamina") {   // murito abajo y lámina arriba; "quita" dice cuál ya se quitó
+      if (e.quita !== "murito") marca(trozo(s0, s1, 0, MURITO, MAT_MURITO, grueso * 1.4), "murito");
+      if (e.quita !== "lamina") marca(e.quita === "murito" ? trozo(s0, s1, 0, altoM, MAT_LAMINA, grueso * 0.6) : trozo(s0, s1, MURITO, altoM - MURITO, MAT_LAMINA, grueso * 0.6), "lamina"); }
     else { const ant = Math.min(0.9, altoM / 2); trozo(s0, s1, 0, ant, MAT.existe); trozo(s0, s1, ant, altoM - ant, MAT_VIDRIO, grueso * 0.5); }
   }
   // huecos: la puerta deja el paso libre hasta 2.1 m; la ventana lleva antepecho de 0.9 m, vidrio y dintel

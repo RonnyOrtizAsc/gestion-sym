@@ -13,7 +13,7 @@ import { miniatura, tarjeta, avatares, cara } from "./fotos.js";
 import { FICHAS, nEscalones, esquinas, agarraderas, moverFigura, girar, correr, guardable, figuraNueva, medidasFigura, medidaCorta, altoDe, dentroDe, centro, U, altoPared, moverRect, rectPct, cercaDe } from "./figuras.js";
 import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, CAJAS, grupoDe, queEs, pegar, ANCHO, ALTO, MATERIALES, puntas, pared, largoPared, gruesoPared, enderezar, distPared, enLinea, sobrePared, ANCHO_HUECO, CHICAS, rampaDe, piezaEn, medidasPieza, medidasArea, medidasElemento } from "./mapa-svg.js";
 // el 3D se pide con la versión: así el celular no se queda con un 3D viejo guardado (súbelo junto con sw.js)
-const ESCENA = "./escena3d.js?v=166";
+const ESCENA = "./escena3d.js?v=167";
 
 const ZOOMS = [1, 1.6, 2.4, 3.4];
 let vistaGuardada = "2d"; try { vistaGuardada = localStorage.getItem("sym-vista") || "2d"; } catch (e) {}
@@ -173,6 +173,7 @@ const borrarSiNo = (txt) => ui.borrar ? `<div class="acts confirma-borrar"><span
 // Botones grandes "de juego": cada toque cambia un poquito; no hay que escribir medidas
 const jbtn = (attr, ico, txt, extra = "") => `<button class="jbtn ${extra}" ${attr}><b aria-hidden="true">${ico}</b>${txt}</button>`;
 function hojaPared(e) {
+  if (ui.huecoSel != null && e.huecos?.[ui.huecoSel]) return hojaHueco(e);
   if (e.material === "caseta") return hojaCara(e);
   return `<div class="hoja-h"><div class="grow"><b>${esc(e.nombre || "Pared")}</b>
       <small>${ui.hueco ? `Toca en la pared dónde va la ${ui.hueco.t}` : medidasElemento(e)}</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
@@ -182,7 +183,7 @@ function hojaPared(e) {
       ${jbtn('data-grueso="1"', "▐▌", "Más gruesa")}${jbtn('data-grueso="-1"', "▏", "Más delgada")}
       ${jbtn('data-hueco="puerta"', "◫", "Puerta", ui.hueco?.t === "puerta" ? "on" : "")}${jbtn('data-hueco="ventana"', "▭", "Ventana", ui.hueco?.t === "ventana" ? "on" : "")}
       ${jbtn("data-borrar", "✕", "Borrar", "borrar")}</div>
-    ${panelHuecos(e)}
+    ${e.quita ? `<div class="acts" style="margin-top:8px"><span class="note">Ya se quitó ${NOM_PARTE[e.quita]}</span><button class="btn small" data-regresa-parte>Regresarla</button></div>` : ""}
     ${borrarSiNo("Borrar esta pared")}
     <div style="margin-top:10px">${botonesEstado(e.estado, "data-estado-el")}</div>
     <div style="margin-top:8px">${masOpciones()}</div>
@@ -203,21 +204,18 @@ function hojaParte(pt) {
 function hojaCara(e) {
   const [edif, cara] = (e.nombre || "Caseta · cara").split(" · ");
   return `<div class="hoja-h"><div class="grow"><b>${esc(edif)}</b><small>${ui.hueco ? `Toca en la pared dónde va la ${ui.hueco.t}` : esc(cara || "")}</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
-    <p class="note" style="margin:0 0 8px">Toca una puerta o ventana (aquí o en el 3D) para cambiarla o quitarla. Para moverla: quítala y ponla donde va.</p>
-    <div class="juego">${jbtn('data-hueco="puerta"', "◫", "Poner puerta", ui.hueco?.t === "puerta" ? "on" : "")}${jbtn('data-hueco="ventana"', "▭", "Poner ventana", ui.hueco?.t === "ventana" ? "on" : "")}</div>
-    ${panelHuecos(e)}`;
+    <div class="juego">${jbtn('data-hueco="puerta"', "◫", "Poner puerta", ui.hueco?.t === "puerta" ? "on" : "")}${jbtn('data-hueco="ventana"', "▭", "Poner ventana", ui.hueco?.t === "ventana" ? "on" : "")}</div>`;
 }
+const NOM_PARTE = { murito: "el murito", lamina: "la lámina" };
 const EST_HUECO = { abierto: "hueco hecho", falta: "falta abrir", quitar: "no va" };
-// Puertas y ventanas de cualquier pared: tocar una para cambiarle el estado, el ancho, el tipo o borrarla
-function panelHuecos(e) {
-  return `${(e.huecos || []).length ? `<div class="chips" style="margin-top:10px">${e.huecos.map((h, k) => `<button class="chip" data-hueco-sel="${k}" aria-pressed="${ui.huecoSel === k}">${h.t === "puerta" ? "Puerta" : "Ventana"} ${fmtM(h.w)}${h.d > 2 ? " (arriba)" : ""}${h.e ? ` · ${EST_HUECO[h.e]}` : ""}</button>`).join("")}</div>`
-      : `<p class="note" style="margin-top:8px">Sin puertas ni ventanas. Toca "Puerta" o "Ventana" y luego la pared.</p>`}
-    ${ui.huecoSel != null && e.huecos?.[ui.huecoSel] ? (() => { const h = e.huecos[ui.huecoSel]; return `<div class="juego" style="margin-top:10px">
-      ${jbtn("data-hueco-ancho=\"1\"", "⟷", "Más ancha")}${jbtn("data-hueco-ancho=\"-1\"", "→←", "Más angosta")}
-      ${jbtn("data-hueco-tipo", h.t === "puerta" ? "▭" : "◫", h.t === "puerta" ? "Hacerla ventana" : "Hacerla puerta")}${jbtn(`data-quitar-hueco="${ui.huecoSel}"`, "✕", "Borrar", "borrar")}</div>
-      <div class="chips" style="margin-top:8px" role="group" aria-label="Estado">${[["", "Ya está"], ["abierto", "Hueco hecho, sin puerta"], ["falta", "Falta abrir"], ["quitar", "No va (se quita)"]].map(([v, t]) =>
-        `<button class="chip" data-hueco-est="${v}" aria-pressed="${(h.e || "") === v}">${t}</button>`).join("")}</div>
-      <p class="note" style="margin:6px 0 0">"Falta abrir": se ve celeste y la pared sigue entera. "No va": se ve roja hasta que la borres cuando ya la hayan tapado.</p>`; })() : ""}`;
+// Una puerta o ventana tocada: solo lo de ella (cómo está, ancho, borrar)
+function hojaHueco(e) {
+  const h = e.huecos[ui.huecoSel], k = ui.huecoSel;
+  return `<div class="hoja-h"><div class="grow"><b>${h.t === "puerta" ? "Puerta" : "Ventana"} · ${fmtM(h.w)}</b><small>${esc(e.nombre || "Pared")}</small></div><button class="x" data-hueco-sel="${k}" aria-label="Cerrar">×</button></div>
+    <div class="chips" role="group" aria-label="Cómo está">${[["", "✓ Ya está"], ["falta", "Falta abrir"], ["quitar", "✕ No va"]].map(([v, t]) =>
+      `<button class="chip" data-hueco-est="${v}" aria-pressed="${(h.e === "abierto" ? "" : h.e || "") === v}">${t}</button>`).join("")}</div>
+    <div class="acts" style="margin-top:10px"><button class="btn small" data-hueco-ancho="-1" aria-label="Más angosta">−</button><span class="note">Ancho ${fmtM(h.w)}</span><button class="btn small" data-hueco-ancho="1" aria-label="Más ancha">+</button>
+      <span style="flex:1"></span><button class="btn small danger" data-quitar-hueco="${k}">Borrar</button></div>`;
 }
 // Cualquier otra cosa (hoyo, columna, bloque, gradas…): se deforma con los puntos y se ajusta con botones
 function hojaElemento(e) {
@@ -457,10 +455,15 @@ export function render(V, { hacer, redibujar }) {
     hacer(async () => { const n = await agregarElemento(el); ui.elSel = n.id; ui.areaSel = null; return `${TIPOS_ELEMENTO[tipo]} agregado al plano`; });
     return true;
   };
-  const tocarPieza = (i) => { const grupo = grupoDe(i);
+  const tocarPieza = (i, parte = null) => { const grupo = grupoDe(i);
+    // murito y lámina: se borra solo la parte tocada; la pared pasa a ser editable y se acuerda de lo que se quitó
+    if (ui.editar && ui.herr === "borrar" && parte && grupo.some((k) => PIEZAS[k][0] === "lamina")) {
+      const w = paredDePieza(grupo), est = estadoPieza(i, S.piezas); grupo.forEach((k) => (S.piezas[k] = "quitado"));
+      return guardarPared(null, w.a, w.b, { tipo: "muro", estado: est, material: "lamina", grueso: w.grueso, nombre: "Pared de murito y lámina", quita: parte }, () => estadoPiezas(grupo, "quitado"), false); }
     if (ui.editar && ui.herr === "borrar") { grupo.forEach((k) => (S.piezas[k] = "quitado")); redibujar();
       return hacer(async () => { await estadoPiezas(grupo, "quitado"); return `${queEs(grupo)}: quitada (↶ la regresa)`; }); } ui.mas = false; ui.pz = { tocada: i, grupo, nombre: queEs(grupo) }; ui.areaSel = null; ui.elSel = null; redibujar(); };
-  const textoPieza = (grupo) => { const est = grupo.map((i) => estadoPieza(i, S.piezas));
+  const textoPieza = (grupo, parte = null) => { const est = grupo.map((i) => estadoPieza(i, S.piezas));
+    if (parte) return `<b>${parte === "murito" ? "Murito" : "Lámina"}</b><span class="med">${esc(queEs(grupo))}</span>${ui.herr === "borrar" ? `<span>Toca para quitar solo ${NOM_PARTE[parte]}</span>` : ""}`;
     return `<b>${esc(queEs(grupo))}</b><span class="med">${medidasPieza(grupo)}</span><span>${est.every((e) => e === est[0]) ? NOMBRE_ESTADO[est[0]] : "Partes en distinto estado"}</span>`; };
   // Poner a alguien en un punto del mapa (en %): dentro de un área o en cualquier otro lugar
   const ponerEn = (id, p) => {
@@ -492,7 +495,7 @@ export function render(V, { hacer, redibujar }) {
       m.montar(cont, { colores: S.obra?.colores || {}, dibujo: ui.editar && DIBUJA.has(ui.herr) ? { tipo: ui.herr, grosor: ui.grosor[ui.herr] || 0.3 } : null, svg: dibujo.svg, clave: dibujo.clave, areas: S.areas, elementos: S.elementos, piezas: S.piezas, personas, editar: ui.editar && !ui.nuevo && !ui.punta && !ui.hueco, seleccion: ui.pz?.grupo, asas: specAsas(asasActuales()) || (ui.inicio ? [ui.inicio, ui.inicio] : null), handlers: {
         asaMueve: (idx, x, y) => { const A = asasActuales(); return A ? moverAsa(A, idx, x, y) : null; },
         asaSuelta: (idx, x, y) => { const A = asasActuales(); if (!A) return; const m = moverAsa(A, idx, x, y); soltarAsa(A, A.f ? m.pts : m.ab); },
-        elemento: (id, hk, q) => { if (!ui.editar || ui.hueco || ui.punta || !S.elementos.some((x) => x.id === id)) return false; ui.parte = null; tocarElemento(id, hk, q);
+        elemento: (id, hk, q, parte) => { if (!ui.editar || ui.hueco || ui.punta || !S.elementos.some((x) => x.id === id)) return false; ui.parte = null; tocarElemento(id, hk, q, parte);
           if (hk != null && ui.elSel === id && ui.herr !== "borrar") { ui.huecoSel = hk; redibujar(); } return true; },
         parte: (pt, q) => { if (!ui.editar || ui.hueco || ui.punta || DIBUJA.has(ui.herr)) return false;
           const cara = q && S.elementos.find((e) => e.material === "caseta" && distPared(q[0], q[1], e) < 10);   // pared de caseta cercana: sus puertas y ventanas
@@ -500,8 +503,9 @@ export function render(V, { hacer, redibujar }) {
         trazoMueve: (a, q) => { const [a2, b] = ajustarTrazo(a, q); return { a: a2, b, texto: textoTrazo(a2, b) }; },
         trazo: (a, b) => hacerTrazo(a, b),
         persona: tocarPersona, pieza: tocarPieza, textoPieza,
-        textoElemento: (id, hk, q) => { const e = S.elementos.find((x) => x.id === id); if (!e) return "";
+        textoElemento: (id, hk, q, parte) => { const e = S.elementos.find((x) => x.id === id); if (!e) return "";
           const k = hk ?? huecoEn(e, q?.[0], q?.[1]), h = k != null ? e.huecos?.[k] : null;
+          if (!h && parte && e.material === "lamina") return `<b>${parte === "murito" ? "Murito" : "Lámina"}</b><span class="med">${esc(e.nombre || "Pared")}</span>${ui.herr === "borrar" ? `<span>Toca para quitar solo ${NOM_PARTE[parte]}</span>` : ""}`;
           if (h) return `<b>${nombreHueco(h)} ${fmtM(h.w)}</b><span>${h.e ? EST_HUECO[h.e] : "Ya está"}</span><span class="med">${esc((e.nombre || "Pared").split(" · ")[0])}</span>`;
           return `<b>${esc(e.nombre || TIPOS_ELEMENTO[e.tipo] || "Elemento")}</b><span class="med">${medidasElemento(e)}</span><span>${ESTADOS[e.estado] || ""}</span>`; },
         pared: (x, y) => { const e = S.elementos.filter((q) => q.trazo).find((q) => distPared(x, y, q) < 8); if (!e) return false; tocarElemento(e.id, null, [x, y]); return true; },
@@ -773,13 +777,15 @@ export function render(V, { hacer, redibujar }) {
       hacer(async () => { await estadoPiezas(g, "existe"); return `${queEs(g)}: ya está`; }); return true; }
     return false;
   }
-  function tocarElemento(id, hk = null, pt = null) {
+  function tocarElemento(id, hk = null, pt = null, parte = null) {
     const e = S.elementos.find((q) => q.id === id); if (!e) return;
     if (hk == null && pt) hk = huecoEn(e, pt[0], pt[1]);
     if (ui.herr === "lapiz" && pt && construirEn(pt[0], pt[1])) return;
     if (ui.herr !== "borrar") { elegir(id); if (hk != null && e.huecos?.[hk] && ui.elSel === id) { ui.huecoSel = hk; redibujar(); } return; }
     if (hk != null && e.huecos?.[hk]) return borrarHueco(e, hk);   // borrar sobre una puerta/ventana: solo esa
     if (e.material === "caseta") { ui.herr = "mano"; return elegir(id); }   // la caseta no se borra: se abre para quitar sus puertas o ventanas
+    if (parte && e.material === "lamina" && (!e.quita || e.quita === parte)) {   // murito o lámina: solo esa parte (si ya no queda la otra, se va toda)
+      if (e.quita !== parte) { e.quita = parte; redibujar(); return hacer(async () => { await editarElemento(e.id, { quita: parte }); return `Se quitó ${NOM_PARTE[parte]} (↶ la regresa)`; }); } }
     S.elementos = S.elementos.filter((q) => q !== e); ui.elSel = null; redibujar();
     hacer(async () => { await borrarElemento(id); return `${e.nombre || TIPOS_ELEMENTO[e.tipo] || "Elemento"} quitado (↶ lo regresa)`; });
   }
@@ -862,6 +868,8 @@ export function render(V, { hacer, redibujar }) {
     hacer(async () => { await guardarColor(pt.clave, null); return `${pt.nombre}: color original`; }); }));
   $$("[data-abrir-cara]").forEach((b) => (b.onclick = () => elegir(b.dataset.abrirCara)));
   // Puertas y ventanas de una caseta, una por una
+  $$("[data-regresa-parte]").forEach((b) => (b.onclick = () => { const e = S.elementos.find((q) => q.id === ui.elSel); if (!e) return; e.quita = null; redibujar();
+    hacer(async () => { await editarElemento(e.id, { quita: null }); return "Pared completa otra vez"; }); }));
   $$("[data-hueco-sel]").forEach((b) => (b.onclick = () => { const k = +b.dataset.huecoSel; ui.huecoSel = ui.huecoSel === k ? null : k; redibujar(); }));
   const cambiarHueco = (fn, aviso) => { const e = S.elementos.find((q) => q.id === ui.elSel); const h = e?.huecos?.[ui.huecoSel]; if (!h) return;
     const huecos = e.huecos.map((x, k) => (k === ui.huecoSel ? fn({ ...x }) : x)); e.huecos = huecos; redibujar();
