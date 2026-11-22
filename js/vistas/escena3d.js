@@ -183,7 +183,7 @@ function crear() {
       }
       if (ob) {   // primero lo que se ve: casa, techo, columna, pared, puerta, ventana…
         resaltar(E.hover, null, "hovKey"); brillo(ob.obj, 0xc4ee4a, ob.hk == null ? ob.parte : null); renderer.domElement.style.cursor = "pointer";
-        const html = ob.tipo === "elemento" ? E.handlers?.textoElemento?.(ob.id, ob.hk, ob.punto, ob.parte) : `<b>${ob.nombre}</b><span>Toca para pintarlo</span>`;
+        const html = ob.tipo === "elemento" ? E.handlers?.textoElemento?.(ob.id, ob.hk, ob.punto, ob.parte) : E.handlers?.textoParte?.(ob.nombre) || `<b>${ob.nombre}</b><span>Toca para pintarlo</span>`;
         const r = renderer.domElement.getBoundingClientRect();
         if (html) { tip.innerHTML = html; tip.hidden = false; tip.style.left = x - r.left + 14 + "px"; tip.style.top = y - r.top + 14 + "px"; } else tip.hidden = true;
         return;
@@ -219,7 +219,7 @@ function crear() {
     if (o?.userData.elemento) return { tipo: "elemento", obj: o, id: o.userData.elemento, hk, parte: hit.object.userData.parte || null, punto: [hit.point.x / ESC + ANCHO / 2, hit.point.z / ESC + ALTO / 2] };
     if (o?.userData.piezas) return null;   // gradas del plano: las resalta el plano
     const mat = !hit.object.isInstancedMesh && [].concat(hit.object.material)[0];
-    if (mat?.userData?.clave && !mat.userData.sinColor) return { tipo: "parte", obj: mat, nombre: mat.userData.nombre || "Pieza" };   // obj = el material: se resaltan todas sus piezas
+    if (mat?.userData?.clave && !mat.userData.sinColor) return { tipo: "parte", obj: hit.object, nombre: mat.userData.nombre || "Pieza" };   // solo esa pieza, una por una
     return null;
   }
   // brillo encima de un objeto (para que se note qué se va a tocar)
@@ -267,7 +267,7 @@ function crear() {
       const q = puntoBajo(e.clientX, e.clientY);
       // cualquier otra cosa que se ve (estante, columna, caseta, techo…): se elige para pintarla
       const mat = hit && !hit.object.isInstancedMesh && [].concat(hit.object.material)[0];
-      if (mat?.userData?.clave && !mat.userData.sinColor && E.handlers?.parte?.({ clave: mat.userData.clave, nombre: mat.userData.nombre, color: "#" + mat.color.getHexString(), original: mat.userData.color0 }, q)) { tip.hidden = true; return; }
+      if (mat?.userData?.clave && !mat.userData.sinColor && E.handlers?.parte?.({ clave: hit.object.userData.pk || mat.userData.clave, nombre: mat.userData.nombre, color: "#" + mat.color.getHexString(), original: mat.userData.color0 }, q)) { tip.hidden = true; return; }
       if (q && E.handlers?.pared?.(q[0], q[1])) { tip.hidden = true; return; }
       const i = piezaBajo(e.clientX, e.clientY); if (i >= 0) { tip.hidden = true; return E.handlers?.pieza?.(i); }
     }
@@ -1839,8 +1839,11 @@ const NOMBRE_COLOR = { "#e0b022": "amarillo", "#2f6fc2": "azul", "#b8352b": "roj
 function prepararColores() {
   const col = E.colores || {};
   for (const m of Object.values(MAT)) if (m?.userData) m.userData.sinColor = true;   // paredes del plano: van por estado (falta / en proceso / hecho)
+  const sueltos = [];
   E.edificios.traverse((o) => {
     if (!o.isMesh || o.isInstancedMesh) return;
+    if (o.userData.mat0) o.material = o.userData.mat0;   // vuelve a su material compartido; abajo se le pone su color propio si tiene
+    sueltos.push(o);
     for (const m of [].concat(o.material)) {
       if (!m?.color || m.colorWrite === false || m.userData.sinColor) continue;
       if (!m.userData.color0) m.userData.color0 = "#" + m.color.getHexString();
@@ -1859,5 +1862,14 @@ function prepararColores() {
       m.color.set(col[m.userData.clave] || m.userData.color0);
     }
   });
+  // cada pieza por separado (clave "p:…" = su material + dónde está): se puede pintar sola o quitar
+  E.edificios.updateWorldMatrix(true, true); const bx = new THREE.Box3(), c = new THREE.Vector3();
+  for (const o of sueltos) {
+    const m = o.material; if (Array.isArray(m) || !m?.userData?.clave || m.userData.sinColor) continue;
+    bx.setFromObject(o).getCenter(c); const pk = `p:${m.userData.clave}@${c.x.toFixed(1)},${c.y.toFixed(1)},${c.z.toFixed(1)}`;
+    o.userData.pk = pk; const v = col[pk];
+    o.visible = v !== "quitado";
+    if (v && v !== "quitado") { o.userData.mat0 = m; const m2 = m.clone(); m2.userData = { ...m.userData }; m2.color.set(v); o.material = m2; }
+  }
 }
 export function pintar(colores) { if (!E) return; E.colores = colores || {}; prepararColores(); }

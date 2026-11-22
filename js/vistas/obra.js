@@ -13,7 +13,7 @@ import { miniatura, tarjeta, avatares, cara } from "./fotos.js";
 import { FICHAS, nEscalones, esquinas, agarraderas, moverFigura, girar, correr, guardable, figuraNueva, medidasFigura, medidaCorta, altoDe, dentroDe, centro, U, altoPared, moverRect, rectPct, cercaDe } from "./figuras.js";
 import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, CAJAS, grupoDe, queEs, pegar, ANCHO, ALTO, MATERIALES, puntas, pared, largoPared, gruesoPared, enderezar, distPared, enLinea, sobrePared, ANCHO_HUECO, CHICAS, rampaDe, piezaEn, medidasPieza, medidasArea, medidasElemento } from "./mapa-svg.js";
 // el 3D se pide con la versión: así el celular no se queda con un 3D viejo guardado (súbelo junto con sw.js)
-const ESCENA = "./escena3d.js?v=167";
+const ESCENA = "./escena3d.js?v=168";
 
 const ZOOMS = [1, 1.6, 2.4, 3.4];
 let vistaGuardada = "2d"; try { vistaGuardada = localStorage.getItem("sym-vista") || "2d"; } catch (e) {}
@@ -497,12 +497,15 @@ export function render(V, { hacer, redibujar }) {
         asaSuelta: (idx, x, y) => { const A = asasActuales(); if (!A) return; const m = moverAsa(A, idx, x, y); soltarAsa(A, A.f ? m.pts : m.ab); },
         elemento: (id, hk, q, parte) => { if (!ui.editar || ui.hueco || ui.punta || !S.elementos.some((x) => x.id === id)) return false; ui.parte = null; tocarElemento(id, hk, q, parte);
           if (hk != null && ui.elSel === id && ui.herr !== "borrar") { ui.huecoSel = hk; redibujar(); } return true; },
-        parte: (pt, q) => { if (!ui.editar || ui.hueco || ui.punta || DIBUJA.has(ui.herr)) return false;
+        parte: (pt, q) => { if (!ui.editar || ui.hueco || ui.punta) return false;
+          if (ui.herr === "borrar") { const antes = (S.obra.colores || {})[pt.clave] ?? null; S.obra.colores = { ...(S.obra.colores || {}), [pt.clave]: "quitado" }; redibujar();
+            hacer(async () => { await guardarColor(pt.clave, "quitado", antes); return `${pt.nombre}: quitado (↶ lo regresa)`; }); return true; }
+          if (DIBUJA.has(ui.herr)) return false;
           const cara = q && S.elementos.find((e) => e.material === "caseta" && distPared(q[0], q[1], e) < 10);   // pared de caseta cercana: sus puertas y ventanas
           ui.parte = { ...pt, cara: cara?.id || null }; ui.elSel = null; ui.areaSel = null; ui.pz = null; ui.huecoSel = null; redibujar(); return true; },
         trazoMueve: (a, q) => { const [a2, b] = ajustarTrazo(a, q); return { a: a2, b, texto: textoTrazo(a2, b) }; },
         trazo: (a, b) => hacerTrazo(a, b),
-        persona: tocarPersona, pieza: tocarPieza, textoPieza,
+        persona: tocarPersona, pieza: tocarPieza, textoPieza, textoParte: (n) => `<b>${esc(n)}</b><span>${ui.herr === "borrar" ? "Toca para quitarlo (solo este)" : "Toca para pintarlo (solo este)"}</span>`,
         textoElemento: (id, hk, q, parte) => { const e = S.elementos.find((x) => x.id === id); if (!e) return "";
           const k = hk ?? huecoEn(e, q?.[0], q?.[1]), h = k != null ? e.huecos?.[k] : null;
           if (!h && parte && e.material === "lamina") return `<b>${parte === "murito" ? "Murito" : "Lámina"}</b><span class="med">${esc(e.nombre || "Pared")}</span>${ui.herr === "borrar" ? `<span>Toca para quitar solo ${NOM_PARTE[parte]}</span>` : ""}`;
@@ -861,11 +864,11 @@ export function render(V, { hacer, redibujar }) {
   // ---- Interacción ----
   const $$ = (s) => V.querySelectorAll(s);
   // Pintar lo elegido en 3D
-  $$("[data-color]").forEach((b) => (b.onclick = () => { const pt = ui.parte; if (!pt) return; const c = b.dataset.color;
+  $$("[data-color]").forEach((b) => (b.onclick = () => { const pt = ui.parte; if (!pt) return; const c = b.dataset.color, antes = (S.obra.colores || {})[pt.clave] ?? null;
     S.obra.colores = { ...(S.obra.colores || {}), [pt.clave]: c }; redibujar();
-    hacer(async () => { await guardarColor(pt.clave, c); return `${pt.nombre}: ${b.title}`; }); }));
-  $$("[data-color-original]").forEach((b) => (b.onclick = () => { const pt = ui.parte; if (!pt) return; const col = { ...(S.obra.colores || {}) }; delete col[pt.clave]; S.obra.colores = col; redibujar();
-    hacer(async () => { await guardarColor(pt.clave, null); return `${pt.nombre}: color original`; }); }));
+    hacer(async () => { await guardarColor(pt.clave, c, antes); return `${pt.nombre}: ${b.title}`; }); }));
+  $$("[data-color-original]").forEach((b) => (b.onclick = () => { const pt = ui.parte; if (!pt) return; const antes = (S.obra.colores || {})[pt.clave] ?? null; const col = { ...(S.obra.colores || {}) }; delete col[pt.clave]; S.obra.colores = col; redibujar();
+    hacer(async () => { await guardarColor(pt.clave, null, antes); return `${pt.nombre}: color original`; }); }));
   $$("[data-abrir-cara]").forEach((b) => (b.onclick = () => elegir(b.dataset.abrirCara)));
   // Puertas y ventanas de una caseta, una por una
   $$("[data-regresa-parte]").forEach((b) => (b.onclick = () => { const e = S.elementos.find((q) => q.id === ui.elSel); if (!e) return; e.quita = null; redibujar();

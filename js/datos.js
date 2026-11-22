@@ -326,8 +326,9 @@ export async function estadoArea(id, estado) {
 }
 // Áreas: se agregan, se estiran, se dividen y se borran desde "Editar plano". El nombre puede quedar vacío.
 // Colores de lo dibujado en 3D (estantes, columnas, casetas…): { clave: "#rrggbb" } en la obra. color null = el original.
-export async function guardarColor(clave, color) {
+export async function guardarColor(clave, color, antes = (S.obra.colores || {})[clave] ?? null) {
   const colores = { ...(S.obra.colores || {}) }; if (color) colores[clave] = color; else delete colores[clave];
+  anotar(() => guardarColor(clave, antes, color));
   S.obra.colores = colores;
   ok(await sb.from("obras").update({ colores }).eq("id", S.obra.id));
 }
