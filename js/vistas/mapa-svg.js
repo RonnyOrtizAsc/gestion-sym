@@ -205,22 +205,23 @@ export function grupoDe(i) {
   if (!GRUPOS.has(i)) GRUPOS.set(i, rampaDe(i)?.piezas || calcularGrupo(i));
   return GRUPOS.get(i);
 }
+// Al tocar se elige UNA pieza: esa raya y, si es pared, su otra cara (la raya paralela pegada, el plano dibuja cada pared con dos).
+// Ya no se agarran todas las paredes que se tocan entre sí.
 function calcularGrupo(i) {
-  const base = CAJAS[i], esMuro = TRAZO[i][0] === "muro", esLamina = TRAZO[i][0] === "lamina", tope = Math.max(base.largo * 4, 30), M = 5;
-  const R = Math.max(25, base.largo * 1.2);   // el objeto no se sale de alrededor de lo tocado
-  const lim = { x0: base.x0 - R, y0: base.y0 - R, x1: base.x1 + R, y1: base.y1 + R };
-  const grupo = new Set([i]), cola = [i];
-  while (cola.length && grupo.size < 30) {
-    const c = CAJAS[cola.shift()];
-    CAJAS.forEach((o, j) => {
-      const clase = TRAZO[j][0];
-      if (grupo.has(j) || clase === "jardin" || clase === "oculto" || o.largo > tope) return;
-      if ((clase === "muro") !== esMuro || (clase === "lamina") !== esLamina) return;   // paredes con paredes; puertas y gradas aparte
-      if (o.x0 < lim.x0 || o.x1 > lim.x1 || o.y0 < lim.y0 || o.y1 > lim.y1) return;
-      if (o.x0 <= c.x1 + M && o.x1 >= c.x0 - M && o.y0 <= c.y1 + M && o.y1 >= c.y0 - M) { grupo.add(j); cola.push(j); }
-    });
-  }
-  return [...grupo];
+  const segs = segmentos(i); if (TRAZO[i][0] !== "muro" || segs.length !== 1) return [i];
+  const [[ax, ay], [bx, by]] = segs[0], L = Math.hypot(bx - ax, by - ay) || 1, ux = (bx - ax) / L, uy = (by - ay) / L;
+  const grupo = [i];
+  CAJAS.forEach((o, j) => {
+    if (j === i || TRAZO[j][0] !== "muro") return;
+    const sj = segmentos(j); if (sj.length !== 1) return;
+    const [[cx, cy], [dx, dy]] = sj[0], Lj = Math.hypot(dx - cx, dy - cy) || 1;
+    if (Math.abs(((dx - cx) * ux + (dy - cy) * uy) / Lj) < 0.98) return;            // paralela
+    const sep = Math.abs((cx - ax) * -uy + (cy - ay) * ux); if (sep < 0.3 || sep > 3.5) return;   // pegada (grueso de pared)
+    const t0 = (cx - ax) * ux + (cy - ay) * uy, t1 = (dx - ax) * ux + (dy - ay) * uy;
+    const trasl = Math.min(L, Math.max(t0, t1)) - Math.max(0, Math.min(t0, t1));
+    if (trasl > 0.6 * Math.min(L, Lj)) grupo.push(j);                                 // del mismo largo, una frente a la otra
+  });
+  return grupo;
 }
 // Pieza más cercana a un punto del plano (unidades del mapa), a menos de "radio". Sirve para tocar en 3D.
 const SEGS = [];
