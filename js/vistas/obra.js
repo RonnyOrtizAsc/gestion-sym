@@ -182,7 +182,7 @@ function hojaPared(e) {
       ${jbtn('data-grueso="1"', "▐▌", "Más gruesa")}${jbtn('data-grueso="-1"', "▏", "Más delgada")}
       ${jbtn('data-hueco="puerta"', "◫", "Puerta", ui.hueco?.t === "puerta" ? "on" : "")}${jbtn('data-hueco="ventana"', "▭", "Ventana", ui.hueco?.t === "ventana" ? "on" : "")}
       ${jbtn("data-borrar", "✕", "Borrar", "borrar")}</div>
-    ${(e.huecos || []).length ? `<div class="chips" style="margin-top:8px">${e.huecos.map((h, k) => `<button class="chip" data-quitar-hueco="${k}" aria-label="Quitar ${h.t}">${h.t === "puerta" ? "Puerta" : "Ventana"} ${fmtM(h.w)} ×</button>`).join("")}</div>` : ""}
+    ${panelHuecos(e)}
     ${borrarSiNo("Borrar esta pared")}
     <div style="margin-top:10px">${botonesEstado(e.estado, "data-estado-el")}</div>
     <div style="margin-top:8px">${masOpciones()}</div>
@@ -205,8 +205,13 @@ function hojaCara(e) {
   return `<div class="hoja-h"><div class="grow"><b>${esc(edif)}</b><small>${ui.hueco ? `Toca en la pared dónde va la ${ui.hueco.t}` : esc(cara || "")}</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
     <p class="note" style="margin:0 0 8px">Toca una puerta o ventana (aquí o en el 3D) para cambiarla o quitarla. Para moverla: quítala y ponla donde va.</p>
     <div class="juego">${jbtn('data-hueco="puerta"', "◫", "Poner puerta", ui.hueco?.t === "puerta" ? "on" : "")}${jbtn('data-hueco="ventana"', "▭", "Poner ventana", ui.hueco?.t === "ventana" ? "on" : "")}</div>
-    ${(e.huecos || []).length ? `<div class="chips" style="margin-top:10px">${e.huecos.map((h, k) => `<button class="chip" data-hueco-sel="${k}" aria-pressed="${ui.huecoSel === k}">${h.t === "puerta" ? "Puerta" : "Ventana"} ${fmtM(h.w)}${h.d > 2 ? " (arriba)" : ""}${h.e ? ` · ${EST_HUECO[h.e]}` : ""}</button>`).join("")}</div>`
-      : `<p class="note">Esta cara no tiene puertas ni ventanas.</p>`}
+    ${panelHuecos(e)}`;
+}
+const EST_HUECO = { abierto: "hueco hecho", falta: "falta abrir", quitar: "no va" };
+// Puertas y ventanas de cualquier pared: tocar una para cambiarle el estado, el ancho, el tipo o borrarla
+function panelHuecos(e) {
+  return `${(e.huecos || []).length ? `<div class="chips" style="margin-top:10px">${e.huecos.map((h, k) => `<button class="chip" data-hueco-sel="${k}" aria-pressed="${ui.huecoSel === k}">${h.t === "puerta" ? "Puerta" : "Ventana"} ${fmtM(h.w)}${h.d > 2 ? " (arriba)" : ""}${h.e ? ` · ${EST_HUECO[h.e]}` : ""}</button>`).join("")}</div>`
+      : `<p class="note" style="margin-top:8px">Sin puertas ni ventanas. Toca "Puerta" o "Ventana" y luego la pared.</p>`}
     ${ui.huecoSel != null && e.huecos?.[ui.huecoSel] ? (() => { const h = e.huecos[ui.huecoSel]; return `<div class="juego" style="margin-top:10px">
       ${jbtn("data-hueco-ancho=\"1\"", "⟷", "Más ancha")}${jbtn("data-hueco-ancho=\"-1\"", "→←", "Más angosta")}
       ${jbtn("data-hueco-tipo", h.t === "puerta" ? "▭" : "◫", h.t === "puerta" ? "Hacerla ventana" : "Hacerla puerta")}${jbtn(`data-quitar-hueco="${ui.huecoSel}"`, "✕", "Borrar", "borrar")}</div>
@@ -214,7 +219,6 @@ function hojaCara(e) {
         `<button class="chip" data-hueco-est="${v}" aria-pressed="${(h.e || "") === v}">${t}</button>`).join("")}</div>
       <p class="note" style="margin:6px 0 0">"Falta abrir": se ve celeste y la pared sigue entera. "No va": se ve roja hasta que la borres cuando ya la hayan tapado.</p>`; })() : ""}`;
 }
-const EST_HUECO = { abierto: "hueco hecho", falta: "falta abrir", quitar: "no va" };
 // Cualquier otra cosa (hoyo, columna, bloque, gradas…): se deforma con los puntos y se ajusta con botones
 function hojaElemento(e) {
   if (e.trazo) return hojaPared(e);
@@ -769,7 +773,7 @@ export function render(V, { hacer, redibujar }) {
     const e = S.elementos.find((q) => q.id === id); if (!e) return;
     if (hk == null && pt) hk = huecoEn(e, pt[0], pt[1]);
     if (ui.herr === "lapiz" && pt && construirEn(pt[0], pt[1])) return;
-    if (ui.herr !== "borrar") return elegir(id);
+    if (ui.herr !== "borrar") { elegir(id); if (hk != null && e.huecos?.[hk] && ui.elSel === id) { ui.huecoSel = hk; redibujar(); } return; }
     if (hk != null && e.huecos?.[hk]) return borrarHueco(e, hk);   // borrar sobre una puerta/ventana: solo esa
     if (e.material === "caseta") { ui.herr = "mano"; return elegir(id); }   // la caseta no se borra: se abre para quitar sus puertas o ventanas
     S.elementos = S.elementos.filter((q) => q !== e); ui.elSel = null; redibujar();
