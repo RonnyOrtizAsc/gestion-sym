@@ -90,11 +90,10 @@ export function render(V, { hacer, redibujar }) {
     ${S.trabajadores.some((w) => !recesoAbierto(w.id) && !almuerzoHoy(w.id)) ? `<button class="btn big" id="todosAlm" style="margin-bottom:12px">Todos a almorzar</button>` : ""}` : ""}
   ${enRec.length ? `<button class="btn primary big" id="fin" style="margin-bottom:12px">Todos a trabajar</button>` : ""}
   ${corregir() || pregunta()}
-  ${(() => { const olv = S.trabajadores.filter((w) => pasadoAbierto(w) >= OLVIDO); return olv.length && !ui.pregunta ? `<div class="pregunta-r olvido" role="status">⏰ <b>${olv.map((w) => esc(w.nombre)).join(", ")}</b> ${olv.length === 1 ? "sigue" : "siguen"} en pausa desde hace rato. Si ya ${olv.length === 1 ? "regresó" : "regresaron"}, tócal${olv.length === 1 ? "o" : "os"} para regresar${olv.length === 1 ? "lo" : "los"} a trabajar.</div>` : ""; })()}
   <div class="grid">${S.trabajadores.map((w) => { const r = recesoAbierto(w.id);
     const exc = Math.round(excesoHoy(w.id) + excesoAlmuerzo(w.id)), olvido = pasadoAbierto(w) >= OLVIDO;
     return `<button class="card receso-card ${r ? "on-break" : ""} ${esAlmuerzo(r) ? "almuerzo" : ""} ${olvido ? "olvido" : ""}" data-w="${w.id}" aria-pressed="${!!r}">
-      <span class="fila"><span class="av">${cara(w)}</span><span class="who"><b>${esc(w.nombre)}</b><small>${r ? (esAlmuerzo(r) ? "Almorzando" : "En receso") + (olvido ? " · ¿ya regresó?" : "") : "Trabajando"}</small>${exc >= 1 ? `<span class="sello-exc" data-corregir title="Tocar para corregir la hora de regreso">⏱ +${exc} min ✎</span>` : ""}</span></span>
+      <span class="fila"><span class="av">${cara(w)}</span><span class="who"><b>${esc(w.nombre)}</b><small>${r ? (esAlmuerzo(r) ? "Almorzando" : "En receso") : "Trabajando"}</small>${exc >= 1 ? `<span class="sello-exc" data-corregir title="Tocar para corregir la hora de regreso">⏱ +${exc} min ✎</span>` : ""}</span></span>
       ${turno(w, "manana")}${turno(w, "almuerzo")}${turno(w, "tarde")}</button>`; }).join("")}</div>
 
   <div class="section"><div class="titulo-fila"><p class="eyebrow" style="margin:0">Datos por persona</p>
@@ -134,7 +133,7 @@ export function render(V, { hacer, redibujar }) {
     if (!recesoAbierto(wid) && tipo === "receso" && estadoAvisos() === "preguntar") activarAvisos({ saludo: true }).catch(() => {});
     hacer(async () => {
       const r = recesoAbierto(wid), sale = await cambiarReceso(wid, r ? r.tipo || "receso" : tipo);
-      return `${trabajador(wid).nombre} ${sale ? (tipo === "almuerzo" ? "almorzando" : "en receso") : "regresó a trabajar" + (tarde ? " · si regresó antes, toca su ⏱ para poner la hora" : "")}`;
+      return `${trabajador(wid).nombre} ${sale ? (tipo === "almuerzo" ? "almorzando" : "en receso") : "regresó a trabajar"}`;
     });
   }
   V.querySelectorAll("[data-resp]").forEach((b) => (b.onclick = () => { const p = ui.pregunta; if (!p) return; const w = trabajador(p.w), v = b.dataset.resp;
