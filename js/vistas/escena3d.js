@@ -706,12 +706,14 @@ function zonaBoulevard() {
     for (let k = 0; k <= n; k++) { const p = a.clone().lerp(b, k / n); barraE(g, p, p.clone().add(up), k % 12 ? 0.04 : 0.09, k % 12 ? amar : gris); } };
   baranda([330, 1150], [330, 1316]); baranda([330, 1316], [530, 1316]);
   // caseta de vigilancia (fotos y video 23-nov): bajo el techo grande, al este de la columna amarilla de base roja (x 333, y 1237),
-  // con la baranda detrás. Planta ~2.2 × 2.0 m con la esquina sureste ochavada; 2.5 m de alto.
+  // con la baranda detrás. No sale en los planos (el nuevo pone parqueo ahí): medidas sacadas de las fotos (hojas de puerta
+  // ~0.6 y 0.8 m, lámina de 7.6 cm). Planta ~2.3 m (este-oeste) × 1.5 m (norte-sur), 2.5 m de alto.
   //  · Forro de lámina acanalada PERFORADA: gris abajo, amarilla arriba (corte a ~1.2 m); zócalo negro; techito de lámina acanalada.
-  //  · Cara ESTE (hacia la plataforma): franja de ventanas corredizas con marco de aluminio blanco (también en el ochave).
+  //  · Cara ESTE (hacia la plataforma): dos ventanas corredizas con marco de aluminio blanco y un paño amarillo junto a la puerta.
+  //  · Cara SUR (la que da a la rampa): también con su franja de ventanas, siguiendo desde la esquina sureste.
   //  · Cara NORTE: puerta de dos hojas (la angosta junto a la esquina noreste, abre hacia afuera) y un paño fijo al oeste.
-  //  · Cara OESTE: una ventana chica junto a la esquina noroeste. Cara SUR: cerrada.
-  const pc = plat, X0 = 345, X1 = 384, Y0 = 1199, Y1 = 1235, OCH = 7;   // OCH: ochave sureste (unidades del plano)
+  //  · Cara OESTE: una ventana chica junto a la esquina noroeste.
+  const pc = plat, X0 = 345, X1 = 386, Y0 = 1209, Y1 = 1236;
   const perforada = (c1, largoM, altoM) => {   // acanalado vertical (≈7.6 cm) con agujeros redondos, como la foto de cerca
     const cv = document.createElement("canvas"); cv.width = 32; cv.height = 32; const x = cv.getContext("2d");
     const gr = x.createLinearGradient(0, 0, 32, 0); gr.addColorStop(0, c1); gr.addColorStop(0.5, "#ffffff22"); gr.addColorStop(1, c1);
@@ -736,28 +738,28 @@ function zonaBoulevard() {
   const forro = (p0, p1, conVentanas = false) => { const L = largoM(p0, p1);
     pano(p0, p1, ZOC, conVentanas ? VB : CORTE, perforada("#7d8388", L, 1));
     if (conVentanas) { pano(p0, p1, VT, ALTO, perforada("#f6d512", L, 0.6)); pano(p0, p1, VB - 0.04, VB + 0.03, marcoB, 0.09, 0.02); pano(p0, p1, VT - 0.03, VT + 0.04, marcoB, 0.09, 0.02);
-      pano(p0, p1, VB, VT, vidrio, 0.02); const n = Math.max(1, Math.round(L / 0.95));
+      pano(p0, p1, VB, VT, vidrio, 0.02); const n = Math.max(2, Math.round(L / 0.7));
       for (let k = 0; k <= n; k++) { const q = enT(p0, p1, k / n), d = 0.035 / Math.max(0.1, L); pano(enT(p0, p1, Math.max(0, k / n - d)), enT(p0, p1, Math.min(1, k / n + d)), VB, VT, marcoB, 0.09, 0.02); void q; } }
     else pano(p0, p1, CORTE, ALTO, perforada("#f6d512", L, ALTO - CORTE)); };
-  const NW = [X0, Y0], NE = [X1, Y0], SE1 = [X1, Y1 - OCH], SE2 = [X1 - OCH, Y1], SW = [X0, Y1];
+  const NW = [X0, Y0], NE = [X1, Y0], SE = [X1, Y1], SW = [X0, Y1];
   // zócalo negro (losita) y piso
   caja(X0, Y0, X1, Y1, pc, pc + ZOC * M, negro);
-  // ESTE y ochave: ventanas
-  forro(NE, SE1, true); forro(SE1, SE2, true);
-  // SUR: cerrada
-  forro(SE2, SW);
+  // ESTE: paño amarillo junto a la puerta y dos ventanas corredizas hasta la esquina
+  { const b = enT(NE, SE, 0.2); forro(NE, b); forro(b, SE, true); }
+  // SUR (a la rampa): ventanas desde la esquina sureste, el resto cerrado
+  { const a = enT(SE, SW, 0.62); forro(SE, a, true); forro(a, SW); }
   // OESTE: ventana chica cerca de la esquina noroeste
   { const a = enT(SW, NW, 0.62), b = enT(SW, NW, 0.92);
     forro(SW, a); forro(b, NW); pano(a, b, ZOC, 1.2, perforada("#7d8388", largoM(a, b), 1)); pano(a, b, 1.9, ALTO, perforada("#f6d512", largoM(a, b), 0.6));
     pano(a, b, 1.2, 1.9, vidrio, 0.02); for (const [h0, h1] of [[1.17, 1.23], [1.87, 1.93]]) pano(a, b, h0, h1, marcoB, 0.09, 0.02);
     for (const q of [a, b]) pano(q, enT(q === a ? a : b, q === a ? b : a, 0.08), 1.2, 1.9, marcoB, 0.09, 0.02); }
   // NORTE: paño fijo (oeste), hoja ancha y hoja angosta (junto a la esquina noreste); juntas oscuras, chapa y bisagras
-  { const f = enT(NW, NE, 0.34), m2 = enT(NW, NE, 0.73);
+  { const f = enT(NW, NE, 0.38), m2 = enT(NW, NE, 0.73);
     forro(NW, f); forro(f, m2); forro(m2, NE);
-    for (const t of [0.34, 0.73, 0.997]) pano(enT(NW, NE, t - 0.004), enT(NW, NE, Math.min(1, t + 0.004)), ZOC, 2.24, oscuroP, 0.04, -0.03);   // juntas de las hojas
-    pano(enT(NW, NE, 0.34), NE, 2.21, 2.24, oscuroP, 0.04, -0.03);   // dintel de las hojas
+    for (const t of [0.38, 0.73, 0.997]) pano(enT(NW, NE, t - 0.004), enT(NW, NE, Math.min(1, t + 0.004)), ZOC, 2.24, oscuroP, 0.04, -0.03);   // juntas de las hojas
+    pano(enT(NW, NE, 0.38), NE, 2.21, 2.24, oscuroP, 0.04, -0.03);   // dintel de las hojas
     pano(enT(NW, NE, 0.70), enT(NW, NE, 0.715), 1.0, 1.15, matE(0xb9bcbf, { metalness: 0.8 }), 0.1, 0.04); }   // chapa
-  for (const q of [NW, NE, SE1, SE2, SW]) { const v = aEscena(...q), pt = new THREE.Mesh(new THREE.BoxGeometry(0.07 * M, (ALTO - ZOC) * M, 0.07 * M), matE(0xd9b80f));
+  for (const q of [NW, NE, SE, SW]) { const v = aEscena(...q), pt = new THREE.Mesh(new THREE.BoxGeometry(0.07 * M, (ALTO - ZOC) * M, 0.07 * M), matE(0xd9b80f));
     pt.position.set(v.x, pc + ((ALTO + ZOC) / 2) * M, v.z); g.add(pt); }   // esquineros
   // techito: lámina acanalada amarillenta, un poco inclinada hacia el este, con alero
   { const a = aEscena(X0 - 2.5, Y0 - 2.5), c = aEscena(X1 + 3, Y1 + 2.5), w = c.x - a.x, d = c.z - a.z;
