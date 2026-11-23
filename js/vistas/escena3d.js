@@ -705,20 +705,66 @@ function zonaBoulevard() {
     barraE(g, a.clone().add(up), b.clone().add(up), 0.09, gris); barraE(g, a.clone().addScaledVector(up, 0.1), b.clone().addScaledVector(up, 0.1), 0.07, gris);
     for (let k = 0; k <= n; k++) { const p = a.clone().lerp(b, k / n); barraE(g, p, p.clone().add(up), k % 12 ? 0.04 : 0.09, k % 12 ? amar : gris); } };
   baranda([330, 1150], [330, 1316]); baranda([330, 1316], [530, 1316]);
-  // caseta (fotos 13:36): bajo el techo grande, junto a la columna amarilla de base roja (x 333, y 1237), con la baranda detrás.
-  // Rectangular ~1.7 × 2.2 m, 2.4 m de alto: abajo lámina gris, franja de ventanas con marco blanco, arriba lámina amarilla con techito
-  // curvo; puerta de dos hojas oscuras en la cara este.
-  const lamG = cuadros("#7c8287", "#6c7277", [14, 1]), lamA = cuadros("#f2d10a", "#e3c200", [14, 1]), marco = matE(0xf4f4f0), vid = new THREE.MeshStandardMaterial({ color: 0x9fb2ba, metalness: 0.5, roughness: 0.15, transparent: true, opacity: 0.8 });
-  const X0 = 343, X1 = 373, Y0 = 1214, Y1 = 1253, pc = plat;
-  caja(X0, Y0, X1, Y1, pc, pc + 0.12 * M, matE(0x2f3337));
-  caja(X0, Y0, X1, Y1, pc + 0.12 * M, pc + 1.15 * M, lamG);
-  caja(X0, Y0, X1, Y1, pc + 1.15 * M, pc + 1.25 * M, marco);
-  caja(X0 + 0.3, Y0 + 0.3, X1 - 0.3, Y1 - 0.3, pc + 1.25 * M, pc + 1.85 * M, vid);
-  for (const t of [0, 0.33, 0.66, 1]) { caja(X0 + (X1 - X0) * t - 0.4, Y0 - 0.2, X0 + (X1 - X0) * t + 0.4, Y0 + 0.4, pc + 1.25 * M, pc + 1.85 * M, marco); caja(X0 - 0.2, Y0 + (Y1 - Y0) * t - 0.4, X0 + 0.4, Y0 + (Y1 - Y0) * t + 0.4, pc + 1.25 * M, pc + 1.85 * M, marco); }
-  caja(X0, Y0, X1, Y1, pc + 1.85 * M, pc + 2.4 * M, lamA);
-  const cur = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16, 1, false, 0, Math.PI), matE(0xd9dad4)), ca = aEscena(X0, Y0), cb = aEscena(X1, Y1);
-  cur.scale.set((cb.x - ca.x) / 2 + 0.05, cb.z - ca.z, 0.12 * M); cur.rotation.set(Math.PI / 2, 0, 0); cur.position.set((ca.x + cb.x) / 2, pc + 2.4 * M, (ca.z + cb.z) / 2); cur.castShadow = true; g.add(cur);
-  caja(X1 - 0.2, Y0 + 6, X1 + 0.3, Y1 - 6, pc + 0.12 * M, pc + 2.3 * M, matE(0x24282c));   // puerta de dos hojas (este)
+  // caseta de vigilancia (fotos y video 23-nov): bajo el techo grande, al este de la columna amarilla de base roja (x 333, y 1237),
+  // con la baranda detrás. Planta ~2.2 × 2.0 m con la esquina sureste ochavada; 2.5 m de alto.
+  //  · Forro de lámina acanalada PERFORADA: gris abajo, amarilla arriba (corte a ~1.2 m); zócalo negro; techito de lámina acanalada.
+  //  · Cara ESTE (hacia la plataforma): franja de ventanas corredizas con marco de aluminio blanco (también en el ochave).
+  //  · Cara NORTE: puerta de dos hojas (la angosta junto a la esquina noreste, abre hacia afuera) y un paño fijo al oeste.
+  //  · Cara OESTE: una ventana chica junto a la esquina noroeste. Cara SUR: cerrada.
+  const pc = plat, X0 = 345, X1 = 384, Y0 = 1199, Y1 = 1235, OCH = 7;   // OCH: ochave sureste (unidades del plano)
+  const perforada = (c1, largoM, altoM) => {   // acanalado vertical (≈7.6 cm) con agujeros redondos, como la foto de cerca
+    const cv = document.createElement("canvas"); cv.width = 32; cv.height = 32; const x = cv.getContext("2d");
+    const gr = x.createLinearGradient(0, 0, 32, 0); gr.addColorStop(0, c1); gr.addColorStop(0.5, "#ffffff22"); gr.addColorStop(1, c1);
+    x.fillStyle = c1; x.fillRect(0, 0, 32, 32); x.globalAlpha = 0.16; x.fillStyle = "#000"; x.fillRect(0, 0, 4, 32); x.fillRect(28, 0, 4, 32);
+    x.globalAlpha = 0.25; x.fillStyle = "#fff"; x.fillRect(13, 0, 5, 32); x.globalAlpha = 1; x.fillStyle = "#1d1f1c";
+    for (const [cx, cy] of [[8, 8], [24, 8], [16, 24], [0, 24], [32, 24]]) { x.beginPath(); x.arc(cx, cy, 2.2, 0, Math.PI * 2); x.fill(); }
+    const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(Math.max(1, largoM / 0.076), Math.max(1, altoM / 0.076)); t.anisotropy = 4;
+    return new THREE.MeshStandardMaterial({ map: t, roughness: 0.5, metalness: 0.1 }); };
+  const negro = matE(0x2a2d30, { metalness: 0.2 }), marcoB = matE(0xf2f2ee, { metalness: 0.3 }), oscuroP = matE(0x1d2022, { metalness: 0.3 });
+  const vidrio = new THREE.MeshStandardMaterial({ color: 0x7e98a4, metalness: 0.6, roughness: 0.1, transparent: true, opacity: 0.75 });
+  // un paño recto entre dos puntos del plano (cualquier dirección), de la altura b a la t (metros sobre el piso de la caseta)
+  const pano = (p0, p1, b, t, mat, grueso = 0.05, saca = 0) => {
+    const a = aEscena(...p0), c = aEscena(...p1), L = Math.hypot(c.x - a.x, c.z - a.z); if (L < 0.01) return null;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(L, (t - b) * M, grueso * M), mat), ang = Math.atan2(c.z - a.z, c.x - a.x);
+    const nx = -(c.z - a.z) / L, nz = (c.x - a.x) / L;   // normal (hacia afuera según el sentido del recorrido)
+    m.position.set((a.x + c.x) / 2 + nx * saca * M, pc + ((b + t) / 2) * M, (a.z + c.z) / 2 + nz * saca * M); m.rotation.y = -ang;
+    m.castShadow = m.receiveShadow = true; g.add(m); return m; };
+  const enT = (p0, p1, t) => [p0[0] + (p1[0] - p0[0]) * t, p0[1] + (p1[1] - p0[1]) * t];
+  const largoM = (p0, p1) => Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) * 0.056;
+  const CORTE = 1.2, ALTO = 2.5, ZOC = 0.15, VB = 1.15, VT = 1.95;   // corte gris/amarillo, alto, zócalo, franja de ventanas
+  // forro de una cara (recorrido en sentido horario visto desde arriba: la normal queda hacia afuera)
+  const forro = (p0, p1, conVentanas = false) => { const L = largoM(p0, p1);
+    pano(p0, p1, ZOC, conVentanas ? VB : CORTE, perforada("#7d8388", L, 1));
+    if (conVentanas) { pano(p0, p1, VT, ALTO, perforada("#f6d512", L, 0.6)); pano(p0, p1, VB - 0.04, VB + 0.03, marcoB, 0.09, 0.02); pano(p0, p1, VT - 0.03, VT + 0.04, marcoB, 0.09, 0.02);
+      pano(p0, p1, VB, VT, vidrio, 0.02); const n = Math.max(1, Math.round(L / 0.95));
+      for (let k = 0; k <= n; k++) { const q = enT(p0, p1, k / n), d = 0.035 / Math.max(0.1, L); pano(enT(p0, p1, Math.max(0, k / n - d)), enT(p0, p1, Math.min(1, k / n + d)), VB, VT, marcoB, 0.09, 0.02); void q; } }
+    else pano(p0, p1, CORTE, ALTO, perforada("#f6d512", L, ALTO - CORTE)); };
+  const NW = [X0, Y0], NE = [X1, Y0], SE1 = [X1, Y1 - OCH], SE2 = [X1 - OCH, Y1], SW = [X0, Y1];
+  // zócalo negro (losita) y piso
+  caja(X0, Y0, X1, Y1, pc, pc + ZOC * M, negro);
+  // ESTE y ochave: ventanas
+  forro(NE, SE1, true); forro(SE1, SE2, true);
+  // SUR: cerrada
+  forro(SE2, SW);
+  // OESTE: ventana chica cerca de la esquina noroeste
+  { const a = enT(SW, NW, 0.62), b = enT(SW, NW, 0.92);
+    forro(SW, a); forro(b, NW); pano(a, b, ZOC, 1.2, perforada("#7d8388", largoM(a, b), 1)); pano(a, b, 1.9, ALTO, perforada("#f6d512", largoM(a, b), 0.6));
+    pano(a, b, 1.2, 1.9, vidrio, 0.02); for (const [h0, h1] of [[1.17, 1.23], [1.87, 1.93]]) pano(a, b, h0, h1, marcoB, 0.09, 0.02);
+    for (const q of [a, b]) pano(q, enT(q === a ? a : b, q === a ? b : a, 0.08), 1.2, 1.9, marcoB, 0.09, 0.02); }
+  // NORTE: paño fijo (oeste), hoja ancha y hoja angosta (junto a la esquina noreste); juntas oscuras, chapa y bisagras
+  { const f = enT(NW, NE, 0.34), m2 = enT(NW, NE, 0.73);
+    forro(NW, f); forro(f, m2); forro(m2, NE);
+    for (const t of [0.34, 0.73, 0.997]) pano(enT(NW, NE, t - 0.004), enT(NW, NE, Math.min(1, t + 0.004)), ZOC, 2.24, oscuroP, 0.04, -0.03);   // juntas de las hojas
+    pano(enT(NW, NE, 0.34), NE, 2.21, 2.24, oscuroP, 0.04, -0.03);   // dintel de las hojas
+    pano(enT(NW, NE, 0.70), enT(NW, NE, 0.715), 1.0, 1.15, matE(0xb9bcbf, { metalness: 0.8 }), 0.1, 0.04); }   // chapa
+  for (const q of [NW, NE, SE1, SE2, SW]) { const v = aEscena(...q), pt = new THREE.Mesh(new THREE.BoxGeometry(0.07 * M, (ALTO - ZOC) * M, 0.07 * M), matE(0xd9b80f));
+    pt.position.set(v.x, pc + ((ALTO + ZOC) / 2) * M, v.z); g.add(pt); }   // esquineros
+  // techito: lámina acanalada amarillenta, un poco inclinada hacia el este, con alero
+  { const a = aEscena(X0 - 2.5, Y0 - 2.5), c = aEscena(X1 + 3, Y1 + 2.5), w = c.x - a.x, d = c.z - a.z;
+    const cv = document.createElement("canvas"); cv.width = 16; cv.height = 4; const x = cv.getContext("2d"); x.fillStyle = "#d9c45a"; x.fillRect(0, 0, 16, 4); x.fillStyle = "#a8973f"; x.fillRect(0, 0, 4, 4); x.fillStyle = "#efe08a"; x.fillRect(8, 0, 3, 4);
+    const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(w / M / 0.076, 1);
+    const techo = new THREE.Mesh(new THREE.BoxGeometry(w, 0.04 * M, d), new THREE.MeshStandardMaterial({ map: t, metalness: 0.5, roughness: 0.4 }));
+    techo.position.set((a.x + c.x) / 2, pc + (ALTO + 0.06) * M, (a.z + c.z) / 2); techo.rotation.z = -0.06; techo.castShadow = true; g.add(techo); }
   // las gradas de la entrada son un elemento de la app ("Gradas de la entrada"): se mueven y editan en 2D y 3D
   // piso: la rampa es de concreto ranurado (rayas a lo ancho) y abajo, hacia la calle, adoquín
   const piel = (x0, y0, x1, y1, mat, nx = 24, ny = 16) => {
