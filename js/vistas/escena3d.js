@@ -688,6 +688,37 @@ function techoExistente() {
   return g;
 }
 
+// Portón azul del acceso al taller (G-02: hueco entre Mo4 y Mo3 = x 979 → 1083 en la línea del lindero sur, y 1448.8; fotos 23-nov):
+// dos pilastras de block pintadas de azul, dos hojas de ~2.9 m que abren hacia adentro y cierran al centro con pasador.
+// Cada hoja: marco de tubo cuadrado, lámina azul de costilla vertical abajo (~1.75 m) y barrotes con punta de lanza arriba (~2.65 m),
+// dividida en dos paños por un parante. Junto a la pilastra del oeste queda la caseta de vigilancia.
+function portonTaller() {
+  const g = new THREE.Group(), Y = 1448.8, X0 = 979.1, X1 = 1082.7, base = E.altura((X0 + X1) / 2, Y - 2) * M;
+  const azul = matE(0x1f57c3, { metalness: 0.35, roughness: 0.45 }), azulP = matE(0x2a63c8, { metalness: 0, roughness: 0.85 });
+  const lam = (() => { const cv = document.createElement("canvas"); cv.width = 16; cv.height = 4; const x = cv.getContext("2d");
+    x.fillStyle = "#1f57c3"; x.fillRect(0, 0, 16, 4); x.fillStyle = "#174399"; x.fillRect(0, 0, 3, 4); x.fillStyle = "#3a74d8"; x.fillRect(8, 0, 2, 4);
+    const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; })();
+  const bx = (x0, x1, h0, h1, dz, gz = 0, mat = azul) => { const a = aEscena(x0, Y), c = aEscena(x1, Y), w = Math.max(0.02, Math.abs(c.x - a.x));
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, (h1 - h0) * M, dz * M), mat); m.position.set((a.x + c.x) / 2, base + ((h0 + h1) / 2) * M, a.z + gz * M);
+    m.castShadow = m.receiveShadow = true; g.add(m); return m; };
+  const u = 1 / 0.056;   // unidades del plano por metro
+  // pilastras (0.4 m), un poco más altas que el portón
+  bx(X0 - 0.4 * u, X0, 0, 2.75, 0.4, 0, azulP); bx(X1, X1 + 0.4 * u, 0, 2.75, 0.4, 0, azulP);
+  const hoja = (x0, x1) => {
+    const L = (x1 - x0) / u;
+    bx(x0, x1, 0.05, 0.11, 0.06); bx(x0, x1, 1.72, 1.78, 0.06); bx(x0, x1, 2.32, 2.38, 0.05);   // travesaños
+    for (const xx of [x0, (x0 + x1) / 2, x1]) bx(xx - 0.03 * u, xx + 0.03 * u, 0.05, 2.45, 0.06);   // parantes
+    const t = lam.clone(); t.needsUpdate = true; t.repeat.set(L / 0.12, 1);
+    bx(x0 + 0.03 * u, x1 - 0.03 * u, 0.11, 1.72, 0.02, 0.01, new THREE.MeshStandardMaterial({ map: t, metalness: 0.3, roughness: 0.5 }));   // lámina
+    const n = Math.round(L / 0.13);
+    for (let k = 1; k < n; k++) { const xx = x0 + ((x1 - x0) * k) / n; bx(xx - 0.009 * u, xx + 0.009 * u, 1.78, 2.6, 0.018);   // barrotes
+      const p = new THREE.Mesh(new THREE.ConeGeometry(0.025 * M, 0.1 * M, 4), azul), a = aEscena(xx, Y); p.position.set(a.x, base + 2.65 * M, a.z); g.add(p); }   // punta de lanza
+  };
+  const xm = (X0 + X1) / 2; hoja(X0 + 0.02 * u, xm - 0.01 * u); hoja(xm + 0.01 * u, X1 - 0.02 * u);
+  bx(xm - 0.15 * u, xm + 0.15 * u, 0.95, 1.05, 0.08, -0.04, matE(0x8b8f94, { metalness: 0.8 }));   // pasador / chapa al centro
+  return g;
+}
+
 // Lo de abajo del techo grande (fotos): muros de contención con mural, baranda, caseta amarilla, gradas, rótulo y valla de lámina.
 function zonaBoulevard() {
   const g = new THREE.Group(), suelo = (x, y) => E.altura(x, y) * M, plat = MEDIO * EXAGERA * M;
@@ -1674,7 +1705,7 @@ function ponerEdificios(areas, elementos = [], piezas = {}) {
   }
   E.edificios.add(techoExistente());
   E.edificios.add(techosOeste());
-  E.edificios.add(zonaBoulevard());
+  E.edificios.add(zonaBoulevard(), portonTaller());
   E.edificios.add(galeras(E.altura(1100, 850) * M));
   ponerJardineras(piezas);
   rotulosNivel();
