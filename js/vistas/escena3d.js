@@ -310,6 +310,8 @@ const caja = (a) => ({ x0: (a.x / 100) * ANCHO, y0: (a.y / 100) * ALTO, x1: ((+a
 //  arriba N 871.92: patio de maniobras, rebalse, empleados, entrega de vehículos, café
 //  la bodega está abajo y la casa de encima queda al nivel de arriba
 const ABAJO = 0, MEDIO = 1.04, ARRIBA = 2.96;
+// calle del sur, del lado este: sube parejo (G-02: ≈ N 870.86 en x 760, N 871.3 en el portón x 1020, N 871.96 en x 1330)
+const CALLE_SUR = (x) => 1.9 + ((Math.min(1388, Math.max(760, x)) - 760) / 570) * 1.1;
 function nivelFijo(a) {
   const n = a.nombre || "";
   if (a.es_receso) return ABAJO;                   // bodega: abajo, al nivel del rebalse técnico
@@ -338,6 +340,8 @@ const LADO_BOULEVARD = [
   // calle del sur (video 20-nov): sigue la orilla de la rampa, sin escalón: abajo al oeste (adoquín) y sube hacia el este
   { c: { x0: 330, y0: 1446, x1: 530, y1: 1520 }, eje: "x", n: [-0.64, 1.3], sinRotulo: true },
   { c: { x0: 530, y0: 1446, x1: 760, y1: 1520 }, eje: "x", n: [1.3, 1.9], sinRotulo: true },
+  // y sigue subiendo hacia el este (G-02: curvas 871.00 → 872.00 frente a Mo5…Mo1; junto al portón del acceso al taller ≈ 871.3)
+  { c: { x0: 760, y0: 1446, x1: 1388, y1: 1520 }, eje: "x", n: [1.9, CALLE_SUR(1388)], sinRotulo: true },
   // GWM junto al boulevard (G-02 entre Mo16 y Mo18 + AR-01): el estacionamiento de clientes está hundido (N 867.90) y a cada lado
   // una rampa (los triángulos del plano) que sube de la acera (N 867.37) a la exhibición (N 868.95)
   { c: { x0: 85, y0: 276, x1: 245, y1: 482 }, eje: "x", n: [-1.06, -1.06], sinRotulo: true },
@@ -365,7 +369,7 @@ function prepararNiveles(areas, piezas = {}) {
   const planas = areas.filter((a) => !esRampa(a) && !esZona(a)).map((a) => ({ a, c: caja(a), n: nivelFijo(a) }));   // las zonas agregadas no cambian el piso
   const fuera = (x, y) => x < 0.06 * ANCHO || y > 0.955 * ALTO;   // calle y acera
   const plano = (x, y) => {
-    if (fuera(x, y)) return CALLE;
+    if (fuera(x, y)) return x > 760 && y > 0.955 * ALTO ? CALLE_SUR(x) : CALLE;   // la calle del sur al este va alta (el acceso al taller no es un hoyo)
     let mejor = null, d = Infinity;
     for (const p of planas) {
       const dx = Math.max(p.c.x0 - x, 0, x - p.c.x1), dy = Math.max(p.c.y0 - y, 0, y - p.c.y1), dd = 25 * dx * dx + dy * dy;   // fuera de las áreas manda la que está arriba/abajo: los cortes salen rectos, no en diagonal
