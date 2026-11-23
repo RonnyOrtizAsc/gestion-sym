@@ -706,14 +706,17 @@ function zonaBoulevard() {
     for (let k = 0; k <= n; k++) { const p = a.clone().lerp(b, k / n); barraE(g, p, p.clone().add(up), k % 12 ? 0.04 : 0.09, k % 12 ? amar : gris); } };
   baranda([330, 1150], [330, 1316]); baranda([330, 1316], [530, 1316]);
   // caseta de vigilancia (fotos y video 23-nov): bajo el techo grande, al este de la columna amarilla de base roja (x 333, y 1237),
-  // con la baranda detrás. No sale en los planos (el nuevo pone parqueo ahí): medidas sacadas de las fotos (hojas de puerta
-  // ~0.6 y 0.8 m, lámina de 7.6 cm). Planta ~2.3 m (este-oeste) × 1.5 m (norte-sur), 2.5 m de alto.
+  // con la baranda detrás. Forma y medidas del levantamiento G-02 (planta arquitectónica existente, 1:300), pasado al plano con
+  // la columna y el muro del oeste: ~1.75 m (este-oeste) × 1.45 m, la cara SUR (a la rampa) es CURVA. 2.5 m de alto.
   //  · Forro de lámina acanalada PERFORADA: gris abajo, amarilla arriba (corte a ~1.2 m); zócalo negro; techito de lámina acanalada.
   //  · Cara ESTE (hacia la plataforma): dos ventanas corredizas con marco de aluminio blanco y un paño amarillo junto a la puerta.
-  //  · Cara SUR (la que da a la rampa): también con su franja de ventanas, siguiendo desde la esquina sureste.
+  //  · Cara SUR curva (la que da a la rampa): sigue la franja de ventanas desde la esquina sureste, en tramos.
   //  · Cara NORTE: puerta de dos hojas (la angosta junto a la esquina noreste, abre hacia afuera) y un paño fijo al oeste.
   //  · Cara OESTE: una ventana chica junto a la esquina noroeste.
-  const pc = plat, X0 = 345, X1 = 386, Y0 = 1209, Y1 = 1236;
+  const pc = plat;
+  // esquinas (G-02 → plano) y la curva del sur, de la esquina sureste a la suroeste
+  const NW = [341.3, 1208.2], NE = [372.5, 1206.7], SE = [374.4, 1233.1], SW = [341.3, 1233.0];
+  const CURVA = [SE, [369.6, 1234.8], [364.4, 1236.1], [358.9, 1236.7], [352.8, 1237.2], [346.6, 1235.9], SW];
   const perforada = (c1, largoM, altoM) => {   // acanalado vertical (≈7.6 cm) con agujeros redondos, como la foto de cerca
     const cv = document.createElement("canvas"); cv.width = 32; cv.height = 32; const x = cv.getContext("2d");
     const gr = x.createLinearGradient(0, 0, 32, 0); gr.addColorStop(0, c1); gr.addColorStop(0.5, "#ffffff22"); gr.addColorStop(1, c1);
@@ -735,19 +738,23 @@ function zonaBoulevard() {
   const largoM = (p0, p1) => Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) * 0.056;
   const CORTE = 1.2, ALTO = 2.5, ZOC = 0.15, VB = 1.15, VT = 1.95;   // corte gris/amarillo, alto, zócalo, franja de ventanas
   // forro de una cara (recorrido en sentido horario visto desde arriba: la normal queda hacia afuera)
-  const forro = (p0, p1, conVentanas = false) => { const L = largoM(p0, p1);
+  const forro = (p0, p1, conVentanas = false, nV = 0) => { const L = largoM(p0, p1);
     pano(p0, p1, ZOC, conVentanas ? VB : CORTE, perforada("#7d8388", L, 1));
     if (conVentanas) { pano(p0, p1, VT, ALTO, perforada("#f6d512", L, 0.6)); pano(p0, p1, VB - 0.04, VB + 0.03, marcoB, 0.09, 0.02); pano(p0, p1, VT - 0.03, VT + 0.04, marcoB, 0.09, 0.02);
-      pano(p0, p1, VB, VT, vidrio, 0.02); const n = Math.max(2, Math.round(L / 0.7));
+      pano(p0, p1, VB, VT, vidrio, 0.02); const n = nV || Math.max(2, Math.round(L / 0.7));
       for (let k = 0; k <= n; k++) { const q = enT(p0, p1, k / n), d = 0.035 / Math.max(0.1, L); pano(enT(p0, p1, Math.max(0, k / n - d)), enT(p0, p1, Math.min(1, k / n + d)), VB, VT, marcoB, 0.09, 0.02); void q; } }
     else pano(p0, p1, CORTE, ALTO, perforada("#f6d512", L, ALTO - CORTE)); };
-  const NW = [X0, Y0], NE = [X1, Y0], SE = [X1, Y1], SW = [X0, Y1];
-  // zócalo negro (losita) y piso
-  caja(X0, Y0, X1, Y1, pc, pc + ZOC * M, negro);
+  const planta = (pts, crece, b, alto, mat) => {   // losa con la forma de la caseta (extruida), agrandada "crece" desde el centro
+    const cx = pts.reduce((a, q) => a + q[0], 0) / pts.length, cy = pts.reduce((a, q) => a + q[1], 0) / pts.length;
+    const sh = new THREE.Shape(pts.map(([x, y]) => { const v = aEscena(cx + (x - cx) * crece, cy + (y - cy) * crece); return new THREE.Vector2(v.x, -v.z); }));
+    const m = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: alto * M, bevelEnabled: false }), mat); m.rotation.x = -Math.PI / 2; m.position.y = pc + b * M;
+    m.castShadow = m.receiveShadow = true; g.add(m); return m; };
+  const contorno = [NW, NE, ...CURVA];
+  planta(contorno, 1, 0, ZOC, negro);   // zócalo negro
   // ESTE: paño amarillo junto a la puerta y dos ventanas corredizas hasta la esquina
   { const b = enT(NE, SE, 0.2); forro(NE, b); forro(b, SE, true); }
-  // SUR (a la rampa): ventanas desde la esquina sureste, el resto cerrado
-  { const a = enT(SE, SW, 0.62); forro(SE, a, true); forro(a, SW); }
+  // SUR curva (a la rampa): ventanas en los tramos desde la esquina sureste; hacia la columna, cerrado
+  for (let k = 0; k < CURVA.length - 1; k++) forro(CURVA[k], CURVA[k + 1], k < 3, 1);
   // OESTE: ventana chica cerca de la esquina noroeste
   { const a = enT(SW, NW, 0.62), b = enT(SW, NW, 0.92);
     forro(SW, a); forro(b, NW); pano(a, b, ZOC, 1.2, perforada("#7d8388", largoM(a, b), 1)); pano(a, b, 1.9, ALTO, perforada("#f6d512", largoM(a, b), 0.6));
@@ -761,12 +768,12 @@ function zonaBoulevard() {
     pano(enT(NW, NE, 0.70), enT(NW, NE, 0.715), 1.0, 1.15, matE(0xb9bcbf, { metalness: 0.8 }), 0.1, 0.04); }   // chapa
   for (const q of [NW, NE, SE, SW]) { const v = aEscena(...q), pt = new THREE.Mesh(new THREE.BoxGeometry(0.07 * M, (ALTO - ZOC) * M, 0.07 * M), matE(0xd9b80f));
     pt.position.set(v.x, pc + ((ALTO + ZOC) / 2) * M, v.z); g.add(pt); }   // esquineros
-  // techito: lámina acanalada amarillenta, un poco inclinada hacia el este, con alero
-  { const a = aEscena(X0 - 2.5, Y0 - 2.5), c = aEscena(X1 + 3, Y1 + 2.5), w = c.x - a.x, d = c.z - a.z;
+  // techito: lámina acanalada amarillenta con alero, siguiendo la forma (también la curva)
+  { const a = aEscena(NW[0], NW[1]), c = aEscena(SE[0], SE[1]), w = Math.abs(c.x - a.x);
     const cv = document.createElement("canvas"); cv.width = 16; cv.height = 4; const x = cv.getContext("2d"); x.fillStyle = "#d9c45a"; x.fillRect(0, 0, 16, 4); x.fillStyle = "#a8973f"; x.fillRect(0, 0, 4, 4); x.fillStyle = "#efe08a"; x.fillRect(8, 0, 3, 4);
     const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(w / M / 0.076, 1);
-    const techo = new THREE.Mesh(new THREE.BoxGeometry(w, 0.04 * M, d), new THREE.MeshStandardMaterial({ map: t, metalness: 0.5, roughness: 0.4 }));
-    techo.position.set((a.x + c.x) / 2, pc + (ALTO + 0.06) * M, (a.z + c.z) / 2); techo.rotation.z = -0.06; techo.castShadow = true; g.add(techo); }
+    t.repeat.set(1 / 0.076 / M, 1); t.offset.set(0, 0);   // UV de la losa extruida = coordenadas de la escena
+    planta(contorno, 1.14, ALTO, 0.05, new THREE.MeshStandardMaterial({ map: t, metalness: 0.5, roughness: 0.4 })); void w; }
   // las gradas de la entrada son un elemento de la app ("Gradas de la entrada"): se mueven y editan en 2D y 3D
   // piso: la rampa es de concreto ranurado (rayas a lo ancho) y abajo, hacia la calle, adoquín
   const piel = (x0, y0, x1, y1, mat, nx = 24, ny = 16) => {
