@@ -726,7 +726,7 @@ function zonaBoulevard() {
     const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(Math.max(1, largoM / 0.076), Math.max(1, altoM / 0.076)); t.anisotropy = 4;
     return new THREE.MeshStandardMaterial({ map: t, roughness: 0.5, metalness: 0.1 }); };
   const negro = matE(0x2a2d30, { metalness: 0.2 }), marcoB = matE(0xf2f2ee, { metalness: 0.3 }), oscuroP = matE(0x1d2022, { metalness: 0.3 });
-  const vidrio = new THREE.MeshStandardMaterial({ color: 0x7e98a4, metalness: 0.6, roughness: 0.1, transparent: true, opacity: 0.75 });
+  const vidrio = new THREE.MeshStandardMaterial({ color: 0x33403f, metalness: 0.5, roughness: 0.08, transparent: true, opacity: 0.82 });
   // un paño recto entre dos puntos del plano (cualquier dirección), de la altura b a la t (metros sobre el piso de la caseta)
   const pano = (p0, p1, b, t, mat, grueso = 0.05, saca = 0) => {
     const a = aEscena(...p0), c = aEscena(...p1), L = Math.hypot(c.x - a.x, c.z - a.z); if (L < 0.01) return null;
@@ -736,13 +736,18 @@ function zonaBoulevard() {
     m.castShadow = m.receiveShadow = true; g.add(m); return m; };
   const enT = (p0, p1, t) => [p0[0] + (p1[0] - p0[0]) * t, p0[1] + (p1[1] - p0[1]) * t];
   const largoM = (p0, p1) => Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) * 0.056;
-  const CORTE = 1.2, ALTO = 2.5, ZOC = 0.15, VB = 1.15, VT = 1.95;   // corte gris/amarillo, alto, zócalo, franja de ventanas
+  const CORTE = 1.05, ALTO = 2.4, ZOC = 0.19, VB = 1.05, VT = 1.8;   // foto: el gris llega justo al marco de abajo; ventanas de ~0.75 m   // corte gris/amarillo, alto, zócalo, franja de ventanas
   // forro de una cara (recorrido en sentido horario visto desde arriba: la normal queda hacia afuera)
   const forro = (p0, p1, conVentanas = false, nV = 0) => { const L = largoM(p0, p1);
     pano(p0, p1, ZOC, conVentanas ? VB : CORTE, perforada("#7d8388", L, 1));
-    if (conVentanas) { pano(p0, p1, VT, ALTO, perforada("#f6d512", L, 0.6)); pano(p0, p1, VB - 0.04, VB + 0.03, marcoB, 0.09, 0.02); pano(p0, p1, VT - 0.03, VT + 0.04, marcoB, 0.09, 0.02);
-      pano(p0, p1, VB, VT, vidrio, 0.02); const n = nV || Math.max(2, Math.round(L / 0.7));
-      for (let k = 0; k <= n; k++) { const q = enT(p0, p1, k / n), d = 0.035 / Math.max(0.1, L); pano(enT(p0, p1, Math.max(0, k / n - d)), enT(p0, p1, Math.min(1, k / n + d)), VB, VT, marcoB, 0.09, 0.02); void q; } }
+    if (conVentanas) {   // ventana corrediza de aluminio blanco: marco delgado, vidrio oscuro (adentro está oscuro), hojas verticales
+      pano(p0, p1, VT, ALTO, perforada("#f6d512", L, ALTO - VT));
+      pano(p0, p1, VB, VB + 0.045, marcoB, 0.08, -0.01); pano(p0, p1, VT - 0.045, VT, marcoB, 0.08, -0.01);
+      const n = nV || Math.max(2, Math.round(L / 0.42)), d = 0.018 / Math.max(0.1, L);
+      for (let k = 0; k < n; k++) {   // cada hoja en su riel (una adentro, otra afuera): así corren y se abren
+        const a = enT(p0, p1, k / n), b = enT(p0, p1, (k + 1) / n), sa = k % 2 ? 0.02 : -0.02;
+        pano(a, b, VB + 0.045, VT - 0.045, vidrio, 0.012, sa);
+        for (const t of [k / n, (k + 1) / n]) pano(enT(p0, p1, Math.max(0, t - d)), enT(p0, p1, Math.min(1, t + d)), VB + 0.045, VT - 0.045, marcoB, 0.035, sa); } }
     else pano(p0, p1, CORTE, ALTO, perforada("#f6d512", L, ALTO - CORTE)); };
   const planta = (pts, crece, b, alto, mat) => {   // losa con la forma de la caseta (extruida), agrandada "crece" desde el centro
     const cx = pts.reduce((a, q) => a + q[0], 0) / pts.length, cy = pts.reduce((a, q) => a + q[1], 0) / pts.length;
@@ -752,22 +757,22 @@ function zonaBoulevard() {
   const contorno = [NW, NE, ...CURVA];
   planta(contorno, 1, 0, ZOC, negro);   // zócalo negro
   // ESTE: paño amarillo junto a la puerta y dos ventanas corredizas hasta la esquina
-  { const b = enT(NE, SE, 0.2); forro(NE, b); forro(b, SE, true); }
+  { const b = enT(NE, SE, 0.2); forro(NE, b); forro(b, SE, true, 3); }   // tres hojas (una fija y dos corredizas)
   // SUR curva (a la rampa): ventanas en los tramos desde la esquina sureste; hacia la columna, cerrado
-  for (let k = 0; k < CURVA.length - 1; k++) forro(CURVA[k], CURVA[k + 1], k < 3, 1);
+  for (let k = 0; k < CURVA.length - 1; k++) forro(CURVA[k], CURVA[k + 1], k < 2, 1);   // dos hojas angostas en la curva (foto)
   // OESTE: ventana chica cerca de la esquina noroeste
   { const a = enT(SW, NW, 0.62), b = enT(SW, NW, 0.92);
-    forro(SW, a); forro(b, NW); pano(a, b, ZOC, 1.2, perforada("#7d8388", largoM(a, b), 1)); pano(a, b, 1.9, ALTO, perforada("#f6d512", largoM(a, b), 0.6));
-    pano(a, b, 1.2, 1.9, vidrio, 0.02); for (const [h0, h1] of [[1.17, 1.23], [1.87, 1.93]]) pano(a, b, h0, h1, marcoB, 0.09, 0.02);
-    for (const q of [a, b]) pano(q, enT(q === a ? a : b, q === a ? b : a, 0.08), 1.2, 1.9, marcoB, 0.09, 0.02); }
+    forro(SW, a); forro(b, NW); forro(a, b, true, 2); }
   // NORTE: paño fijo (oeste), hoja ancha y hoja angosta (junto a la esquina noreste); juntas oscuras, chapa y bisagras
   { const f = enT(NW, NE, 0.38), m2 = enT(NW, NE, 0.73);
     forro(NW, f); forro(f, m2); forro(m2, NE);
     for (const t of [0.38, 0.73, 0.997]) pano(enT(NW, NE, t - 0.004), enT(NW, NE, Math.min(1, t + 0.004)), ZOC, 2.24, oscuroP, 0.04, -0.03);   // juntas de las hojas
     pano(enT(NW, NE, 0.38), NE, 2.21, 2.24, oscuroP, 0.04, -0.03);   // dintel de las hojas
     pano(enT(NW, NE, 0.70), enT(NW, NE, 0.715), 1.0, 1.15, matE(0xb9bcbf, { metalness: 0.8 }), 0.1, 0.04); }   // chapa
-  for (const q of [NW, NE, SE, SW]) { const v = aEscena(...q), pt = new THREE.Mesh(new THREE.BoxGeometry(0.07 * M, (ALTO - ZOC) * M, 0.07 * M), matE(0xd9b80f));
-    pt.position.set(v.x, pc + ((ALTO + ZOC) / 2) * M, v.z); g.add(pt); }   // esquineros
+  // esquineros; en la esquina sureste la ventana sigue de corrido (curva + este): ahí el esquinero se corta y queda el parante blanco
+  for (const q of [NW, NE, SE, SW]) for (const [h0, h1] of q === SE ? [[ZOC, VB], [VT, ALTO]] : [[ZOC, ALTO]]) {
+    const v = aEscena(...q), pt = new THREE.Mesh(new THREE.BoxGeometry(0.07 * M, (h1 - h0) * M, 0.07 * M), matE(0xd9b80f));
+    pt.position.set(v.x, pc + ((h0 + h1) / 2) * M, v.z); g.add(pt); }
   // techito: lámina acanalada amarillenta con alero, siguiendo la forma (también la curva)
   { const a = aEscena(NW[0], NW[1]), c = aEscena(SE[0], SE[1]), w = Math.abs(c.x - a.x);
     const cv = document.createElement("canvas"); cv.width = 16; cv.height = 4; const x = cv.getContext("2d"); x.fillStyle = "#d9c45a"; x.fillRect(0, 0, 16, 4); x.fillStyle = "#a8973f"; x.fillRect(0, 0, 4, 4); x.fillStyle = "#efe08a"; x.fillRect(8, 0, 3, 4);
