@@ -316,15 +316,14 @@ export function render(V, { hacer, redibujar }) {
   const o = S.obra;
   if (!o) { V.innerHTML = `<h2>Obra</h2><p class="lead">Todavía no hay una obra activa.</p>`; return; }
   const prop = ANCHO / ALTO;
-  const receso = !!ui.modo, alm = ui.modo === "almuerzo";   // solo el modo rápido cambia lo que hace un toque
+  const receso = !!ui.modo && !ui.editar, alm = ui.modo === "almuerzo";   // el modo rápido solo cambia lo que hace tocar a una PERSONA; lo demás del mapa sigue igual
   const nRec = enReceso().filter((r) => !esAlmuerzo(r)).length, nAlm = enReceso().filter(esAlmuerzo).length;
   const clave = JSON.stringify([S.areas.map((a) => [a.id, a.x, a.y, a.w, a.h, a.tipo, a.nombre, a.es_receso, a.uso_actual, a.estado]),
     S.elementos.map((e) => [e.id, e.x, e.y, e.w, e.h, e.tipo, e.estado, e.forma, e.alto, e.grueso, e.trazo, e.material, e.huecos]), S.piezas]);
   if (dibujo.clave !== clave) dibujo = { clave, svg: dibujarObra(S.areas, S.elementos, S.piezas) };
-  if (receso) { ui.editar = false; ui.nuevo = null; ui.elSel = null; }
   const elSel = ui.elSel ? S.elementos.find((e) => e.id === ui.elSel) : null;
   const zr = S.areas.find((a) => a.es_receso);
-  if (receso) { ui.sel = null; ui.areaSel = null; ui.moviendo = false; }
+  if (receso) ui.sel = null;
   const w = ui.sel ? S.trabajadores.find((x) => x.id === ui.sel) : null;
   const aSel = ui.areaSel ? area(ui.areaSel) : null;
 
@@ -474,7 +473,6 @@ export function render(V, { hacer, redibujar }) {
     hacer(async () => { await moverTrabajador(id, L.area?.id || null, p); return `${n} → ${L.texto}`; });
   };
   const tocarArea = (aid, punto = null) => {
-    if (receso) return;
     if (ui.moviendo && ui.sel && punto) { const a = area(aid); if (!a?.es_receso) return ponerEn(ui.sel, punto); }
     if (!aid) return;
     if (ui.editar && ui.herr === "borrar") { if (S.perfil?.rol !== "admin") return; ui.areaSel = aid; ui.borrar = "area"; ui.elSel = null; ui.pz = null; return redibujar(); }
@@ -552,7 +550,7 @@ export function render(V, { hacer, redibujar }) {
     const enPct = (e) => { const r = V.querySelector(".mapa").getBoundingClientRect(); return [((e.clientX - r.left) / r.width) * 100, ((e.clientY - r.top) / r.height) * 100]; };
     V.querySelectorAll("[data-area]").forEach((b) => (b.onclick = (e) => tocarArea(b.dataset.area, enPct(e))));
     // Arrastrar a una persona al lugar exacto donde está trabajando (dentro de su área o en otra)
-    if (!receso && !ui.editar) V.querySelectorAll(".tok").forEach((t) => {
+    if (!ui.editar) V.querySelectorAll(".tok").forEach((t) => {
       let ini = null, movio = false;
       t.addEventListener("pointerdown", (e) => { if (e.button > 0) return; ini = [e.clientX, e.clientY]; movio = false; try { t.setPointerCapture(e.pointerId); } catch (_) {} });
       t.addEventListener("pointermove", (e) => {
@@ -905,7 +903,7 @@ export function render(V, { hacer, redibujar }) {
   $$("[data-traer]").forEach((b) => (b.onclick = () => { const id = b.dataset.traer, a = area(ui.areaSel);
     hacer(async () => { await moverTrabajador(id, a.id); return `${primerNombre(trabajador(id).nombre)} → ${a.nombre}`; }); }));
   const he = V.querySelector("#hudEditar");
-  if (he) he.onclick = () => { ui.modo = null; ui.pz = null; ui.editar = !ui.editar; ui.agregar = false; ui.herr = "mano"; ui.inicio = null; if (!es3d && innerWidth < 700) ui.zoom = ui.editar ? ZOOMS[1] : ZOOMS[0]; ui.nuevo = null; ui.elSel = null; ui.areaSel = null; ui.sel = null; ui.moviendo = false; redibujar(); };
+  if (he) he.onclick = () => { ui.pz = null; ui.editar = !ui.editar; ui.agregar = false; ui.herr = "mano"; ui.inicio = null; if (!es3d && innerWidth < 700) ui.zoom = ui.editar ? ZOOMS[1] : ZOOMS[0]; ui.nuevo = null; ui.elSel = null; ui.areaSel = null; ui.sel = null; ui.moviendo = false; redibujar(); };
   $$("[data-hueco]").forEach((b) => (b.onclick = () => { ui.hueco = ui.hueco?.t === b.dataset.hueco ? null : { t: b.dataset.hueco }; redibujar(); }));
   $$("[data-quitar-hueco]").forEach((b) => (b.onclick = () => { ui.huecoSel = null; const e = S.elementos.find((q) => q.id === ui.elSel), k = +b.dataset.quitarHueco;
     const huecos = (e.huecos || []).filter((_, i) => i !== k); e.huecos = huecos; redibujar();
