@@ -90,7 +90,7 @@ export function render(V, { hacer, redibujar }) {
     ${S.trabajadores.some((w) => !recesoAbierto(w.id) && !almuerzoHoy(w.id)) ? `<button class="btn big" id="todosAlm" style="margin-bottom:12px">Todos a almorzar</button>` : ""}` : ""}
   ${enRec.length ? `<button class="btn primary big" id="fin" style="margin-bottom:12px">Todos a trabajar</button>` : ""}
   ${corregir() || pregunta()}
-  ${(() => { const olv = S.trabajadores.filter((w) => pasadoAbierto(w) >= OLVIDO); return olv.length && !ui.pregunta ? `<div class="pregunta-r olvido" role="status">⏰ <b>${olv.map((w) => esc(w.nombre)).join(", ")}</b> ${olv.length === 1 ? "sigue" : "siguen"} en pausa desde hace rato. Si ya ${olv.length === 1 ? "regresó" : "regresaron"}, tócal${olv.length === 1 ? "o" : "os"} para corregir la hora.</div>` : ""; })()}
+  ${(() => { const olv = S.trabajadores.filter((w) => pasadoAbierto(w) >= OLVIDO); return olv.length && !ui.pregunta ? `<div class="pregunta-r olvido" role="status">⏰ <b>${olv.map((w) => esc(w.nombre)).join(", ")}</b> ${olv.length === 1 ? "sigue" : "siguen"} en pausa desde hace rato. Si ya ${olv.length === 1 ? "regresó" : "regresaron"}, tócal${olv.length === 1 ? "o" : "os"} para regresar${olv.length === 1 ? "lo" : "los"} a trabajar.</div>` : ""; })()}
   <div class="grid">${S.trabajadores.map((w) => { const r = recesoAbierto(w.id);
     const exc = Math.round(excesoHoy(w.id) + excesoAlmuerzo(w.id)), olvido = pasadoAbierto(w) >= OLVIDO;
     return `<button class="card receso-card ${r ? "on-break" : ""} ${esAlmuerzo(r) ? "almuerzo" : ""} ${olvido ? "olvido" : ""}" data-w="${w.id}" aria-pressed="${!!r}">
@@ -121,20 +121,20 @@ export function render(V, { hacer, redibujar }) {
 
   V.querySelectorAll(".receso-card").forEach((b) => (b.onclick = (ev) => {
     const w = trabajador(b.dataset.w), r = recesoAbierto(w.id);
-    if (ev.target.closest("[data-corregir]")) { const q = paraCorregir(w.id); if (q) { abrirCorregir(q); return redibujar(); } }
-    // se pasó mucho: puede que haya regresado y no se marcó → preguntar
-    if (r && pasadoAbierto(w) >= OLVIDO) { ui.corrige = null; ui.pregunta = { w: w.id, que: "olvido" }; return redibujar(); }
+    if (ev.target.closest("[data-corregir]")) { const q = paraCorregir(w.id); if (q) { abrirCorregir(q); redibujar(); return verArriba(); } }
+    // si está en pausa, tocarlo SIEMPRE lo regresa a trabajar (si regresó antes, se corrige con ⏱)
     // a la hora del almuerzo, "receso" puede ser almuerzo → preguntar
-    if (!r && ui.tipo === "receso" && horaAlmuerzo() && !almuerzoHoy(w.id)) { ui.corrige = null; ui.pregunta = { w: w.id, que: "almuerzo" }; return redibujar(); }
-    mandar(w.id);
+    if (!r && ui.tipo === "receso" && horaAlmuerzo() && !almuerzoHoy(w.id)) { ui.corrige = null; ui.pregunta = { w: w.id, que: "almuerzo" }; redibujar(); return verArriba(); }
+    mandar(w.id, ui.tipo, r && pasadoAbierto(w) >= OLVIDO);
   }));
-  function mandar(wid, tipo = ui.tipo) {
-    ui.pregunta = null;
+  function verArriba() { V.querySelector(".pregunta-r")?.scrollIntoView({ block: "center", behavior: "smooth" }); }
+  function mandar(wid, tipo = ui.tipo, tarde = false) {
+    ui.pregunta = null; ui.corrige = null;
     // La primera vez que mandas a alguien a receso, el celular pide permiso para avisarte cada 5 min mientras siga en receso
     if (!recesoAbierto(wid) && tipo === "receso" && estadoAvisos() === "preguntar") activarAvisos({ saludo: true }).catch(() => {});
     hacer(async () => {
       const r = recesoAbierto(wid), sale = await cambiarReceso(wid, r ? r.tipo || "receso" : tipo);
-      return `${trabajador(wid).nombre} ${sale ? (tipo === "almuerzo" ? "almorzando" : "en receso") : "regresó a trabajar"}`;
+      return `${trabajador(wid).nombre} ${sale ? (tipo === "almuerzo" ? "almorzando" : "en receso") : "regresó a trabajar" + (tarde ? " · si regresó antes, toca su ⏱ para poner la hora" : "")}`;
     });
   }
   V.querySelectorAll("[data-resp]").forEach((b) => (b.onclick = () => { const p = ui.pregunta; if (!p) return; const w = trabajador(p.w), v = b.dataset.resp;
