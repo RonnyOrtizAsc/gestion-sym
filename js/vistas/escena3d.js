@@ -1582,9 +1582,10 @@ function supervisor(base) {
   const cara = caseta(g, SUPERVISOR, base, 3, m.blanco, m, false, "Oficina supervisor");
   if (!editable("Oficina supervisor")) { ventanas(cara, "s", 836, 928, 5, 1.0, 0.75, m);   // cara sur: fila de ventanas
   puertaV(cara, "o", 182, 198, m); ventanas(cara, "o", 200, 220, 1, 1.0, 0.75, m); ventanas(cara, "o", 222, 241, 1, 1.0, 0.75, m); puertaV(cara, "o", 243, 259, m); }   // cara oeste: puerta (con espacio a la esquina norte), dos ventanas, puerta pegada a la esquina sur
-  // techo (G-01): lámina de x 797 a 932 y de y 168 a 362, cae al 19% hacia el este (la pared de lámina).
+  // techo (G-01): lámina de x 797 a 932 y de y 168 a 362, cae un poco hacia el este (la pared de lámina).
   // Lo carga el poste del "PEDESTAL" del G-02 (x 830, y 356), unos 5.4 m al frente de la cabina. Celosías por debajo.
-  const t = TECHO_SUP, OESTE = 5.6, ESTE = OESTE - 0.19 * (t.x1 - t.x0) * 0.056, hT = (x) => OESTE + ((ESTE - OESTE) * (x - t.x0)) / (t.x1 - t.x0);
+  const t = TECHO_SUP, OESTE = 4.45, ESTE = OESTE - 0.025 * (t.x1 - t.x0) * 0.056,   // casi plano (foto): las celosías topan en las paredes del cuarto
+    hT = (x) => OESTE + ((ESTE - OESTE) * (x - t.x0)) / (t.x1 - t.x0);
   const P = (x, y, h) => { const v = aEscena(x, y); v.y = base + h * M; return v; };
   const geo = new THREE.BufferGeometry(), pts = [P(t.x0, t.y0, OESTE), P(t.x1, t.y0, ESTE), P(t.x1, t.y1, ESTE), P(t.x0, t.y1, OESTE)];
   geo.setAttribute("position", new THREE.Float32BufferAttribute(pts.flatMap((p) => [p.x, p.y, p.z]), 3)); geo.setIndex([0, 1, 2, 0, 2, 3]); geo.computeVertexNormals();
