@@ -91,8 +91,8 @@ export function enLinea(a, b, paredes) {
 
 function elemento(e) {
   if (e.trazo) {   // pared dibujada a mano: grosor real, color de su material y sus huecos
-    const w = Math.max(2.5, gruesoPared(e) / M), col = e.estado === "existe" ? COLOR_MAT[e.material] || COLOR_MAT.block : e.estado === "en_proceso" ? "#b26b00" : "#8ea3b8";
-    const op = e.estado === "falta" ? ' stroke-opacity=".55"' : "", { a, u, solidos, huecos } = tramosPared(e);
+    const w = Math.max(2.5, gruesoPared(e) / M), col = e.estado === "quitar" ? "#d0342c" : e.estado === "existe" ? COLOR_MAT[e.material] || COLOR_MAT.block : e.estado === "en_proceso" ? "#b26b00" : "#8ea3b8";
+    const op = e.estado === "falta" ? ' stroke-opacity=".55"' : e.estado === "quitar" ? ' stroke-opacity=".7" stroke-dasharray="6 4"' : "", { a, u, solidos, huecos } = tramosPared(e);
     const P = (s) => `${(a[0] + u[0] * s).toFixed(1)} ${(a[1] + u[1] * s).toFixed(1)}`, d = solidos.map(([s0, s1]) => `M${P(s0)}L${P(s1)}`).join("");
     const normal = huecos.filter((h) => !h.e), vid = normal.filter((h) => h.t === "ventana").map((h) => `M${P(h.s0)}L${P(h.s1)}`).join("");
     const arco = (h) => { const r = h.s1 - h.s0, q = [a[0] + u[0] * h.s0 - u[1] * r, a[1] + u[1] * h.s0 + u[0] * r];
@@ -118,6 +118,7 @@ function elemento(e) {
     return `<g class="elem"><path d="${d}" stroke="${col}" stroke-width="2.5" ${falta ? 'stroke-dasharray="8 6"' : ""} ${relleno}/>
       ${falta ? "" : `<path d="${d}" fill="none" stroke="#2b1d12" stroke-width="1.2" stroke-opacity=".6" transform="translate(${(centro(pts)[0] * 0.08).toFixed(1)} ${(centro(pts)[1] * 0.08).toFixed(1)}) scale(.92)"/>`}</g>`;
   }
+  if (e.estado === "quitar") return `<g class="elem"><path d="${d}" stroke="#d0342c" stroke-width="2.5" stroke-dasharray="6 4" fill="#d0342c" fill-opacity=".12"/></g>`;   // no va
   const trazo = falta ? `stroke="${col}" stroke-width="2.5" stroke-dasharray="8 6" fill="${col}" fill-opacity=".08"`
     : proceso ? `stroke="${col}" stroke-width="3" fill="url(#rayado)"` : `stroke="${col}" stroke-width="3" fill="${col}" fill-opacity="${e.tipo === "monticulo" ? ".55" : ".28"}"`;
   let detalle = "";

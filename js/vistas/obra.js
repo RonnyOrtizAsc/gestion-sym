@@ -13,7 +13,7 @@ import { miniatura, tarjeta, avatares, cara } from "./fotos.js";
 import { FICHAS, nEscalones, esquinas, agarraderas, moverFigura, girar, correr, guardable, figuraNueva, medidasFigura, medidaCorta, altoDe, dentroDe, centro, U, altoPared, moverRect, rectPct, cercaDe } from "./figuras.js";
 import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, CAJAS, grupoDe, queEs, pegar, ANCHO, ALTO, MATERIALES, puntas, pared, largoPared, gruesoPared, enderezar, distPared, enLinea, sobrePared, ANCHO_HUECO, CHICAS, rampaDe, piezaEn, medidasPieza, medidasArea, medidasElemento } from "./mapa-svg.js";
 // el 3D se pide con la versión: así el celular no se queda con un 3D viejo guardado (súbelo junto con sw.js)
-const ESCENA = "./escena3d.js?v=182";
+const ESCENA = "./escena3d.js?v=183";
 
 const ZOOMS = [1, 1.6, 2.4, 3.4];
 let vistaGuardada = "2d"; try { vistaGuardada = localStorage.getItem("sym-vista") || "2d"; } catch (e) {}
@@ -141,9 +141,11 @@ function hojaPrestamos() {
     ${perd.length ? `<p class="eyebrow" style="margin:14px 0 6px">Perdidas</p><div class="list">${perd.map((p) => `<div class="li">${miniatura(herramienta(p.herramienta_id), "foto chica")}<div class="grow"><b>${p.cantidad} × ${esc(herramienta(p.herramienta_id).nombre)}</b><small>La tenía ${esc(trabajador(p.trabajador_id).nombre)}</small></div><span class="pill lost">Perdida</span></div>`).join("")}</div>` : ""}`;
 }
 
-const botonesEstado = (actual, attr, nombres = ESTADOS) => `<div class="estados">${Object.entries(ESTADOS).map(([k, l]) =>
+const botonesEstado = (actual, attr, nombres = ESTADOS) => `<div class="estados">${Object.entries(nombres).map(([k, l]) =>
   `<button class="est ${k}" ${attr}="${k}" aria-pressed="${actual === k}">${nombres[k] || l}</button>`).join("")}</div>`;
 const ESTADOS_HOYO = { falta: "Por excavar", en_proceso: "Excavando", existe: "Excavado" };
+// Lo que se agrega al plano: también puede ser algo que hoy está y NO va (se marca en rojo)
+const ESTADOS_EL = { existe: "✓ Ya está", en_proceso: "Construyendo", falta: "Por hacer", quitar: "✕ No va" };
 // Editor como juego de dibujo: se escoge una herramienta y se usa el dedo. Nada de escoger "qué es".
 const HERRAMIENTAS = [["mano", "✋", "Mover"], ["lapiz", "✏️", "Construir"], ["cortar", "✂️", "Cortar"], ["borrar", "🧽", "Borrar"], ["zona", "⬚", "Zona"]];
 const GROSORES = { lapiz: [[0.1, "10 cm"], [0.15, "15 cm"], [0.3, "30 cm"], [0.6, "60 cm"], [1, "1 m"]], cortar: [[0.3, "30 cm"], [0.6, "60 cm"], [1, "1 m"], [2, "2 m"], [4, "4 m"]] };
@@ -175,23 +177,30 @@ const masOpciones = () => `<button class="linkbtn" data-mas>${ui.mas ? "Menos op
 const borrarSiNo = (txt) => ui.borrar ? `<div class="acts confirma-borrar"><span>¿${txt}?</span><button class="btn small danger" data-borrar-si>Sí, borrar</button><button class="btn small" data-borrar-no>No</button></div>` : "";
 // Botones grandes "de juego": cada toque cambia un poquito; no hay que escribir medidas
 const jbtn = (attr, ico, txt, extra = "") => `<button class="jbtn ${extra}" ${attr}><b aria-hidden="true">${ico}</b>${txt}</button>`;
+// Hoja de lo que se toca en Editar: arriba cómo está, luego tamaño (− valor +), color y lo demás. Todo a un toque.
+const fila = (txt, val, attr) => `<div class="tam-fila"><span>${txt}</span><button class="btn small" ${attr}="-1" aria-label="${txt}: menos">−</button><b>${val}</b><button class="btn small" ${attr}="1" aria-label="${txt}: más">+</button></div>`;
+const coloresEl = (e) => { const actual = (S.obra?.colores || {})["el:" + e.id];
+  return `<p class="eyebrow" style="margin:12px 0 6px">Color</p><div class="colores mini">${COLORES.map(([c, n]) => `<button class="color" data-color-el="${c}" aria-pressed="${actual === c}" title="${n}"><i style="background:${c}"></i></button>`).join("")}
+    ${actual ? `<button class="btn small" data-color-el="">Original</button>` : ""}</div>`; };
 function hojaPared(e) {
   if (ui.huecoSel != null && e.huecos?.[ui.huecoSel]) return hojaHueco(e);
   if (e.material === "caseta") return hojaCara(e);
-  return `<div class="hoja-h"><div class="grow"><b>${esc(e.nombre || "Pared")}</b>
-      <small>${ui.hueco ? `Toca en la pared dónde va la ${ui.hueco.t}` : medidasElemento(e)}</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
-    <p class="note pista-puntos"><i class="pt esquina"></i> Arrastra los puntos verdes para alargarla o acortarla.</p>
-    <div class="juego">
-      ${jbtn('data-alto="1"', "▲", "Más alta")}${jbtn('data-alto="-1"', "▼", "Más baja")}
-      ${jbtn('data-grueso="1"', "▐▌", "Más gruesa")}${jbtn('data-grueso="-1"', "▏", "Más delgada")}
-      ${jbtn('data-hueco="puerta"', "◫", "Puerta", ui.hueco?.t === "puerta" ? "on" : "")}${jbtn('data-hueco="ventana"', "▭", "Ventana", ui.hueco?.t === "ventana" ? "on" : "")}
-      ${jbtn("data-borrar", "✕", "Borrar", "borrar")}</div>
+  if (ui.hueco) return `<div class="hoja-h"><div class="grow"><b>${esc(e.nombre || "Pared")}</b><small>Toca en la pared dónde va la ${ui.hueco.t}</small></div>
+      <button class="btn small" data-hueco="${ui.hueco.t}">Cancelar</button></div>`;
+  const largo = largoPared(e);
+  return `<div class="hoja-h"><div class="grow"><b>${esc(e.nombre || "Pared")}</b><small>${MATERIALES[e.material || "block"] || "Pared"}</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
+    ${botonesEstado(e.estado, "data-estado-el", ESTADOS_EL)}
+    <p class="eyebrow" style="margin:12px 0 6px">Tamaño</p>
+    <div class="tam">${fila("Largo", fmtM(largo), "data-largo")}${fila("Alto", fmtM(altoPared(e, S.areas)), "data-alto")}${fila("Grueso", Math.round(gruesoPared(e) * 100) + " cm", "data-grueso")}</div>
+    ${coloresEl(e)}
+    <p class="eyebrow" style="margin:12px 0 6px">Puertas y ventanas</p>
+    <div class="juego">${jbtn('data-hueco="puerta"', "◫", "Poner puerta")}${jbtn('data-hueco="ventana"', "▭", "Poner ventana")}</div>
+    <p class="eyebrow" style="margin:12px 0 6px">Material</p>${chipsMaterial(e.material, "data-mat")}
     ${e.quita ? `<div class="acts" style="margin-top:8px"><span class="note">Ya se quitó ${NOM_PARTE[e.quita]}</span><button class="btn small" data-regresa-parte>Regresarla</button></div>` : ""}
+    <div class="acts" style="margin-top:12px"><button class="btn small danger" data-borrar>Borrar</button><span style="flex:1"></span>${masOpciones()}</div>
     ${borrarSiNo("Borrar esta pared")}
-    <div style="margin-top:10px">${botonesEstado(e.estado, "data-estado-el")}</div>
-    <div style="margin-top:8px">${masOpciones()}</div>
-    ${ui.mas ? `<p class="note" style="margin:10px 0 6px">Material</p>${chipsMaterial(e.material, "data-mat")}
-    <form class="addrow" id="nomEl"><input id="elNombre" value="${esc(e.nombre || "")}" placeholder="Nombre (opcional)" aria-label="Nombre de la pared"><button class="btn">Guardar nombre</button></form>` : ""}`;
+    ${ui.mas ? `<form class="addrow" id="nomEl"><input id="elNombre" value="${esc(e.nombre || "")}" placeholder="Nombre (opcional)" aria-label="Nombre de la pared"><button class="btn">Guardar nombre</button></form>
+      <p class="note pista-puntos"><i class="pt esquina"></i> También puedes arrastrar los puntos verdes.</p>` : ""}`;
 }
 // Paleta para pintar lo que se ve en 3D
 const COLORES = [["#cfd0cc", "Gris perla"], ["#f2f2ef", "Blanco"], ["#ece3cf", "Crema"], ["#4a4f55", "Gris grafito"], ["#1f2226", "Negro"], ["#e0b022", "Amarillo"],
@@ -224,18 +233,20 @@ function hojaHueco(e) {
 function hojaElemento(e) {
   if (e.trazo) return hojaPared(e);
   const hoyo = e.tipo === "hoyo", techo = e.tipo === "techo";
+  const pts = esquinas(e), lado = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]) * 0.056;
   return `<div class="hoja-h"><div class="grow"><b>${esc(e.nombre || TIPOS_ELEMENTO[e.tipo] || "Elemento")}</b>
-      <small>${medidasFigura(e)}</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
-    <p class="note pista-puntos"><i class="pt esquina"></i> esquinas: deformar · <i class="pt lado"></i> estirar o aplanar un lado · <i class="pt centro"></i> mover</p>
-    <div class="juego">
-      ${jbtn('data-alto="1"', "▲", hoyo ? "Más hondo" : techo ? "Más arriba" : "Más alto")}${jbtn('data-alto="-1"', "▼", hoyo ? "Menos hondo" : techo ? "Más abajo" : "Más bajo")}
-      ${jbtn('data-girar="15"', "↻", "Girar")}${jbtn("data-copiar", "⧉", "Copiar")}${jbtn("data-borrar", "✕", "Borrar", "borrar")}</div>
+      <small>${esc(TIPOS_ELEMENTO[e.tipo] || "")}</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
+    ${botonesEstado(e.estado, "data-estado-el", hoyo ? ESTADOS_HOYO : ESTADOS_EL)}
+    <p class="eyebrow" style="margin:12px 0 6px">Tamaño</p>
+    <div class="tam">${fila("Ancho", fmtM(lado(pts[0], pts[1])), "data-ancho-f")}${fila("Largo", fmtM(lado(pts[0], pts[3])), "data-largo-f")}
+      ${fila(hoyo ? "Hondo" : techo ? "Altura" : "Alto", fmtM(altoDe(e)), "data-alto")}</div>
+    ${hoyo ? "" : coloresEl(e)}
+    <div class="juego" style="margin-top:12px">${jbtn('data-girar="15"', "↻", "Girar")}${jbtn("data-copiar", "⧉", "Copiar")}${jbtn("data-borrar", "✕", "Borrar", "borrar")}</div>
     ${e.tipo === "grada" ? `<div class="juego" style="margin-top:6px">${jbtn('data-escalon="1"', "＋", "Un escalón más")}${jbtn('data-escalon="-1"', "－", "Un escalón menos")}
       ${jbtn('data-subida="1"', "⟲", "Sube por otro lado")}</div>` : ""}
     ${borrarSiNo(`Borrar ${hoyo ? "este hoyo" : "esto"} del plano`)}
-    <div style="margin-top:10px">${botonesEstado(e.estado, "data-estado-el", hoyo ? ESTADOS_HOYO : ESTADOS)}</div>
     <div style="margin-top:8px">${masOpciones()}</div>
-    ${ui.mas ? `<form class="addrow" id="nomEl"><input id="elNombre" value="${esc(e.nombre || "")}" placeholder="Nombre (ej. Zanja de aguas lluvias)" aria-label="Nombre"><button class="btn">Guardar nombre</button></form>` : ""}`;
+    ${ui.mas ? `<p class="note pista-puntos"><i class="pt esquina"></i> esquinas: deformar · <i class="pt lado"></i> estirar un lado · <i class="pt centro"></i> mover</p><form class="addrow" id="nomEl"><input id="elNombre" value="${esc(e.nombre || "")}" placeholder="Nombre (ej. Zanja de aguas lluvias)" aria-label="Nombre"><button class="btn">Guardar nombre</button></form>` : ""}`;
 }
 function hojaAgregar() {
   return `<div class="hoja-h"><div class="grow"><b>¿Qué vas a agregar?</b><small>Aparece en el centro de la pantalla. Después lo estiras y lo deformas con los dedos.</small></div>
@@ -251,9 +262,8 @@ function hojaPieza() {
     ${actual === "quitado" ? "" : botonesEstado(actual, "data-estado-pz")}
     <div class="acts" style="margin-top:8px;align-items:center">
       <button class="btn small ${actual === "quitado" ? "" : "danger"}" data-estado-pz="${actual === "quitado" ? (PIEZAS[ui.pz.tocada][4] ? "existe" : "falta") : "quitado"}">${actual === "quitado" ? "Sí va (regresarla)" : "No va"}</button>
-      ${actual !== "quitado" ? masOpciones() : ""}</div>
-    ${ui.mas && actual !== "quitado" ? `<div class="acts" style="margin-top:8px">${pared ? `<button class="btn small" data-a-pared>Cambiar material, alto o grueso</button>` : ""}
-      ${g.length > 1 ? `<button class="btn small" data-solo-pieza>Solo la línea que toqué</button>` : ""}</div>` : ""}`;
+      ${pared ? `<button class="btn small primary" data-a-pared>Tamaño, color y material</button>` : ""}
+      ${actual !== "quitado" && g.length > 1 ? `<button class="btn small" data-solo-pieza>Solo la línea que toqué</button>` : ""}</div>`;
 }
 
 function hojaNuevo() {
@@ -942,6 +952,25 @@ export function render(V, { hacer, redibujar }) {
     else { const cur = altoDe(e), paso = cur < 1 || (cur === 1 && d < 0) ? 0.1 : 0.25; alto = Math.max(0.1, Math.min(15, Math.round((cur + d * paso) * 100) / 100)); }
     Object.assign(e, { alto }); redibujar();
     hacer(async () => { await editarElemento(e.id, { alto }); return e.tipo === "hoyo" ? `${fmtM(alto)} de hondo` : `${fmtM(alto)} de alto`; }); }));
+  // largo de una pared: se alarga o acorta 25 cm por la punta final (la de inicio se queda pegada a lo que esté)
+  $$("[data-largo]").forEach((b) => (b.onclick = () => { const e = elegido(); if (!e?.trazo) return;
+    const n = [...e.trazo.matchAll(/-?\d+\.?\d*/g)].map((m) => +m[0]); if (n.length < 4) return;
+    const k = n.length - 2, [px, py, bx, by] = [n[k - 2], n[k - 1], n[k], n[k + 1]], L = Math.hypot(bx - px, by - py) || 1, d = U(0.25) * +b.dataset.largo;
+    if (L + d < U(0.3)) return;
+    n[k] = +(bx + ((bx - px) / L) * d).toFixed(1); n[k + 1] = +(by + ((by - py) / L) * d).toFixed(1);
+    let i = 0; const trazo = e.trazo.replace(/-?\d+\.?\d*/g, () => n[i++].toFixed(1));
+    Object.assign(e, { trazo }); redibujar();
+    hacer(async () => { await editarElemento(e.id, { trazo }); return `Largo: ${fmtM(largoPared(e))}`; }); }));
+  // ancho y largo de una figura: se corre el lado de enfrente 25 cm (la figura puede estar girada o deformada)
+  const estirar = (e, lados, d) => { const p = esquinas(e).map((q) => [...q]), [i0, i1, j0, j1] = lados;   // mueve j0/j1 en la dirección i0→j0
+    const ux = p[j0][0] - p[i0][0], uy = p[j0][1] - p[i0][1], L = Math.hypot(ux, uy) || 1, dd = U(0.25) * d; if (L + dd < U(0.2)) return;
+    for (const j of [j0, j1]) { p[j][0] += (ux / L) * dd; p[j][1] += (uy / L) * dd; } void i1; guardarFigura(e, p); };
+  $$("[data-ancho-f]").forEach((b) => (b.onclick = () => { const e = elegido(); if (e && !e.trazo) estirar(e, [0, 3, 1, 2], +b.dataset.anchoF); }));
+  $$("[data-largo-f]").forEach((b) => (b.onclick = () => { const e = elegido(); if (e && !e.trazo) estirar(e, [0, 1, 3, 2], +b.dataset.largoF); }));
+  // color propio de lo que se agregó (se guarda junto a los demás colores de la obra)
+  $$("[data-color-el]").forEach((b) => (b.onclick = () => { const e = elegido(); if (!e) return; const c = b.dataset.colorEl || null, k = "el:" + e.id, antes = (S.obra.colores || {})[k] ?? null;
+    const col = { ...(S.obra.colores || {}) }; if (c) col[k] = c; else delete col[k]; S.obra.colores = col; redibujar();
+    hacer(async () => { await guardarColor(k, c, antes); return c ? `Color: ${COLORES.find((x) => x[0] === c)?.[1] || c}` : "Color original"; }); }));
   $$("[data-grueso]").forEach((b) => (b.onclick = () => { const e = elegido(); if (!e) return;
     const grueso = Math.round(Math.max(0.05, Math.min(1, gruesoPared(e) + +b.dataset.grueso * 0.05)) * 100) / 100;
     Object.assign(e, { grueso }); redibujar();
@@ -981,7 +1010,7 @@ export function render(V, { hacer, redibujar }) {
     hacer(async () => { await estadoArea(a.id, est); await estadoPiezas(dentro, est); return `${a.nombre}: ${ESTADOS[est]} (${dentro.length} piezas)`; }); }));
   $$("[data-estado-el]").forEach((b) => (b.onclick = () => { const id = ui.elSel, est = b.dataset.estadoEl, e = S.elementos.find((q) => q.id === id);
     if (e) { e.estado = est; redibujar(); }   // se ve al instante
-    hacer(async () => { await editarElemento(id, { estado: est }); return `Marcado: ${(e?.tipo === "hoyo" ? ESTADOS_HOYO : ESTADOS)[est]}`; }); }));
+    hacer(async () => { await editarElemento(id, { estado: est }); return `Marcado: ${(e?.tipo === "hoyo" ? ESTADOS_HOYO : ESTADOS_EL)[est]}`; }); }));
   const ne = V.querySelector("#nomEl"); if (ne) ne.onsubmit = (e) => { e.preventDefault(); const id = ui.elSel, nombre = V.querySelector("#elNombre").value.trim() || null;
     hacer(async () => { await editarElemento(id, { nombre }); return "Nombre guardado"; }); };
   $$("[data-borrar]").forEach((b) => (b.onclick = () => { ui.borrar = true; redibujar(); }));

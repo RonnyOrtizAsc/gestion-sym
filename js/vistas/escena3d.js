@@ -2069,7 +2069,7 @@ function animar() {
 // Pone la escena dentro del contenedor y la actualiza con los datos actuales
 export function montar(contenedor, { dibujo = null, colores = null, svg, clave, areas, elementos, piezas, personas, handlers, editar = false, seleccion = null, asas = null }) {
   if (!E) crear();
-  E.handlers = handlers; E.dibujo = dibujo; E.colores = colores || {};
+  E.handlers = handlers; E.dibujo = dibujo; E.colores = colores || {}; E.elementos = elementos;
   contenedor.appendChild(E.renderer.domElement); contenedor.appendChild(E.tip); contenedor.appendChild(E.cielo.brujula); E.tip.hidden = true; E.cielo.ultimo = 0;
   ajustar();
   E.areasUlt = areas;
@@ -2129,6 +2129,17 @@ function prepararColores() {
       }
       m.color.set(col[m.userData.clave] || m.userData.color0);
     }
+  });
+  // lo agregado en la app: "No va" se ve rojo transparente; si tiene color propio ("el:<id>") se pinta con él
+  const NOVA = new THREE.MeshBasicMaterial({ color: 0xd0342c, transparent: true, opacity: 0.45, depthWrite: false });
+  E.edificios.children.forEach((gr) => {
+    const id = gr.userData.elemento; if (!id) return; const el = E.elementos?.find((q) => q.id === id), c = col["el:" + id];
+    gr.traverse((o) => {
+      if (!o.isMesh || o.userData.hueco != null) return;
+      if (o.userData.matEl0) o.material = o.userData.matEl0; else o.userData.matEl0 = o.material;
+      if (el?.estado === "quitar") { o.material = NOVA; return; }
+      const m = o.material; if (!c || Array.isArray(m) || m.transparent || !m.color) return;
+      const m2 = m.clone(); m2.color.set(c); if (m2.map) m2.map = null; m2.needsUpdate = true; o.material = m2; });
   });
   // cada pieza por separado (clave "p:…" = su material + dónde está): se puede pintar sola o quitar
   E.edificios.updateWorldMatrix(true, true); const bx = new THREE.Box3(), c = new THREE.Vector3();

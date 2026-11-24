@@ -552,3 +552,16 @@ nav.tabs a{font-size:11px;min-width:0;white-space:nowrap}
 /* Sótano 1: queda debajo del rebalse; en 2D se marca con raya punteada */
 .sotano-2d{position:absolute;border:2px dashed #24435e;border-radius:6px;z-index:1;pointer-events:none}
 .sotano-2d button{pointer-events:auto;cursor:pointer;border:0;font-family:inherit;position:absolute;right:4px;bottom:3px;font-size:10px;font-weight:700;color:#24435e;background:#ffffffcc;padding:1px 5px;border-radius:6px;white-space:nowrap}
+/* Hoja de edición: estado arriba, tamaño con − valor +, color */
+.est.quitar[aria-pressed="true"]{background:#fbe3e1;color:#9c241d;border-color:#d0342c}
+.estados{flex-wrap:wrap}
+.tam{display:grid;gap:6px}
+.tam-fila{display:grid;grid-template-columns:70px 44px 1fr 44px;align-items:center;gap:8px}
+.tam-fila span{font-size:13px;color:var(--muted)}
+.tam-fila b{text-align:center;font-variant-numeric:tabular-nums}
+.tam-fila .btn{min-height:40px;font-size:20px;padding:0}
+.colores.mini{grid-template-columns:repeat(auto-fill,minmax(38px,1fr))}
+.colores.mini .color{padding:4px;min-height:38px;justify-content:center}
+.colores.mini .color i{width:26px;height:26px}
+.estados:has(.quitar){display:grid;grid-template-columns:repeat(4,1fr)}
+.estados:has(.quitar) .est{padding-left:4px;padding-right:4px;font-size:13px}
