@@ -434,10 +434,16 @@ function ponerTerreno() {
   E.piso.geometry.dispose(); E.piso.geometry = g; E.piso.rotation.x = 0;
   E.piso.material.vertexColors = true;
   // En los taludes (caras casi verticales) no se pinta el plano: si no, sus líneas se estiran hacia abajo como rayas
+  // Sótano 1: el terreno no se dibuja por debajo del nivel del rebalse dentro del sótano ni en su puerta (si no, el talud
+  // del terreno tapa la puerta y se mete al cuarto)
+  const r1 = [aEscena(SOTANO1.x0, SOTANO1.y0), aEscena(SOTANO1.x1, SOTANO1.y1)], r2 = [aEscena(1254, 735), aEscena(1267, 769)], hy = ARRIBA * M - 0.05;
+  const vec = (v) => `vec4(${[r1, r2][v][0].x.toFixed(3)}, ${[r1, r2][v][0].z.toFixed(3)}, ${[r1, r2][v][1].x.toFixed(3)}, ${[r1, r2][v][1].z.toFixed(3)})`;
   E.piso.material.onBeforeCompile = (sh) => {
-    sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying float vNY;")
-      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvNY = normal.y;");
-    sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nvarying float vNY;")
+    sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying float vNY;\nvarying vec3 vWP;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvNY = normal.y;\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+    sh.fragmentShader = sh.fragmentShader.replace("#include <common>", `#include <common>\nvarying float vNY;\nvarying vec3 vWP;
+bool dentroR(vec4 r) { return vWP.x > r.x && vWP.x < r.z && vWP.z > r.y && vWP.z < r.w; }`)
+      .replace("void main() {", `void main() {\n  if (vWP.y < ${hy.toFixed(3)} && (dentroR(${vec(0)}) || dentroR(${vec(1)}))) discard;`)
       .replace("#include <map_fragment>", "#ifdef USE_MAP\nvec4 sampledDiffuseColor = vNY < 0.55 ? vec4(0.8, 0.79, 0.76, 1.0) : texture2D(map, vMapUv);\ndiffuseColor *= sampledDiffuseColor;\n#endif");
   };
   E.piso.material.needsUpdate = true;
@@ -1290,7 +1296,7 @@ function rampaEste() {
   const piso = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: t, roughness: 0.95, side: THREE.DoubleSide })); piso.receiveShadow = true; g.add(piso);
   // losita de concreto frente al sótano (plana, al nivel del taller)
   const losa = new THREE.MeshStandardMaterial({ color: 0x9a9a94, roughness: 0.95 });
-  caja(1265, DESCANSO_ESTE.c.y0 + 2, 1300, DESCANSO_ESTE.c.y1, r.n[0] * M, r.n[0] * M + 0.05 * M, losa);
+  caja(1263, DESCANSO_ESTE.c.y0 + 2, 1300, DESCANSO_ESTE.c.y1, r.n[0] * M, r.n[0] * M + 0.05 * M, losa);
   // muro de contención de block (oeste): del piso hasta el nivel del rebalse (arriba va la lámina de la galera)
   const block = cuadros("#8f918b", "#83857f", [60, 4]), concreto = new THREE.MeshStandardMaterial({ color: 0x8c8b84, roughness: 0.95 });
   // (con el hueco de la puerta del sótano, y 737–767, de 2.2 m)
