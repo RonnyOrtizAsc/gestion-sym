@@ -6,15 +6,17 @@ import { S, recesoAbierto, cambiarReceso, terminarReceso, trabajador, borrarRece
 import { cara } from "./fotos.js";
 import { esc, minutos, dur, hhmm, ms } from "../util.js";
 
-const ui = { periodo: "semana", borrar: false, tipo: "receso", pregunta: null, tipoElegido: null, corrige: null, dia: null };   // corrige: { id, fin }; dia: trabajador cuya asistencia se edita
+const ui = { periodo: "semana", borrar: false, tipo: "receso", pregunta: null, tipoElegido: null, corrige: null, dia: null, fechaA: null };   // fechaA: día de asistencia que se está viendo (null = hoy)   // corrige: { id, fin }; dia: trabajador cuya asistencia se edita
 
 // ---------- Asistencia ----------
 const h12 = (t) => { const [h, mi] = t.split(":").map(Number); return `${((h + 11) % 12) + 1}:${String(mi).padStart(2, "0")}${h < 12 ? " a. m." : " p. m."}`; };
 const aMin = (t) => { const [h, mi] = t.split(":").map(Number); return h * 60 + mi; };
+const fA = () => ui.fechaA || fechaLocal();
+const nombreDia = (f) => f === fechaLocal() ? "hoy" : new Date(f + "T12:00").toLocaleDateString("es", { weekday: "long", day: "numeric", month: "short" });
 function editorDia() {
   const w = ui.dia && trabajador(ui.dia); if (!w) return "";
-  const d = diaDe(ui.dia);
-  return `<div class="pregunta-r corrige" role="dialog" aria-label="Asistencia de ${esc(w.nombre)}"><p><b>${esc(w.nombre)}</b> · hoy</p>
+  const d = diaDe(ui.dia, fA());
+  return `<div class="pregunta-r corrige" role="dialog" aria-label="Asistencia de ${esc(w.nombre)}"><p><b>${esc(w.nombre)}</b> · ${nombreDia(fA())}</p>
     <div class="horas-c"><label>Entró<input type="time" id="aEnt" value="${d.entrada}"></label><label>Salió<input type="time" id="aSal" value="${d.salida}"></label></div>
     <p class="err" id="errA" hidden></p>
     <div class="acts"><button class="btn primary" data-dia-guardar>Guardar</button><button class="btn ${d.falta ? "" : "danger"}" data-dia-falta>${d.falta ? "Sí vino" : "Faltó"}</button>
@@ -124,11 +126,12 @@ export function render(V, { hacer, redibujar }) {
       <span class="fila"><span class="av">${cara(w)}</span><span class="who"><b>${esc(w.nombre)}</b><small>${r ? (esAlmuerzo(r) ? "Almorzando" : "En receso") : "Trabajando"}</small>${exc >= 1 ? `<span class="sello-exc" data-corregir title="Tocar para corregir la hora de regreso">⏱ +${exc} min ✎</span>` : ""}</span></span>
       ${turno(w, "manana")}${turno(w, "almuerzo")}${turno(w, "tarde")}</button>`; }).join("")}</div>
 
-  <div class="section" id="asistencia"><p class="eyebrow">Asistencia de hoy · 7 a. m. a 6 p. m.</p>
-    <p class="note" style="margin-top:0">No hay que anotar nada: todos cuentan de 7 a 6. Solo toca a quien llegó tarde, se fue temprano o faltó.</p>
+  <div class="section" id="asistencia"><div class="titulo-fila"><p class="eyebrow" style="margin:0">Asistencia · 7 a. m. a 6 p. m.</p>
+      <input type="date" id="fechaA" value="${fA()}" max="${fechaLocal()}" aria-label="Día" style="font:inherit;padding:4px 8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)"></div>
+    <p class="note" style="margin-top:6px">Todos cuentan de 7 a 6. Con lo que anota el vigilante, toca a quien entró tarde, salió antes o faltó (puedes escoger otro día).</p>
     ${editorDia()}
-    <div class="list">${S.trabajadores.map((w) => { const d = diaDe(w.id);
-      return `<div class="li tocable" data-dia="${w.id}" role="button" tabindex="0"><div class="grow"><b>${esc(w.nombre)}</b><small>${d.falta ? "No vino hoy" : `${h12(d.entrada)} → ${h12(d.salida)}`}</small></div>
+    <div class="list">${S.trabajadores.map((w) => { const d = diaDe(w.id, fA());
+      return `<div class="li tocable" data-dia="${w.id}" role="button" tabindex="0"><div class="grow"><b>${esc(w.nombre)}</b><small>${d.falta ? "No vino" : `${h12(d.entrada)} → ${h12(d.salida)}`}</small></div>
         ${d.falta ? `<span class="pill lost">Faltó</span>` : d.entrada !== ENTRADA ? `<span class="pill lost">Llegó tarde</span>` : d.salida !== SALIDA ? `<span class="pill">Salió antes</span>` : `<span class="pill ok">Normal</span>`}<span class="lapiz-c" aria-hidden="true">✎</span></div>`; }).join("")}</div></div>
 
   <div class="section"><div class="titulo-fila"><p class="eyebrow" style="margin:0">Datos por persona</p>
@@ -199,13 +202,14 @@ export function render(V, { hacer, redibujar }) {
   // asistencia
   V.querySelectorAll("[data-dia]").forEach((e) => (e.onclick = () => { ui.dia = ui.dia === e.dataset.dia ? null : e.dataset.dia; redibujar(); V.querySelector("#asistencia .corrige")?.scrollIntoView({ block: "center", behavior: "smooth" }); }));
   on2("[data-dia-cancelar]", () => { ui.dia = null; redibujar(); });
-  on2("[data-dia-normal]", () => { const w = trabajador(ui.dia), id = ui.dia; ui.dia = null; hacer(async () => { await ponerDia(id, fechaLocal()); return `${w.nombre}: normal, de 7 a 6`; }); });
-  on2("[data-dia-falta]", () => { const w = trabajador(ui.dia), id = ui.dia, d = diaDe(id); ui.dia = null;
-    hacer(async () => { await ponerDia(id, fechaLocal(), { ...d, falta: !d.falta }); return d.falta ? `${w.nombre} sí vino` : `${w.nombre} faltó hoy`; }); });
-  on2("[data-dia-guardar]", () => { const w = trabajador(ui.dia), id = ui.dia, d = diaDe(id), err = V.querySelector("#errA");
+  const fe = V.querySelector("#fechaA"); if (fe) fe.onchange = () => { ui.fechaA = fe.value && fe.value !== fechaLocal() ? fe.value : null; ui.dia = null; redibujar(); };
+  on2("[data-dia-normal]", () => { const w = trabajador(ui.dia), id = ui.dia, f = fA(); ui.dia = null; hacer(async () => { await ponerDia(id, f); return `${w.nombre}: normal, de 7 a 6`; }); });
+  on2("[data-dia-falta]", () => { const w = trabajador(ui.dia), id = ui.dia, f = fA(), d = diaDe(id, f); ui.dia = null;
+    hacer(async () => { await ponerDia(id, f, { ...d, falta: !d.falta }); return d.falta ? `${w.nombre} sí vino` : `${w.nombre} faltó (${nombreDia(f)})`; }); });
+  on2("[data-dia-guardar]", () => { const w = trabajador(ui.dia), id = ui.dia, f = fA(), d = diaDe(id, f), err = V.querySelector("#errA");
     const ent = V.querySelector("#aEnt").value || ENTRADA, sal = V.querySelector("#aSal").value || SALIDA;
     if (aMin(sal) <= aMin(ent)) { err.textContent = "La salida tiene que ser después de la entrada."; err.hidden = false; return; }
-    ui.dia = null; hacer(async () => { await ponerDia(id, fechaLocal(), { entrada: ent, salida: sal, falta: false, nota: d.nota }); return `${w.nombre}: ${h12(ent)} a ${h12(sal)}`; }); });
+    ui.dia = null; hacer(async () => { await ponerDia(id, f, { entrada: ent, salida: sal, falta: false, nota: d.nota }); return `${w.nombre}: ${h12(ent)} a ${h12(sal)}`; }); });
   V.querySelectorAll("[data-periodo]").forEach((b) => (b.onclick = () => { ui.periodo = b.dataset.periodo; redibujar(); }));
   function on2(id, f) { const e = V.querySelector(id); if (e) e.onclick = f; }
   const on = (id, f) => { const e = V.querySelector(id); if (e) e.onclick = f; };

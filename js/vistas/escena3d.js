@@ -479,7 +479,7 @@ function ponerParedes(areas, piezas) {
       const [x0, y0] = pl[k - 1], [x1, y1] = pl[k], L = Math.hypot(x1 - x0, y1 - y0);
       if (L < 1.5) continue;
       const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
-      lista[est].push([mx, my, L * ESC + 0.35, 0.38, Math.atan2(y1 - y0, x1 - x0), E.altura(mx, my) * M, alto, i]);
+      lista[est].push([mx, my, L * ESC + 0.35, tipo === "oficinas" ? 0.22 : 0.38, Math.atan2(y1 - y0, x1 - x0), E.altura(mx, my) * M, alto, i]);
     }
   });
   // el plano dibuja cada pared con dos rayas (sus dos caras): en 3D va UNA sola pared, no dos o tres pegadas
@@ -492,7 +492,39 @@ function ponerParedes(areas, piezas) {
     lista[est] = ok;
   }
   ponerLamina(piezas, lista);
+  // frentes de vidrio de las oficinas: el plano los dibuja con dos rayas finas pegadas (≈5 cm); en 3D va un vidrio
+  const vidrios = { existe: [], en_proceso: [], falta: [] }, finos = [];
+  const VIDRIO_FALTA = new THREE.MeshStandardMaterial({ color: 0x8fc4e6, transparent: true, opacity: 0.16, depthWrite: false });
+  PIEZAS.forEach(([clase, , , d], i) => {
+    if (clase !== "fino") return;
+    const c = CAJAS[i], cx = (c.x0 + c.x1) / 2, cy = (c.y0 + c.y1) / 2;
+    if (tipoEn(areas, cx, cy) !== "oficinas") return;
+    const est = estadoPieza(i, piezas); if (!vidrios[est]) return;
+    for (const pl of polilineas(d)) for (let k = 1; k < pl.length; k++) {
+      const [x0, y0] = pl[k - 1], [x1, y1] = pl[k], L = Math.hypot(x1 - x0, y1 - y0);
+      if (L < 8) continue;
+      const hz = Math.abs(y1 - y0) < 0.3, vt = Math.abs(x1 - x0) < 0.3; if (!hz && !vt) continue;
+      finos.push({ hz, a: hz ? Math.min(x0, x1) : Math.min(y0, y1), b: hz ? Math.max(x0, x1) : Math.max(y0, y1), o: hz ? (y0 + y1) / 2 : (x0 + x1) / 2, i, est });
+    }
+  });
+  const usados = new Set();
+  for (const f of finos) {
+    if (usados.has(f)) continue;
+    const par = finos.find((g) => g !== f && !usados.has(g) && g.hz === f.hz && Math.abs(g.o - f.o) > 0.2 && Math.abs(g.o - f.o) < 1.6 && Math.min(f.b, g.b) - Math.max(f.a, g.a) > 6);
+    if (!par) continue;
+    usados.add(f); usados.add(par);
+    const a = Math.max(f.a, par.a), b = Math.min(f.b, par.b), o = (f.o + par.o) / 2, mx = f.hz ? (a + b) / 2 : o, my = f.hz ? o : (a + b) / 2;
+    // si en ese lugar ya hay una pared del plano, no se pone vidrio encima
+    if (Object.values(lista).some((L) => L.some((w) => Math.hypot(w[0] - mx, w[1] - my) < 3 && Math.abs(w[2] - (b - a) * ESC) < 4 * ESC))) continue;
+    vidrios[f.est].push([mx, my, (b - a) * ESC, 0.12, f.hz ? 0 : Math.PI / 2, E.altura(mx, my) * M, (ALTO_MURO.oficinas || 3.72) * M * (f.est === "en_proceso" ? 0.5 : 1), f.i]);
+  }
   const geo = new THREE.BoxGeometry(1, 1, 1), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), eje = new THREE.Vector3(0, 1, 0);
+  for (const [est, items] of Object.entries(vidrios)) {
+    if (!items.length) continue;
+    const im = new THREE.InstancedMesh(geo, est === "falta" ? VIDRIO_FALTA : MAT_VIDRIO, items.length);
+    items.forEach(([x, y, largo, grueso, ang, base, alto], k) => { const p = aEscena(x, y); p.y = base + alto / 2; q.setFromAxisAngle(eje, -ang); im.setMatrixAt(k, m4.compose(p, q, new THREE.Vector3(largo, alto, grueso))); });
+    im.userData.idxPiezas = items.map((it) => it[7]); im.receiveShadow = true; E.edificios.add(im);
+  }
   for (const [est, items] of Object.entries(lista)) {
     if (!items.length) continue;
     const im = new THREE.InstancedMesh(geo, MAT[est], items.length);
