@@ -1314,7 +1314,7 @@ function rampaEste() {
   const p0 = 737, p1 = 767, hb = r.n[0] * M, vano = new THREE.MeshStandardMaterial({ color: 0x1b1d1f, roughness: 1 }), blanco = new THREE.MeshStandardMaterial({ color: 0xeeeeea, roughness: 0.8 });
   void vano;   // sin tapa: por la puerta se ve el sótano (ver sotano1)
   caja(1262, p0 - 0.5, 1264.4, p0, hb, hb + 2.25 * M, blanco); caja(1262, p1, 1264.4, p1 + 0.5, hb, hb + 2.25 * M, blanco); caja(1262, p0 - 0.5, 1264.4, p1 + 0.5, hb + 2.2 * M, hb + 2.3 * M, blanco);
-  const rot = etiqueta("Sótano 1 (bodega) · tocar para entrar", "#24435e"); rot.userData.entrar = "sotano1"; rot.scale.set(17, 1.4, 1); const v = aEscena(1268, (p0 + p1) / 2); rot.position.set(v.x, hb + 2.9 * M, v.z); g.add(rot);
+  const rot = etiqueta("Sótano 1 (bodega) · tocar para entrar", "#24435e"); rot.userData.entrar = "sotano1"; rot.scale.set(8, 0.75, 1); const v = aEscena(1268, (p0 + p1) / 2); rot.position.set(v.x, hb + 2.9 * M, v.z); g.add(rot);
 }
 
 // Paredes del taller y la fila del norte (Model.pdf para las medidas, fotos para materiales):

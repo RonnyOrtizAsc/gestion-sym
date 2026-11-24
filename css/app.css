@@ -565,3 +565,8 @@ nav.tabs a{font-size:11px;min-width:0;white-space:nowrap}
 .colores.mini .color i{width:26px;height:26px}
 .estados:has(.quitar){display:grid;grid-template-columns:repeat(4,1fr)}
 .estados:has(.quitar) .est{padding-left:4px;padding-right:4px;font-size:13px}
+.pestanas{display:flex;gap:6px;overflow-x:auto;margin-top:10px;scrollbar-width:none}
+.pestanas button{flex:none;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:8px 12px;font:inherit;font-size:13px;font-weight:700}
+.pestanas button[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.sec-cuerpo{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.sec-cuerpo .colores{margin:0}

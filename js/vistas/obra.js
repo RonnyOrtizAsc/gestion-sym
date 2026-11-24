@@ -13,7 +13,7 @@ import { miniatura, tarjeta, avatares, cara } from "./fotos.js";
 import { FICHAS, nEscalones, esquinas, agarraderas, moverFigura, girar, correr, guardable, figuraNueva, medidasFigura, medidaCorta, altoDe, dentroDe, centro, U, altoPared, moverRect, rectPct, cercaDe } from "./figuras.js";
 import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, CAJAS, grupoDe, queEs, pegar, ANCHO, ALTO, MATERIALES, puntas, pared, largoPared, gruesoPared, enderezar, distPared, enLinea, sobrePared, ANCHO_HUECO, CHICAS, rampaDe, piezaEn, medidasPieza, medidasArea, medidasElemento } from "./mapa-svg.js";
 // el 3D se pide con la versión: así el celular no se queda con un 3D viejo guardado (súbelo junto con sw.js)
-const ESCENA = "./escena3d.js?v=183";
+const ESCENA = "./escena3d.js?v=184";
 
 const ZOOMS = [1, 1.6, 2.4, 3.4];
 let vistaGuardada = "2d"; try { vistaGuardada = localStorage.getItem("sym-vista") || "2d"; } catch (e) {}
@@ -178,9 +178,12 @@ const borrarSiNo = (txt) => ui.borrar ? `<div class="acts confirma-borrar"><span
 // Botones grandes "de juego": cada toque cambia un poquito; no hay que escribir medidas
 const jbtn = (attr, ico, txt, extra = "") => `<button class="jbtn ${extra}" ${attr}><b aria-hidden="true">${ico}</b>${txt}</button>`;
 // Hoja de lo que se toca en Editar: arriba cómo está, luego tamaño (− valor +), color y lo demás. Todo a un toque.
+// Hoja compacta: nombre + estado siempre; lo demás en pestañas que se abren de una en una (y se pueden cerrar)
+const pestanas = (lista) => `<div class="pestanas" role="tablist">${lista.map(([k, t]) => `<button role="tab" data-sec="${k}" aria-selected="${ui.sec === k}">${t}${ui.sec === k ? " ▴" : " ▾"}</button>`).join("")}</div>`;
+const seccion = (k, html) => (ui.sec === k ? `<div class="sec-cuerpo">${html}</div>` : "");
 const fila = (txt, val, attr) => `<div class="tam-fila"><span>${txt}</span><button class="btn small" ${attr}="-1" aria-label="${txt}: menos">−</button><b>${val}</b><button class="btn small" ${attr}="1" aria-label="${txt}: más">+</button></div>`;
 const coloresEl = (e) => { const actual = (S.obra?.colores || {})["el:" + e.id];
-  return `<p class="eyebrow" style="margin:12px 0 6px">Color</p><div class="colores mini">${COLORES.map(([c, n]) => `<button class="color" data-color-el="${c}" aria-pressed="${actual === c}" title="${n}"><i style="background:${c}"></i></button>`).join("")}
+  return `<div class="colores mini">${COLORES.map(([c, n]) => `<button class="color" data-color-el="${c}" aria-pressed="${actual === c}" title="${n}"><i style="background:${c}"></i></button>`).join("")}
     ${actual ? `<button class="btn small" data-color-el="">Original</button>` : ""}</div>`; };
 function hojaPared(e) {
   if (ui.huecoSel != null && e.huecos?.[ui.huecoSel]) return hojaHueco(e);
@@ -188,19 +191,17 @@ function hojaPared(e) {
   if (ui.hueco) return `<div class="hoja-h"><div class="grow"><b>${esc(e.nombre || "Pared")}</b><small>Toca en la pared dónde va la ${ui.hueco.t}</small></div>
       <button class="btn small" data-hueco="${ui.hueco.t}">Cancelar</button></div>`;
   const largo = largoPared(e);
-  return `<div class="hoja-h"><div class="grow"><b>${esc(e.nombre || "Pared")}</b><small>${MATERIALES[e.material || "block"] || "Pared"}</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
+  return `<div class="hoja-h"><div class="grow"><b>${esc(e.nombre || "Pared")}</b><small>${MATERIALES[e.material || "block"] || "Pared"} · ${fmtM(largo)} × ${fmtM(altoPared(e, S.areas))}</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
     ${botonesEstado(e.estado, "data-estado-el", ESTADOS_EL)}
-    <p class="eyebrow" style="margin:12px 0 6px">Tamaño</p>
-    <div class="tam">${fila("Largo", fmtM(largo), "data-largo")}${fila("Alto", fmtM(altoPared(e, S.areas)), "data-alto")}${fila("Grueso", Math.round(gruesoPared(e) * 100) + " cm", "data-grueso")}</div>
-    ${coloresEl(e)}
-    <p class="eyebrow" style="margin:12px 0 6px">Puertas y ventanas</p>
-    <div class="juego">${jbtn('data-hueco="puerta"', "◫", "Poner puerta")}${jbtn('data-hueco="ventana"', "▭", "Poner ventana")}</div>
-    <p class="eyebrow" style="margin:12px 0 6px">Material</p>${chipsMaterial(e.material, "data-mat")}
+    ${pestanas([["tam", "Tamaño"], ["color", "Color"], ["huecos", "Puertas"], ["mat", "Material"], ["mas", "Más"]])}
+    ${seccion("tam", `<div class="tam">${fila("Largo", fmtM(largo), "data-largo")}${fila("Alto", fmtM(altoPared(e, S.areas)), "data-alto")}${fila("Grueso", Math.round(gruesoPared(e) * 100) + " cm", "data-grueso")}</div>`)}
+    ${seccion("color", coloresEl(e))}
+    ${seccion("huecos", `<div class="juego">${jbtn('data-hueco="puerta"', "◫", "Poner puerta")}${jbtn('data-hueco="ventana"', "▭", "Poner ventana")}</div><p class="note" style="margin:6px 0 0">Para cambiar una que ya está, tócala en el plano.</p>`)}
+    ${seccion("mat", chipsMaterial(e.material, "data-mat"))}
+    ${seccion("mas", `<form class="addrow" id="nomEl"><input id="elNombre" value="${esc(e.nombre || "")}" placeholder="Nombre (opcional)" aria-label="Nombre de la pared"><button class="btn">Guardar</button></form>
+      <div class="acts"><button class="btn small danger" data-borrar>Borrar pared</button></div>`)}
     ${e.quita ? `<div class="acts" style="margin-top:8px"><span class="note">Ya se quitó ${NOM_PARTE[e.quita]}</span><button class="btn small" data-regresa-parte>Regresarla</button></div>` : ""}
-    <div class="acts" style="margin-top:12px"><button class="btn small danger" data-borrar>Borrar</button><span style="flex:1"></span>${masOpciones()}</div>
-    ${borrarSiNo("Borrar esta pared")}
-    ${ui.mas ? `<form class="addrow" id="nomEl"><input id="elNombre" value="${esc(e.nombre || "")}" placeholder="Nombre (opcional)" aria-label="Nombre de la pared"><button class="btn">Guardar nombre</button></form>
-      <p class="note pista-puntos"><i class="pt esquina"></i> También puedes arrastrar los puntos verdes.</p>` : ""}`;
+    ${borrarSiNo("Borrar esta pared")}`;
 }
 // Paleta para pintar lo que se ve en 3D
 const COLORES = [["#cfd0cc", "Gris perla"], ["#f2f2ef", "Blanco"], ["#ece3cf", "Crema"], ["#4a4f55", "Gris grafito"], ["#1f2226", "Negro"], ["#e0b022", "Amarillo"],
@@ -237,16 +238,15 @@ function hojaElemento(e) {
   return `<div class="hoja-h"><div class="grow"><b>${esc(e.nombre || TIPOS_ELEMENTO[e.tipo] || "Elemento")}</b>
       <small>${esc(TIPOS_ELEMENTO[e.tipo] || "")}</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
     ${botonesEstado(e.estado, "data-estado-el", hoyo ? ESTADOS_HOYO : ESTADOS_EL)}
-    <p class="eyebrow" style="margin:12px 0 6px">Tamaño</p>
-    <div class="tam">${fila("Ancho", fmtM(lado(pts[0], pts[1])), "data-ancho-f")}${fila("Largo", fmtM(lado(pts[0], pts[3])), "data-largo-f")}
-      ${fila(hoyo ? "Hondo" : techo ? "Altura" : "Alto", fmtM(altoDe(e)), "data-alto")}</div>
-    ${hoyo ? "" : coloresEl(e)}
-    <div class="juego" style="margin-top:12px">${jbtn('data-girar="15"', "↻", "Girar")}${jbtn("data-copiar", "⧉", "Copiar")}${jbtn("data-borrar", "✕", "Borrar", "borrar")}</div>
+    ${pestanas([["tam", "Tamaño"], ...(hoyo ? [] : [["color", "Color"]]), ["acc", "Girar / copiar"], ["mas", "Más"]])}
+    ${seccion("tam", `<div class="tam">${fila("Ancho", fmtM(lado(pts[0], pts[1])), "data-ancho-f")}${fila("Largo", fmtM(lado(pts[0], pts[3])), "data-largo-f")}
+      ${fila(hoyo ? "Hondo" : techo ? "Altura" : "Alto", fmtM(altoDe(e)), "data-alto")}</div>`)}
+    ${hoyo ? "" : seccion("color", coloresEl(e))}
+    ${seccion("acc", `<div class="juego">${jbtn('data-girar="15"', "↻", "Girar")}${jbtn("data-copiar", "⧉", "Copiar")}${jbtn("data-borrar", "✕", "Borrar", "borrar")}</div>`)}
     ${e.tipo === "grada" ? `<div class="juego" style="margin-top:6px">${jbtn('data-escalon="1"', "＋", "Un escalón más")}${jbtn('data-escalon="-1"', "－", "Un escalón menos")}
       ${jbtn('data-subida="1"', "⟲", "Sube por otro lado")}</div>` : ""}
     ${borrarSiNo(`Borrar ${hoyo ? "este hoyo" : "esto"} del plano`)}
-    <div style="margin-top:8px">${masOpciones()}</div>
-    ${ui.mas ? `<p class="note pista-puntos"><i class="pt esquina"></i> esquinas: deformar · <i class="pt lado"></i> estirar un lado · <i class="pt centro"></i> mover</p><form class="addrow" id="nomEl"><input id="elNombre" value="${esc(e.nombre || "")}" placeholder="Nombre (ej. Zanja de aguas lluvias)" aria-label="Nombre"><button class="btn">Guardar nombre</button></form>` : ""}`;
+    ${ui.sec === "mas" ? `<div class="sec-cuerpo"><p class="note pista-puntos"><i class="pt esquina"></i> esquinas: deformar · <i class="pt lado"></i> estirar un lado · <i class="pt centro"></i> mover</p><form class="addrow" id="nomEl"><input id="elNombre" value="${esc(e.nombre || "")}" placeholder="Nombre (ej. Zanja de aguas lluvias)" aria-label="Nombre"><button class="btn">Guardar nombre</button></form></div>` : ""}`;
 }
 function hojaAgregar() {
   return `<div class="hoja-h"><div class="grow"><b>¿Qué vas a agregar?</b><small>Aparece en el centro de la pantalla. Después lo estiras y lo deformas con los dedos.</small></div>
@@ -929,6 +929,7 @@ export function render(V, { hacer, redibujar }) {
     hacer(async () => { await moverTrabajador(id, a.id); return `${primerNombre(trabajador(id).nombre)} → ${a.nombre}`; }); }));
   const he = V.querySelector("#hudEditar");
   if (he) he.onclick = () => { ui.pz = null; ui.editar = !ui.editar; ui.agregar = false; ui.herr = "mano"; ui.inicio = null; if (!es3d && innerWidth < 700) ui.zoom = ui.editar ? ZOOMS[1] : ZOOMS[0]; ui.nuevo = null; ui.elSel = null; ui.areaSel = null; ui.sel = null; ui.moviendo = false; redibujar(); };
+  $$("[data-sec]").forEach((b) => (b.onclick = () => { ui.sec = ui.sec === b.dataset.sec ? null : b.dataset.sec; redibujar(); }));
   $$("[data-hueco]").forEach((b) => (b.onclick = () => { ui.hueco = ui.hueco?.t === b.dataset.hueco ? null : { t: b.dataset.hueco }; redibujar(); }));
   $$("[data-quitar-hueco]").forEach((b) => (b.onclick = () => { ui.huecoSel = null; const e = S.elementos.find((q) => q.id === ui.elSel), k = +b.dataset.quitarHueco;
     const huecos = (e.huecos || []).filter((_, i) => i !== k); e.huecos = huecos; redibujar();
