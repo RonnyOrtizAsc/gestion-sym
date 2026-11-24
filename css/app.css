@@ -308,7 +308,9 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
 /* Trabajando = verde y sin rojo. En receso = tarjeta ROJA. Si hoy se pasó: un sellito ⏱ +min arriba a la derecha */
 .receso-card.on-break:not(.almuerzo){--break:var(--lost);--break-soft:var(--lost-soft);--on-break:#fff}
 .receso-card:not(.on-break) .turno.pasado b,.receso-card:not(.on-break) .turno.pasado small{color:var(--muted)}
-.receso-card:not(.on-break) .turno.pasado .bar i{background:var(--muted);opacity:.45}
+/* barrita: verde si va dentro de su tiempo, roja si se pasó */
+.turno .bar i{background:var(--work)}
+.turno.pasado .bar i,.receso-card .turno.pasado .bar i{background:var(--lost);opacity:1}
 .aviso-alm{background:var(--break-soft);border:1px solid var(--break);border-radius:10px;padding:8px 12px;margin:0 0 10px;font-size:14px}
 .sello-exc{display:inline-block;margin-top:3px;font-size:11px;font-weight:700;color:var(--lost);background:var(--lost-soft);border-radius:999px;padding:1px 7px;white-space:nowrap}
 .receso-card.olvido{animation:olvidoR 1.4s ease-in-out infinite}
