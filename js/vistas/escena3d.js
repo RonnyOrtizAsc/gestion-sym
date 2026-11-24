@@ -486,8 +486,10 @@ function ponerParedes(areas, piezas) {
     if (especial && PIEZAS[i][4]) return;
     if (clase === "columna") {
       if (enTaller(cx, cy) || enGalera(cx, cy)) return;   // las del taller son de acero y van con su estructura (ver estructuraTaller)
-      const alto = (ALTO_MURO[tipo] || 4.5) * M * (est === "en_proceso" ? 0.5 : 1), lado = Math.max(0.7, Math.min(2.5, c.largo * ESC));
-      lista[est].push([cx, cy, lado, lado, 0, base, alto, i]); return;
+      // cada columna con SU medida del plano (de 0.25 a 0.50 m); si el plano la dibujó como una raya, cuadrada con su lado largo
+      const alto = (ALTO_MURO[tipo] || 4.5) * M * (est === "en_proceso" ? 0.5 : 1);
+      let w = (c.x1 - c.x0) * 0.056, h = (c.y1 - c.y0) * 0.056; const mx = Math.max(w, h, 0.15); if (w < 0.08) w = mx; if (h < 0.08) h = mx;
+      lista[est].push([cx, cy, Math.min(1.4, w) * M, Math.min(1.4, h) * M, 0, base, alto, i]); return;
     }
     const alto = (especial ? 2.72 : ALTO_MURO[tipo] || 1.1) * M * (est === "en_proceso" ? 0.5 : 1);   // adentro de las casitas: hasta el cielo (2.72 m, G-06)
     for (const pl of polilineas(d)) for (let k = 1; k < pl.length; k++) {
@@ -1590,9 +1592,10 @@ function supervisor(base) {
   for (const y of [t.y0 + 2, t.y0 + 60, t.y0 + 120, t.y1 - 3]) celosia(g, P(t.x0 + 2, y, OESTE - 0.08), P(t.x1 - 2, y, ESTE - 0.08), 0.35 * M, m.acero, 0.07);   // de oeste a este, con la pendiente
   for (const x of [t.x0 + 3, t.x1 - 3]) celosia(g, P(x, t.y0 + 2, hT(x) - 0.08), P(x, t.y1 - 2, hT(x) - 0.08), 0.35 * M, m.acero, 0.07);
   const px = 830, py = 356, pv = aEscena(px, py), ap = (hT(px) - 0.4) * M;   // poste blanco con pie amarillo
-  const poste = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, ap, 12), new THREE.MeshStandardMaterial({ color: 0xf2f2f0, roughness: 0.6 }));
+  const poste = new THREE.Mesh(new THREE.BoxGeometry(0.2 * M, ap, 0.2 * M), new THREE.MeshStandardMaterial({ color: 0xf2f2f0, roughness: 0.6 }));   // tubo cuadrado de ~20 cm (foto)
   poste.position.set(pv.x, base + ap / 2, pv.z); poste.castShadow = true; g.add(poste);
-  const pie = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.6 * M, 12), m.amarillo); pie.position.set(pv.x, base + 0.3 * M, pv.z); g.add(pie);
+  const pie = new THREE.Mesh(new THREE.BoxGeometry(0.24 * M, 1.1 * M, 0.24 * M), m.amarillo); pie.position.set(pv.x, base + 0.55 * M, pv.z); g.add(pie);
+  const placa = new THREE.Mesh(new THREE.BoxGeometry(0.5 * M, 0.12 * M, 0.5 * M), m.amarillo); placa.position.set(pv.x, base + 0.06 * M, pv.z); g.add(placa);   // pedestal
   g.add(casita());
   return g;
 }
