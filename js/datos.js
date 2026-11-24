@@ -21,6 +21,7 @@ export const S = {
   piezas: {},
   anticipos: [],      // pendientes de descontar + los descontados de los últimos 120 días
   resumen: [],        // minutos de receso por persona y día (últimos 62 días)
+  asistencia: [],     // solo los días distintos a lo normal (llegó tarde, se fue temprano, faltó), últimos 62 días
   actividades: [],    // plan de obra: actividades con fechas y avance real
   planListo: false,   // false = la tabla "actividades" todavía no existe en la base (falta aplicar la migración)         // estado marcado a mano de cada pieza del plano: { idx: estado }
 };
@@ -43,7 +44,7 @@ export async function cargarPerfil() {
 
 export async function cargarTodo() {
   const hoy = inicioDelDia().toISOString();
-  const [t, s, r, h, p, o, a, el, pz, rs, an] = await Promise.all([
+  const [t, s, r, h, p, o, a, el, pz, rs, an, asi] = await Promise.all([
     sb.from("trabajadores").select("*").eq("activo", true).order("nombre"),
     sb.from("sesiones_receso").select("*").is("fin", null),
     sb.from("recesos").select("*").or(`inicio.gte.${hoy},fin.is.null`).order("inicio"),
@@ -55,7 +56,9 @@ export async function cargarTodo() {
     sb.from("piezas").select("idx, estado, obra_id"),
     sb.from("resumen_recesos").select("*").gte("fecha", new Date(Date.now() - 62 * 864e5).toISOString().slice(0, 10)),
     sb.from("anticipos").select("*").or(`descontado_en.is.null,descontado_en.gte.${new Date(Date.now() - 120 * 864e5).toISOString()}`).order("dado_en", { ascending: false }),
+    sb.from("asistencia").select("*").gte("fecha", fechaLocal(new Date(Date.now() - 62 * 864e5))),
   ]);
+  S.asistencia = asi.error ? [] : asi.data;
   S.trabajadores = ok(t); S.sesiones = ok(s); S.recesos = ok(r); S.herramientas = ok(h); S.prestamos = ok(p);
   S.obra = ok(o); S.areas = ok(a).filter((x) => !S.obra || x.obra_id === S.obra.id);
   S.elementos = ok(el).filter((x) => !S.obra || x.obra_id === S.obra.id);
@@ -86,6 +89,30 @@ export function recesoHoy(wid) {
 }
 // ---------- Almuerzo: una hora al día (puede empezar 12:00, 12:05, 12:15…; se suma aunque sea en pedazos) ----------
 export const LIMITE_ALMUERZO = 60;
+
+// ---------- Asistencia: todos entran a las 7:00 y salen a las 6:00 p. m. sin anotar nada; solo se guarda lo distinto ----------
+export const ENTRADA = "07:00", SALIDA = "18:00";
+export const fechaLocal = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const hhmmCorto = (t) => (t ? String(t).slice(0, 5) : null);
+// el día de una persona: { entrada, salida, falta, nota, distinto }
+export function diaDe(wid, fecha = fechaLocal()) {
+  const a = S.asistencia.find((x) => x.trabajador_id === wid && x.fecha === fecha);
+  return { entrada: hhmmCorto(a?.entrada) || ENTRADA, salida: hhmmCorto(a?.salida) || SALIDA, falta: !!a?.falta, nota: a?.nota || "", distinto: !!a };
+}
+export const faltaHoy = (wid) => diaDe(wid).falta;
+// guardar el día; si quedó normal (7:00 a 6:00 y no faltó) se borra la fila
+export async function ponerDia(wid, fecha, { entrada = ENTRADA, salida = SALIDA, falta = false, nota = "" } = {}) {
+  const antes = S.asistencia.find((x) => x.trabajador_id === wid && x.fecha === fecha);
+  const prev = antes ? { entrada: hhmmCorto(antes.entrada) || ENTRADA, salida: hhmmCorto(antes.salida) || SALIDA, falta: antes.falta, nota: antes.nota || "" } : {};
+  const normal = entrada === ENTRADA && salida === SALIDA && !falta && !nota;
+  S.asistencia = S.asistencia.filter((x) => x !== antes);
+  if (normal) ok(await sb.from("asistencia").delete().eq("trabajador_id", wid).eq("fecha", fecha));
+  else {
+    const fila = { trabajador_id: wid, fecha, entrada: entrada === ENTRADA ? null : entrada, salida: salida === SALIDA ? null : salida, falta, nota: nota || null, actualizado_en: new Date().toISOString() };
+    const r = ok(await sb.from("asistencia").upsert(fila, { onConflict: "trabajador_id,fecha" }).select().single()); S.asistencia.push(r);
+  }
+  anotar(() => ponerDia(wid, fecha, prev));
+}
 export function almuerzoHoy(wid) {
   const ini = inicioDelDia().getTime(), now = Date.now();
   return S.recesos.filter((r) => r.trabajador_id === wid && esAlmuerzo(r) && ms(r.inicio) >= ini)

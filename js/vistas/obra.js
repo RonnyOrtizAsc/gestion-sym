@@ -5,7 +5,7 @@
 import { S, recesoAbierto, enReceso, recesoTurno, turnoDe, turnoActual, limiteReceso, esAlmuerzo, almuerzoHoy, LIMITE_ALMUERZO, prestamosActivos, cambiarReceso, terminarReceso,
   trabajador, herramienta, area, enArea, moverTrabajador,
   ESTADOS, NOMBRE_ESTADO, TIPOS_ELEMENTO, estadoArea, agregarArea, editarArea, borrarArea, agregarElemento, editarElemento, borrarElemento,
-  ponerActividad, prestarRapido, cerrarPrestamo, disponibles, METROS_POR_UNIDAD, usarComoBodega, estadoPiezas, deshacer, puedeDeshacer, rehacer, puedeRehacer, guardarColor } from "../datos.js";
+  ponerActividad, prestarRapido, cerrarPrestamo, disponibles, METROS_POR_UNIDAD, usarComoBodega, estadoPiezas, deshacer, puedeDeshacer, rehacer, puedeRehacer, guardarColor, faltaHoy } from "../datos.js";
 import { esc, iniciales, primerNombre, ms, hhmm } from "../util.js";
 import { lugarEn, lugarDe, nombreArea, areaEn } from "./lugares.js";
 import * as planDia from "./dashboard.js";
@@ -312,8 +312,8 @@ let soltarAsa = () => {};
 // Atajos de teclado: un solo escucha para toda la app; apunta a la versión más reciente de la vista
 let teclas = () => {}; document.addEventListener("keydown", (e) => teclas(e));
 
-// Jornada: de 6 a. m. a 6 p. m. Fuera de eso todos ya salieron y el mapa queda vacío (sin tener que anotar nada).
-const JORNADA = [6, 18];
+// Jornada: de 7 a. m. a 6 p. m. Fuera de eso todos ya salieron y el mapa queda vacío (sin tener que anotar nada).
+const JORNADA = [7, 18];
 export const fueraDeJornada = (d = new Date()) => d.getHours() < JORNADA[0] || d.getHours() >= JORNADA[1];
 let tJornada;
 export function render(V, { hacer, redibujar }) {
@@ -341,11 +341,12 @@ export function render(V, { hacer, redibujar }) {
   const conArea = trabajando.filter((x) => area(x.area_id));
   const sueltos = trabajando.filter((x) => !area(x.area_id) && x.pos_x != null && x.pos_y != null);   // puestos en cualquier lugar del plano
   const sinArea = trabajando.filter((x) => !area(x.area_id) && !sueltos.includes(x));
-  const tokens = cerrada ? [] : [
+  const hoyNo = new Set(S.trabajadores.filter((w) => faltaHoy(w.id)).map((w) => w.id));   // los que faltaron no salen en el mapa
+  const tokens = (cerrada ? [] : [
     ...S.areas.flatMap((a) => posiciones(a, conArea.filter((x) => x.area_id === a.id), prop)),
     ...sueltos.map((x) => [x, +x.pos_x, +x.pos_y]),
     ...(zr ? repartir(zr, descansando, prop) : []),
-  ];
+  ]).filter(([p]) => !hoyNo.has(p.id));
   const prev = V.querySelector("#mapaScroll"), scroll = prev ? [prev.scrollLeft, prev.scrollTop] : null;
   const es3d = ui.vista === "3d";
 
@@ -361,7 +362,7 @@ export function render(V, { hacer, redibujar }) {
       <div class="flot-grupo">${ui.editar ? `<button class="flot-btn on" id="hudEditar">✓<span>Listo</span></button>` : `<button class="flot-btn icono" id="hudEditar" aria-label="Editar el plano" title="Editar el plano">${ICONO.lapiz}</button>`}
         ${ui.editar ? `<button class="flot-btn icono" id="hudDeshacer" aria-label="Deshacer lo último" title="Deshacer (Ctrl+Z)" ${puedeDeshacer() ? "" : "disabled"}>${ICONO.deshacer}</button>
           <button class="flot-btn icono" id="hudRehacer" aria-label="Rehacer" title="Rehacer (Ctrl+Y)" ${puedeRehacer() ? "" : "disabled"}>${ICONO.rehacer}</button>` : ""}
-        ${!ui.editar && cerrada ? `<span class="jornada-fin" role="status">🌙 Ya salieron todos · de 6 a 6</span>` : ""}</div>
+        ${!ui.editar && cerrada ? `<span class="jornada-fin" role="status">🌙 Ya salieron todos · de 7 a 6</span>` : ""}</div>
       <div class="flot-grupo">${ui.editar ? "" : `<button class="flot-btn icono ${ui.sinGente ? "on" : ""}" id="verGente" aria-pressed="${ui.sinGente}" aria-label="${ui.sinGente ? "Mostrar a los trabajadores" : "Ocultar a los trabajadores y ver solo el plano"}" title="${ui.sinGente ? "Mostrar trabajadores" : "Solo el plano"}">${ui.sinGente ? ICONO.ojoNo : ICONO.ojo}</button>`}
       <div class="seg mini flot-vista" role="group" aria-label="Vista"><button data-vista="2d" aria-pressed="${!es3d}">2D</button><button data-vista="3d" aria-pressed="${es3d}">3D</button></div></div>
     </div>`;
