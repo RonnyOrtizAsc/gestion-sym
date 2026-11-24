@@ -147,9 +147,9 @@ nav.tabs .badge{font-family:var(--f-mono);font-size:10px;background:var(--break)
 .area.sel{outline:3px solid var(--lime);outline-offset:-1px;background:color-mix(in srgb,var(--lime) 25%,transparent)}
 .area.zr{border:2px solid var(--break);background:color-mix(in srgb,var(--break) 14%,transparent)}
 .area.zr .an{display:block;color:var(--break)}
-.mapa.moviendo .area{border-style:solid;border-color:var(--lime-ink);background:color-mix(in srgb,var(--lime) 22%,transparent);animation:latido 1.2s ease-in-out infinite}
+.mapa.moviendo .area{border-style:solid;border-color:var(--lime-ink);background:color-mix(in srgb,var(--lime) 22%,transparent)}   /* quieto: solo se marca dónde tocar */
 .mapa.en-receso .area:not(.zr){opacity:.55}
-.mapa.en-receso .area.zr{animation:latido 1.6s ease-in-out infinite}
+.mapa.en-receso .area.zr{background:color-mix(in srgb,var(--lime) 30%,transparent)}
 @keyframes latido{50%{background:color-mix(in srgb,var(--lime) 40%,transparent)}}
 .tok{position:absolute;transform:translate(-50%,-50%);transition:left 1.2s cubic-bezier(.45,0,.2,1),top 1.2s cubic-bezier(.45,0,.2,1);background:none;border:0;padding:0;display:flex;flex-direction:column;align-items:center;gap:1px;z-index:2}
 .tok{touch-action:none;cursor:grab}
@@ -530,8 +530,8 @@ nav.tabs a{font-size:11px;min-width:0;white-space:nowrap}
 .dash-escribir{background:var(--work-soft)}
 .dash-escribir input{flex:1 1 200px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:11px;font:inherit;min-width:0}
 .plan-dia{margin-top:28px;padding-top:18px;border-top:2px solid var(--line)}
-.asa.inicio{pointer-events:none;animation:latido 1s ease-in-out infinite}
-@keyframes latido{50%{transform:scale(1.35)}}
+.asa.inicio{pointer-events:none;animation:latidoAsa 1s ease-in-out infinite}
+@keyframes latidoAsa{50%{transform:scale(1.35)}}
 /* Pintar lo elegido en 3D */
 .colores{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:6px}
 .color{display:flex;align-items:center;gap:7px;border:1.5px solid var(--line);background:var(--bg);border-radius:12px;padding:7px 8px;font-weight:700;font-size:12px;text-align:left}
@@ -549,3 +549,6 @@ nav.tabs a{font-size:11px;min-width:0;white-space:nowrap}
 .brujula .n{fill:#d0342c}.brujula .s{fill:#9aa0a6}
 .brujula text{font:800 7px Manrope,Arial,sans-serif;fill:#1d2125;text-anchor:middle;dominant-baseline:auto}
 .hora-cielo{font:700 11px Manrope,Arial,sans-serif;background:#ffffffd9;color:#1d2125;border-radius:999px;padding:1px 7px;white-space:nowrap}
+/* Sótano 1: queda debajo del rebalse; en 2D se marca con raya punteada */
+.sotano-2d{position:absolute;border:2px dashed #24435e;border-radius:6px;pointer-events:none;z-index:1}
+.sotano-2d span{position:absolute;right:4px;bottom:3px;font-size:10px;font-weight:700;color:#24435e;background:#ffffffcc;padding:1px 5px;border-radius:6px;white-space:nowrap}

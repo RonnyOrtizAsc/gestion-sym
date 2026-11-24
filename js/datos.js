@@ -436,8 +436,15 @@ async function piezasPoner(indices, estado) {
 // Marcar piezas del plano (una o muchas a la vez)
 export const estadoPiezas = (indices, estado) => piezasPoner(indices, estado);
 
-// Áreas (zonas): agregar y cambiar también se deshacen
+// Áreas (zonas): agregar y cambiar también se deshacen. Una zona nunca se sale del plano (0–100 %): si se sale,
+// la gente que se manda ahí queda fuera del mapa y no se ve.
+function enPlano(f, base = {}) {
+  if (!["x", "y", "w", "h"].some((k) => k in f)) return f;
+  const g = { ...base, ...f }, x0 = Math.max(0, +g.x), y0 = Math.max(0, +g.y), x1 = Math.min(100, +g.x + +g.w), y1 = Math.min(100, +g.y + +g.h);
+  return { ...f, x: +x0.toFixed(2), y: +y0.toFixed(2), w: +Math.max(0.5, x1 - x0).toFixed(2), h: +Math.max(0.5, y1 - y0).toFixed(2) };
+}
 async function arInsertar(fila, enS = false) {
+  fila = enPlano(fila);
   const n = ok(await sb.from("areas").insert(fila).select().single());
   FOTO.ar.set(n.id, structuredClone(n));
   if (enS && !S.areas.some((q) => q.id === n.id)) S.areas.push(structuredClone(n));
@@ -446,6 +453,7 @@ async function arInsertar(fila, enS = false) {
   return n;
 }
 async function arCambiar(id, cambios, enS = false) {
+  cambios = enPlano(cambios, FOTO.ar.get(id) || S.areas.find((q) => q.id === id) || {});
   const viejo = FOTO.ar.get(id), antes = viejo ? Object.fromEntries(Object.keys(cambios).map((k) => [k, viejo[k] ?? null])) : null;
   ok(await sb.from("areas").update(cambios).eq("id", id));
   if (viejo) Object.assign(viejo, structuredClone(cambios));

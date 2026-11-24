@@ -272,6 +272,9 @@ function crear() {
       const i = piezaBajo(e.clientX, e.clientY); if (i >= 0) { tip.hidden = true; return E.handlers?.pieza?.(i); }
     }
     ray.setFromCamera(p, camera);
+    // tocar la puerta del sótano (o su letrero): la cámara entra; desde adentro, tocarla otra vez sale a la rampa
+    { const h = ray.intersectObjects(edificios.children, true).find((q) => !q.object.isSprite || q.object.userData.entrar);
+      if (h?.object.userData.entrar) return entrarSotano(); }
     const golpe = ray.intersectObjects(gente.children, true)[0];
     if (golpe) { let o = golpe.object; while (o && !o.userData.id) o = o.parent; if (o) return E.handlers?.persona(o.userData.id); }
     const enPiso = ray.intersectObject(piso)[0];
@@ -1214,12 +1217,20 @@ function cuadros(c1, c2, rep = [40, 4]) {
 // lámparas fluorescentes dobles y, al fondo (oeste), una puerta de vidrio con marco blanco que da a la rampa central.
 const SOTANO1 = { x0: 936, x1: 1262, y0: 717, y1: 905, cielo: 2.6 };   // caras de adentro un poco metidas: el talud del terreno queda afuera
 const enSotano = (x, y) => x > SOTANO1.x0 && x < SOTANO1.x1 && y > SOTANO1.y0 && y < SOTANO1.y1;
+// Mete (o saca) la cámara al sótano por la puerta de la rampa este
+function entrarSotano() {
+  const c = E.camera.position, adentro = enSotano(c.x / ESC + ANCHO / 2, c.z / ESC + ALTO / 2) && c.y < (ABAJO + SOTANO1.cielo) * M;
+  const P = (x, y, h) => { const v = aEscena(x, y); v.y = h * M; return v; };
+  if (adentro) { E.controls.target.copy(P(1258, 752, 1.2)); c.copy(P(1318, 790, 4.5)); }
+  else { E.controls.target.copy(P(1150, 790, ABAJO + 1.1)); c.copy(P(1250, 760, ABAJO + 1.5)); }
+  E.controls.update();
+}
 function sotano1() {
   const S1 = SOTANO1, g = new THREE.Group(), b = ABAJO * M, C = b + S1.cielo * M;
   const caja = (x0, y0, x1, y1, h0, h1, mat) => { const a = aEscena(x0, y0), c = aEscena(x1, y1), m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.04, Math.abs(c.x - a.x)), Math.max(0.02, h1 - h0), Math.max(0.04, Math.abs(c.z - a.z))), mat);
     m.position.set((a.x + c.x) / 2, (h0 + h1) / 2, (a.z + c.z) / 2); g.add(m); return m; };   // adentro no entra el sol: sin sombras
   // las lámparas lo alumbran parejo: un poco de brillo propio para que no se vea gris oscuro
-  const luzP = { emissive: 0x6d6c66 };
+  const luzP = { emissive: 0x8a8984 };
   const blanco = new THREE.MeshStandardMaterial({ color: 0xf1f0ec, roughness: 0.9, ...luzP });
   const tex = (dib, rx, ry) => { const cv = document.createElement("canvas"); cv.width = cv.height = 64; const x = cv.getContext("2d"); dib(x);
     const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); return t; };
@@ -1255,7 +1266,10 @@ function sotano1() {
     caja(x - 11, y - 1.6, x + 11, y + 1.6, C - 0.06 * M, C, canal); caja(x - 10.5, y - 1.1, x + 10.5, y - 0.4, C - 0.09 * M, C - 0.05 * M, lampara); caja(x - 10.5, y + 0.4, x + 10.5, y + 1.1, C - 0.09 * M, C - 0.05 * M, lampara); }
   // tubo blanco junto a la entrada
   caja(1240, 732, 1261, 733.5, C - 0.25 * M, C - 0.15 * M, blanco);
-  const luz = new THREE.PointLight(0xfff8e8, 0.8, 30 * M); const v = aEscena(1100, 800); luz.position.set(v.x, C - 0.4 * M, v.z); g.add(luz);
+  // la puerta (y el letrero) se pueden tocar para entrar
+  const toque = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
+  const pu = caja(1261, 737, 1267, 767, b, b + 2.2 * M, toque); pu.userData.entrar = "sotano1";
+  const luz = new THREE.PointLight(0xfff8e8, 1.4, 30 * M); const v = aEscena(1100, 800); luz.position.set(v.x, C - 0.4 * M, v.z); g.add(luz);
   E.edificios.add(g);
 }
 
@@ -1301,7 +1315,7 @@ function rampaEste() {
   const p0 = 737, p1 = 767, hb = r.n[0] * M, vano = new THREE.MeshStandardMaterial({ color: 0x1b1d1f, roughness: 1 }), blanco = new THREE.MeshStandardMaterial({ color: 0xeeeeea, roughness: 0.8 });
   void vano;   // sin tapa: por la puerta se ve el sótano (ver sotano1)
   caja(1262, p0 - 0.5, 1264.4, p0, hb, hb + 2.25 * M, blanco); caja(1262, p1, 1264.4, p1 + 0.5, hb, hb + 2.25 * M, blanco); caja(1262, p0 - 0.5, 1264.4, p1 + 0.5, hb + 2.2 * M, hb + 2.3 * M, blanco);
-  const rot = etiqueta("Sótano 1 (bodega)", "#24435e"); rot.scale.set(11, 1.4, 1); const v = aEscena(1268, (p0 + p1) / 2); rot.position.set(v.x, hb + 2.9 * M, v.z); g.add(rot);
+  const rot = etiqueta("Sótano 1 (bodega) · tocar para entrar", "#24435e"); rot.userData.entrar = "sotano1"; rot.scale.set(17, 1.4, 1); const v = aEscena(1268, (p0 + p1) / 2); rot.position.set(v.x, hb + 2.9 * M, v.z); g.add(rot);
 }
 
 // Paredes del taller y la fila del norte (Model.pdf para las medidas, fotos para materiales):

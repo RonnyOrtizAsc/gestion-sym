@@ -13,7 +13,7 @@ import { miniatura, tarjeta, avatares, cara } from "./fotos.js";
 import { FICHAS, nEscalones, esquinas, agarraderas, moverFigura, girar, correr, guardable, figuraNueva, medidasFigura, medidaCorta, altoDe, dentroDe, centro, U, altoPared, moverRect, rectPct, cercaDe } from "./figuras.js";
 import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, CAJAS, grupoDe, queEs, pegar, ANCHO, ALTO, MATERIALES, puntas, pared, largoPared, gruesoPared, enderezar, distPared, enLinea, sobrePared, ANCHO_HUECO, CHICAS, rampaDe, piezaEn, medidasPieza, medidasArea, medidasElemento } from "./mapa-svg.js";
 // el 3D se pide con la versión: así el celular no se queda con un 3D viejo guardado (súbelo junto con sw.js)
-const ESCENA = "./escena3d.js?v=180";
+const ESCENA = "./escena3d.js?v=181";
 
 const ZOOMS = [1, 1.6, 2.4, 3.4];
 let vistaGuardada = "2d"; try { vistaGuardada = localStorage.getItem("sym-vista") || "2d"; } catch (e) {}
@@ -56,8 +56,11 @@ function posiciones(a, gente, prop) {
   const fijos = gente.filter((w) => enSuLugar(w, a));
   return [...fijos.map((w) => [w, +w.pos_x, +w.pos_y]), ...repartir(a, gente.filter((w) => !fijos.includes(w)), prop)];
 }
+// la parte de la zona que cae dentro del plano (una zona mal dibujada que se sale no manda a nadie fuera del mapa)
+const visible = (a) => { const x0 = Math.max(0, +a.x), y0 = Math.max(1.5, +a.y), x1 = Math.min(100, +a.x + +a.w), y1 = Math.min(99, +a.y + +a.h);
+  return x1 > x0 && y1 > y0 ? { ...a, x: x0, y: y0, w: x1 - x0, h: y1 - y0 } : { ...a, x: 50, y: 50, w: 0, h: 0 }; };
 function repartir(a, gente, prop) {
-  const n = gente.length; if (!n) return [];
+  const n = gente.length; if (!n) return []; a = visible(a);
   const aspecto = (a.w * prop) / a.h;
   const cols = Math.max(1, Math.min(n, Math.round(Math.sqrt(n * aspecto)) || 1)), filas = Math.ceil(n / cols);
   return gente.map((w, i) => [w, +a.x + (a.w * ((i % cols) + 0.5)) / cols, +a.y + (a.h * (Math.floor(i / cols) + 0.5)) / filas]);
@@ -393,6 +396,7 @@ export function render(V, { hacer, redibujar }) {
         const nombre = a.es_receso ? a.uso_actual || "Zona de receso" : a.nombre;
         return `<button class="area ${n ? "ocupada" : ""} ${a.es_receso ? "zr" : ""} ${ui.areaSel === a.id ? "sel" : ""}" data-area="${a.id}"
           style="left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%" aria-label="${esc(nombre)}, ${n} asignados"></button>`; }).join("")}
+      <div class="sotano-2d" style="left:${(929 / 1388) * 100}%;top:${(711 / 1520) * 100}%;width:${(328 / 1388) * 100}%;height:${(194 / 1520) * 100}%" aria-hidden="true"><span>Sótano 1 (bodega, abajo)</span></div>
       ${ui.sinGente || ui.editar ? "" : tokens.map(([p, x, y]) => token(p, x, y)).join("")}
       ${ui.editar && !ui.nuevo ? capaPiezas(S.piezas, ui.pz?.grupo) : ""}
       ${ui.editar ? S.elementos.map((e) => `<button class="el-btn ${e.trazo ? "pared" : ""} ${e.tipo === "techo" ? "techo" : ""} ${e.tipo === "hoyo" ? "hoyo" : ""} ${ui.elSel === e.id ? "sel" : ""}" data-el="${e.id}" style="left:${e.x}%;top:${e.y}%;width:${e.w}%;height:${e.h}%${e.trazo ? "" : ";" + recorte(e)}" aria-label="${esc(e.nombre || TIPOS_ELEMENTO[e.tipo])}"></button>`).join("") : ""}
