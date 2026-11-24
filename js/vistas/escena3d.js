@@ -1262,7 +1262,7 @@ function sotano1() {
     const sh = new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(len, 0), new THREE.Vector2(len, -d - k * 0.8), new THREE.Vector2(len - k, -d), new THREE.Vector2(k, -d), new THREE.Vector2(0, -d - k * 0.8)]);
     const geo = new THREE.ExtrudeGeometry(sh, { depth: ancho * M, bevelEnabled: false }); geo.translate(0, 0, -ancho * M / 2);
     const m = new THREE.Mesh(geo, blanco); m.position.set(a.x, C, a.z); m.rotation.y = -Math.atan2(c.z - a.z, c.x - a.x); g.add(m); };
-  viga(S1.x0, YC, S1.x1 - 2, YC, 0.35);
+  viga(S1.x0, YC, COLS[2], YC, 0.35);   // termina en la última columna: su cartela no tapa la puerta
   for (const x of COLS) viga(x, S1.y0, x, S1.y1, 0.35);
   viga(1165, YC, 1165, S1.y1, 0.3);   // la de en medio del claro grande (video: dos arcos seguidos)
   // lámparas fluorescentes dobles
