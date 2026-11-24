@@ -319,8 +319,10 @@ function nivelFijo(a) {
   if (/patio|rebalse|empleados|entrega de veh|caf[eé]|atenci|lavado/i.test(n)) return ARRIBA;   // el lavado va al nivel del patio de maniobras
   return MEDIO;
 }
-// Rampa del lado del lavado (franja este del plano): baja del patio de maniobras al nivel del taller
-const RAMPA_ESTE = { c: { x0: 1264, y0: 710, x1: 1337, y1: 1312 }, eje: "y", n: [ABAJO, ARRIBA] };
+// Rampa del lado del lavado (franja este del plano). G-02 (levantamiento): curvas de nivel de N 867.00 (y 741) a N 871.00
+// (y 1222), parejo ~15 %; arriba (sur, junto al patio, y 1307) ≈ N 871.7 y abajo (norte, y 709, puerta del SÓTANO 1) ≈ N 866.7:
+// o sea baja ~2.2 m MÁS que el piso del taller (N 868.96), hasta el sótano que queda debajo del rebalse.
+const RAMPA_ESTE = { c: { x0: 1264, y0: 710, x1: 1337, y1: 1312 }, eje: "y", n: [ABAJO - 2.2, 2.75] };
 // Rampa Chery (AR-01: "Rampa Chery 12%, a verificar"): solo la franja junto a las jardineras; el resto (carros demo) es plano.
 // Baja hacia la calle (oeste) y sube hacia el proyecto (este, nivel Chery).
 const RAMPA_CHERY = { c: { x0: 140, y0: 748, x1: 325, y1: 813 }, eje: "x", n: [ABAJO, MEDIO] };
