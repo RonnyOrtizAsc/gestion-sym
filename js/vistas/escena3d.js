@@ -319,10 +319,10 @@ function nivelFijo(a) {
   if (/patio|rebalse|empleados|entrega de veh|caf[eé]|atenci|lavado/i.test(n)) return ARRIBA;   // el lavado va al nivel del patio de maniobras
   return MEDIO;
 }
-// Rampa del lado del lavado (franja este del plano). G-02 (levantamiento): curvas de nivel de N 867.00 (y 741) a N 871.00
-// (y 1222), parejo ~15 %; arriba (sur, junto al patio, y 1307) ≈ N 871.7 y abajo (norte, y 709, puerta del SÓTANO 1) ≈ N 866.7:
-// o sea baja ~2.2 m MÁS que el piso del taller (N 868.96), hasta el sótano que queda debajo del rebalse.
-const RAMPA_ESTE = { c: { x0: 1264, y0: 710, x1: 1337, y1: 1312 }, eje: "y", n: [ABAJO - 2.2, 2.75] };
+// Rampa del lado del lavado (franja este del plano), según fotos 23-nov: piso de adopasto que baja del patio (sur) hasta el
+// nivel del taller (norte); abajo, una losita plana de concreto frente a la puerta del SÓTANO 1, pegada al piso del taller.
+const RAMPA_ESTE = { c: { x0: 1264, y0: 770, x1: 1337, y1: 1312 }, eje: "y", n: [ABAJO, ARRIBA] };
+const DESCANSO_ESTE = { c: { x0: 1264, y0: 705, x1: 1337, y1: 770 }, eje: "y", n: [ABAJO, ABAJO], sinRotulo: true };
 // Rampa Chery (AR-01: "Rampa Chery 12%, a verificar"): solo la franja junto a las jardineras; el resto (carros demo) es plano.
 // Baja hacia la calle (oeste) y sube hacia el proyecto (este, nivel Chery).
 const RAMPA_CHERY = { c: { x0: 140, y0: 748, x1: 325, y1: 813 }, eje: "x", n: [ABAJO, MEDIO] };
@@ -392,7 +392,7 @@ function prepararNiveles(areas, piezas = {}) {
   });
   const rc = areas.find((a) => /circulaci[oó]n central/i.test(a.nombre || ""));
   if (rc) { const c = caja(rc); rampas.push({ c: { x0: c.x0 - 5, x1: c.x1, y0: 850, y1: c.y1 }, eje: "y", n: [ARRIBA, ARRIBA], sinRotulo: true }); }   // arriba de la rampa: plano
-  rampas.unshift(RAMPA_ESTE, ...LADO_BOULEVARD);
+  rampas.unshift(DESCANSO_ESTE, RAMPA_ESTE, ...LADO_BOULEVARD);
   if (estadoRampa(RAMPA_CHERY, piezas) === "existe") rampas.unshift(RAMPA_CHERY);   // mientras no esté hecha, esa franja queda plana
   E.altura = (x, y) => EXAGERA * alturaReal(x, y);
   const alturaReal = (x, y) => {
@@ -1210,19 +1210,35 @@ function rampaEste() {
   const cv = document.createElement("canvas"); cv.width = cv.height = 32; const x = cv.getContext("2d");
   x.fillStyle = "#6f8a3c"; x.fillRect(0, 0, 32, 32); x.fillStyle = "#8d8f86"; for (const [a, b] of [[2, 2], [18, 2], [2, 18], [18, 18]]) x.fillRect(a, b, 12, 12);
   const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(7, 60); t.magFilter = THREE.NearestFilter;
-  const a = aEscena(r.c.x0 + 1, r.c.y0), b = aEscena(r.c.x1 - 2, r.c.y1), y0 = r.n[0] * M + 0.04, y1 = r.n[1] * M + 0.04;
+  const a = aEscena(r.c.x0 - 1, r.c.y0), b = aEscena(r.c.x1 + 0.5, r.c.y1), y0 = r.n[0] * M + 0.04, y1 = r.n[1] * M + 0.04;
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.Float32BufferAttribute([a.x, y0, a.z, b.x, y0, a.z, b.x, y1, b.z, a.x, y1, b.z], 3));
   geo.setAttribute("uv", new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2)); geo.setIndex([0, 2, 1, 0, 3, 2]); geo.computeVertexNormals();
   const piso = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: t, roughness: 0.95, side: THREE.DoubleSide })); piso.receiveShadow = true; g.add(piso);
-  // muro de contención de block (oeste) hasta el nivel del rebalse, y muro del vecino (este) con contrafuertes
+  // losita de concreto frente al sótano (plana, al nivel del taller)
+  const losa = new THREE.MeshStandardMaterial({ color: 0x9a9a94, roughness: 0.95 });
+  caja(1265, DESCANSO_ESTE.c.y0 + 2, 1300, DESCANSO_ESTE.c.y1, r.n[0] * M, r.n[0] * M + 0.05 * M, losa);
+  // muro de contención de block (oeste): del piso hasta el nivel del rebalse (arriba va la lámina de la galera)
   const block = cuadros("#8f918b", "#83857f", [60, 4]), concreto = new THREE.MeshStandardMaterial({ color: 0x8c8b84, roughness: 0.95 });
-  caja(1262, r.c.y0, 1264, r.c.y1, r.n[0] * M, ARRIBA * M + 0.3 * M, block);
-  for (let y = r.c.y0 + 8; y < r.c.y0 + 160; y += 16) { const hh = h(1330, y); caja(1331, y - 2, 1335, y + 2, hh, hh + 2.3 * M, concreto); }
-  // puerta del sótano: vano oscuro con marco amarillo, en el muro de contención al pie de la rampa
-  const p0 = 736, p1 = 754, hb = r.n[0] * M, vano = new THREE.MeshStandardMaterial({ color: 0x121416, roughness: 1 }), amarillo = new THREE.MeshStandardMaterial({ color: 0xd8a72a, roughness: 0.6 });
-  caja(1264, p0, 1264.6, p1, hb, hb + 2.1 * M, vano);
-  caja(1264, p0 - 0.8, 1265, p0, hb, hb + 2.15 * M, amarillo); caja(1264, p1, 1265, p1 + 0.8, hb, hb + 2.15 * M, amarillo); caja(1264, p0 - 0.8, 1265, p1 + 0.8, hb + 2.1 * M, hb + 2.2 * M, amarillo);
+  caja(1262, DESCANSO_ESTE.c.y0, 1264, r.c.y1, r.n[0] * M, ARRIBA * M + 0.3 * M, block);
+  // arriba del muro de block: el forro de lámina acanalada de las galeras del rebalse (foto: llega hasta el techo)
+  const cvL = document.createElement("canvas"); cvL.width = 16; cvL.height = 4; const xl = cvL.getContext("2d");
+  xl.fillStyle = "#c3c9ce"; xl.fillRect(0, 0, 16, 4); xl.fillStyle = "#9aa1a7"; xl.fillRect(0, 0, 3, 4); xl.fillStyle = "#e1e5e8"; xl.fillRect(8, 0, 2, 4);
+  for (const [y0, y1, t0, t1] of [[712, 892, 5.6, 6.6], [892, 1216, 4.2, 4.2]]) for (let y = y0; y < y1; y += 30) {
+    const ya = y, yb = Math.min(y1, y + 30), tt = (t0 + ((t1 - t0) * ((ya + yb) / 2 - y0)) / (y1 - y0));
+    const tx = new THREE.CanvasTexture(cvL); tx.wrapS = tx.wrapT = THREE.RepeatWrapping; tx.repeat.set(((yb - ya) * 0.056) / 0.076, 1);
+    caja(1262.3, ya, 1263.3, yb, ARRIBA * M + 0.3 * M, ARRIBA * M + tt * M, new THREE.MeshStandardMaterial({ map: tx, metalness: 0.45, roughness: 0.5 })); }
+  // muro del vecino (este): block alto con alambre de púas arriba; abajo, junto al taller, 5 contrafuertes de concreto y la
+  // parte de arriba del muro sale hasta la cara de los contrafuertes (foto)
+  const vecino = cuadros("#7c7e79", "#6f716c", [40, 6]), TOPE = ARRIBA * M + 3.3 * M;
+  for (let y = DESCANSO_ESTE.c.y0; y < r.c.y1; y += 20) { const y1 = Math.min(r.c.y1, y + 20); caja(1337, y, 1339.5, y1, h(1334, (y + y1) / 2) - 0.2 * M, TOPE, vecino); }
+  const CF = [745, 767, 789, 811, 833];
+  for (const y of CF) { const hh = h(1334, y); caja(1331.5, y - 2.5, 1337, y + 2.5, hh, hh + 2.5 * M, concreto); }
+  for (let y = CF[0] - 6; y < CF[4] + 6; y += 11) { const hh = h(1334, y + 5.5); caja(1331.5, y, 1337, y + 11, hh + 2.5 * M, TOPE, vecino); }
+  // puerta del sótano: vano de ~1.7 × 2.2 m sin puerta, orillas pintadas de blanco; adentro blanco y oscuro
+  const p0 = 737, p1 = 767, hb = r.n[0] * M, vano = new THREE.MeshStandardMaterial({ color: 0x1b1d1f, roughness: 1 }), blanco = new THREE.MeshStandardMaterial({ color: 0xeeeeea, roughness: 0.8 });
+  caja(1263.9, p0, 1264.3, p1, hb, hb + 2.2 * M, vano);
+  caja(1262, p0 - 0.5, 1264.4, p0, hb, hb + 2.25 * M, blanco); caja(1262, p1, 1264.4, p1 + 0.5, hb, hb + 2.25 * M, blanco); caja(1262, p0 - 0.5, 1264.4, p1 + 0.5, hb + 2.2 * M, hb + 2.3 * M, blanco);
   const rot = etiqueta("Sótano 1 (bodega)", "#24435e"); rot.scale.set(11, 1.4, 1); const v = aEscena(1268, (p0 + p1) / 2); rot.position.set(v.x, hb + 2.9 * M, v.z); g.add(rot);
 }
 
