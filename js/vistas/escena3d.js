@@ -218,7 +218,7 @@ function crear() {
     let o = hit.object, hk = null; while (o && !o.userData.elemento && !o.userData.piezas) { if (o.userData.hueco != null && hk == null) hk = o.userData.hueco; o = o.parent; }
     if (o?.userData.elemento) return { tipo: "elemento", obj: o, id: o.userData.elemento, hk, parte: hit.object.userData.parte || null, punto: [hit.point.x / ESC + ANCHO / 2, hit.point.z / ESC + ALTO / 2] };
     if (o?.userData.piezas) return null;   // gradas del plano: las resalta el plano
-    const mat = !hit.object.isInstancedMesh && [].concat(hit.object.material)[0];
+    const mat = !hit.object.isInstancedMesh && (hit.object.userData.mat0 || [].concat(hit.object.material)[0]);
     if (mat?.userData?.clave && !mat.userData.sinColor) return { tipo: "parte", obj: hit.object, nombre: mat.userData.nombre || "Pieza" };   // solo esa pieza, una por una
     return null;
   }
@@ -266,8 +266,8 @@ function crear() {
       if (o && E.handlers?.elemento?.(o.userData.elemento, hk, qh, hit.object.userData.parte || null)) { tip.hidden = true; return; }
       const q = puntoBajo(e.clientX, e.clientY);
       // cualquier otra cosa que se ve (estante, columna, caseta, techo…): se elige para pintarla
-      const mat = hit && !hit.object.isInstancedMesh && [].concat(hit.object.material)[0];
-      if (mat?.userData?.clave && !mat.userData.sinColor && E.handlers?.parte?.({ clave: hit.object.userData.pk || mat.userData.clave, nombre: mat.userData.nombre, color: "#" + mat.color.getHexString(), original: mat.userData.color0 }, q)) { tip.hidden = true; return; }
+      const mat = hit && !hit.object.isInstancedMesh && (hit.object.userData.mat0 || [].concat(hit.object.material)[0]);
+      if (mat?.userData?.clave && !mat.userData.sinColor && E.handlers?.parte?.({ clave: hit.object.userData.pk || mat.userData.clave, nombre: mat.userData.nombre, color: "#" + mat.color.getHexString(), original: mat.userData.color0, dims: hit.object.userData.dim0?.toArray() }, q)) { tip.hidden = true; return; }
       if (q && E.handlers?.pared?.(q[0], q[1])) { tip.hidden = true; return; }
       const i = piezaBajo(e.clientX, e.clientY); if (i >= 0) { tip.hidden = true; return E.handlers?.pieza?.(i); }
     }
@@ -2143,12 +2143,22 @@ function prepararColores() {
   });
   // cada pieza por separado (clave "p:…" = su material + dónde está): se puede pintar sola o quitar
   E.edificios.updateWorldMatrix(true, true); const bx = new THREE.Box3(), c = new THREE.Vector3();
+  const FALTA_P = new THREE.MeshBasicMaterial({ color: 0x5d82a8, transparent: true, opacity: 0.3, depthWrite: false });
   for (const o of sueltos) {
     const m = o.material; if (Array.isArray(m) || !m?.userData?.clave || m.userData.sinColor) continue;
-    bx.setFromObject(o).getCenter(c); const pk = `p:${m.userData.clave}@${c.x.toFixed(1)},${c.y.toFixed(1)},${c.z.toFixed(1)}`;
-    o.userData.pk = pk; const v = col[pk];
+    // la clave se saca UNA vez (con su tamaño original), así no cambia aunque se agrande
+    if (!o.userData.pk) { bx.setFromObject(o).getCenter(c); o.userData.pk = `p:${m.userData.clave}@${c.x.toFixed(1)},${c.y.toFixed(1)},${c.z.toFixed(1)}`; }
+    if (!o.userData.esc0) { o.geometry.computeBoundingBox(); const gb = o.geometry.boundingBox;
+      o.userData.esc0 = o.scale.clone(); o.userData.pos0 = o.position.clone(); o.userData.minY = gb.min.y;
+      o.userData.dim0 = gb.getSize(new THREE.Vector3()).multiply(o.scale); }
+    const pk = o.userData.pk, v = col[pk], est = col["est:" + pk], t = col["tam:" + pk];
+    // tamaño propio (largo, alto, ancho multiplicados); lo de abajo se queda en el piso
+    const [sx, sy, sz] = t ? t.split(",").map(Number) : [1, 1, 1], e0 = o.userData.esc0;
+    o.scale.set(e0.x * sx, e0.y * sy, e0.z * sz); o.position.copy(o.userData.pos0); o.position.y += o.userData.minY * (e0.y - o.scale.y);
     o.visible = v !== "quitado";
-    if (v && v !== "quitado") { o.userData.mat0 = m; const m2 = m.clone(); m2.userData = { ...m.userData }; m2.color.set(v); o.material = m2; }
+    if (est === "quitar" || est === "falta") { o.userData.mat0 = m; o.material = est === "quitar" ? NOVA : FALTA_P; continue; }
+    if (v && v !== "quitado") { o.userData.mat0 = m; const m2 = m.clone(); m2.userData = { ...m.userData }; m2.color.set(v); if (est === "en_proceso") { m2.transparent = true; m2.opacity = 0.7; } o.material = m2; }
+    else if (est === "en_proceso") { o.userData.mat0 = m; const m2 = m.clone(); m2.userData = { ...m.userData }; m2.transparent = true; m2.opacity = 0.6; m2.color.lerp(new THREE.Color(0xf2c230), 0.45); o.material = m2; }
   }
 }
 export function pintar(colores) { if (!E) return; E.colores = colores || {}; prepararColores(); }

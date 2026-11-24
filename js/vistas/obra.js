@@ -13,7 +13,7 @@ import { miniatura, tarjeta, avatares, cara } from "./fotos.js";
 import { FICHAS, nEscalones, esquinas, agarraderas, moverFigura, girar, correr, guardable, figuraNueva, medidasFigura, medidaCorta, altoDe, dentroDe, centro, U, altoPared, moverRect, rectPct, cercaDe } from "./figuras.js";
 import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, CAJAS, grupoDe, queEs, pegar, ANCHO, ALTO, MATERIALES, puntas, pared, largoPared, gruesoPared, enderezar, distPared, enLinea, sobrePared, ANCHO_HUECO, CHICAS, rampaDe, piezaEn, medidasPieza, medidasArea, medidasElemento } from "./mapa-svg.js";
 // el 3D se pide con la versión: así el celular no se queda con un 3D viejo guardado (súbelo junto con sw.js)
-const ESCENA = "./escena3d.js?v=184";
+const ESCENA = "./escena3d.js?v=185";
 
 const ZOOMS = [1, 1.6, 2.4, 3.4];
 let vistaGuardada = "2d"; try { vistaGuardada = localStorage.getItem("sym-vista") || "2d"; } catch (e) {}
@@ -181,7 +181,7 @@ const jbtn = (attr, ico, txt, extra = "") => `<button class="jbtn ${extra}" ${at
 // Hoja compacta: nombre + estado siempre; lo demás en pestañas que se abren de una en una (y se pueden cerrar)
 const pestanas = (lista) => `<div class="pestanas" role="tablist">${lista.map(([k, t]) => `<button role="tab" data-sec="${k}" aria-selected="${ui.sec === k}">${t}${ui.sec === k ? " ▴" : " ▾"}</button>`).join("")}</div>`;
 const seccion = (k, html) => (ui.sec === k ? `<div class="sec-cuerpo">${html}</div>` : "");
-const fila = (txt, val, attr) => `<div class="tam-fila"><span>${txt}</span><button class="btn small" ${attr}="-1" aria-label="${txt}: menos">−</button><b>${val}</b><button class="btn small" ${attr}="1" aria-label="${txt}: más">+</button></div>`;
+const fila = (txt, val, attr) => `<div class="tam-fila"><span>${txt}</span><button class="btn small" ${attr}="-1" aria-label="${txt}: menos">−</button><b>${val}</b><button class="btn small" ${attr}="1" aria-label="${txt}: más">+</button></div>`;   // attr puede terminar en otro atributo (recibe el ±1)
 const coloresEl = (e) => { const actual = (S.obra?.colores || {})["el:" + e.id];
   return `<div class="colores mini">${COLORES.map(([c, n]) => `<button class="color" data-color-el="${c}" aria-pressed="${actual === c}" title="${n}"><i style="background:${c}"></i></button>`).join("")}
     ${actual ? `<button class="btn small" data-color-el="">Original</button>` : ""}</div>`; };
@@ -206,13 +206,22 @@ function hojaPared(e) {
 // Paleta para pintar lo que se ve en 3D
 const COLORES = [["#cfd0cc", "Gris perla"], ["#f2f2ef", "Blanco"], ["#ece3cf", "Crema"], ["#4a4f55", "Gris grafito"], ["#1f2226", "Negro"], ["#e0b022", "Amarillo"],
   ["#e0662e", "Naranja"], ["#b8352b", "Rojo"], ["#2f6fc2", "Azul"], ["#5f9a45", "Verde"], ["#8a6a45", "Café"]];
+// Una pieza de lo dibujado a mano (fotos): la misma hoja que lo demás. Estado, tamaño y color se guardan con los colores
+// de la obra, por pieza ("est:…", "tam:…").
 function hojaParte(pt) {
-  const actual = (S.obra?.colores || {})[pt.clave] || pt.original;
-  return `<div class="hoja-h"><div class="grow"><b>${esc(pt.nombre || "Pieza")}</b><small>Toca un color para pintarlo</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
-    <div class="colores">${COLORES.map(([c, n]) => `<button class="color" data-color="${c}" aria-pressed="${actual === c}" title="${n}"><i style="background:${c}"></i>${n}</button>`).join("")}</div>
-    <div class="acts" style="margin-top:10px">${(S.obra?.colores || {})[pt.clave] ? `<button class="btn small" data-color-original>Volver al color original</button>` : ""}
-      ${pt.cara ? `<button class="btn small" data-abrir-cara="${pt.cara}">Puertas y ventanas de esta pared</button>` : ""}</div>`;
+  const col = S.obra?.colores || {}, actual = col[pt.clave] || pt.original, est = col["est:" + pt.clave] || "existe";
+  const esc3 = (col["tam:" + pt.clave] || "1,1,1").split(",").map(Number), d0 = pt.dims || [1, 1, 1], d = d0.map((v, i) => v * esc3[i] / M3);
+  return `<div class="hoja-h"><div class="grow"><b>${esc(pt.nombre || "Pieza")}</b><small>${fmtM(d[0])} × ${fmtM(d[1])} × ${fmtM(d[2])}</small></div><button class="x" data-cerrar aria-label="Cerrar">×</button></div>
+    ${botonesEstado(est, "data-estado-parte", ESTADOS_EL)}
+    ${pestanas([["tam", "Tamaño"], ["color", "Color"], ["mas", "Más"]])}
+    ${seccion("tam", `<div class="tam">${fila("Largo", fmtM(d[0]), 'data-tam-parte="0" data-d')}${fila("Alto", fmtM(d[1]), 'data-tam-parte="1" data-d')}${fila("Ancho", fmtM(d[2]), 'data-tam-parte="2" data-d')}</div>
+      ${col["tam:" + pt.clave] ? `<div class="acts" style="margin-top:8px"><button class="btn small" data-tam-original>Tamaño original</button></div>` : ""}`)}
+    ${seccion("color", `<div class="colores mini">${COLORES.map(([c, n]) => `<button class="color" data-color="${c}" aria-pressed="${actual === c}" title="${n}"><i style="background:${c}"></i></button>`).join("")}
+      ${col[pt.clave] && col[pt.clave] !== "quitado" ? `<button class="btn small" data-color-original>Original</button>` : ""}</div>`)}
+    ${seccion("mas", `<div class="acts"><button class="btn small danger" data-quitar-parte>Quitar del 3D</button>
+      ${pt.cara ? `<button class="btn small" data-abrir-cara="${pt.cara}">Puertas y ventanas de esta pared</button>` : ""}</div>`)}`;
 }
+const M3 = 0.1 / 0.056;   // unidades de la escena por metro
 // Cara de una caseta existente: aquí solo se quitan, ponen o cambian sus puertas y ventanas (la caseta se queda como está)
 function hojaCara(e) {
   const [edif, cara] = (e.nombre || "Caseta · cara").split(" · ");
@@ -897,6 +906,17 @@ export function render(V, { hacer, redibujar }) {
     hacer(async () => { await guardarColor(pt.clave, c, antes); return `${pt.nombre}: ${b.title}`; }); }));
   $$("[data-color-original]").forEach((b) => (b.onclick = () => { const pt = ui.parte; if (!pt) return; const antes = (S.obra.colores || {})[pt.clave] ?? null; const col = { ...(S.obra.colores || {}) }; delete col[pt.clave]; S.obra.colores = col; redibujar();
     hacer(async () => { await guardarColor(pt.clave, null, antes); return `${pt.nombre}: color original`; }); }));
+  // estado, tamaño y quitar de una pieza dibujada a mano (se guarda como un "color" más de la obra)
+  const guardaParte = (k, v, msg) => { const antes = (S.obra.colores || {})[k] ?? null, col = { ...(S.obra.colores || {}) };
+    if (v == null) delete col[k]; else col[k] = v; S.obra.colores = col; redibujar(); hacer(async () => { await guardarColor(k, v, antes); return msg; }); };
+  $$("[data-estado-parte]").forEach((b) => (b.onclick = () => { const pt = ui.parte; if (!pt) return; const e = b.dataset.estadoParte;
+    guardaParte("est:" + pt.clave, e === "existe" ? null : e, `${pt.nombre}: ${ESTADOS_EL[e]}`); }));
+  $$("[data-tam-parte]").forEach((b) => (b.onclick = () => { const pt = ui.parte; if (!pt?.dims) return; const i = +b.dataset.tamParte, k = "tam:" + pt.clave;
+    const f = ((S.obra.colores || {})[k] || "1,1,1").split(",").map(Number), m0 = pt.dims[i] / M3, nuevo = Math.max(0.1, m0 * f[i] + 0.25 * +b.dataset.d);
+    f[i] = +(nuevo / m0).toFixed(3); const v = f.every((x) => Math.abs(x - 1) < 0.001) ? null : f.join(",");
+    guardaParte(k, v, `${["Largo", "Alto", "Ancho"][i]}: ${fmtM(nuevo)}`); }));
+  $$("[data-tam-original]").forEach((b) => (b.onclick = () => { const pt = ui.parte; if (pt) guardaParte("tam:" + pt.clave, null, "Tamaño original"); }));
+  $$("[data-quitar-parte]").forEach((b) => (b.onclick = () => { const pt = ui.parte; if (!pt) return; ui.parte = null; guardaParte(pt.clave, "quitado", `${pt.nombre}: quitado (↶ lo regresa)`); }));
   $$("[data-abrir-cara]").forEach((b) => (b.onclick = () => elegir(b.dataset.abrirCara)));
   // Puertas y ventanas de una caseta, una por una
   $$("[data-regresa-parte]").forEach((b) => (b.onclick = () => { const e = S.elementos.find((q) => q.id === ui.elSel); if (!e) return; e.quita = null; redibujar();
