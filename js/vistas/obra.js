@@ -5,7 +5,7 @@
 import { S, recesoAbierto, enReceso, recesoTurno, turnoDe, turnoActual, limiteReceso, esAlmuerzo, almuerzoHoy, LIMITE_ALMUERZO, prestamosActivos, cambiarReceso, terminarReceso,
   trabajador, herramienta, area, enArea, moverTrabajador,
   ESTADOS, NOMBRE_ESTADO, TIPOS_ELEMENTO, estadoArea, agregarArea, editarArea, borrarArea, agregarElemento, editarElemento, borrarElemento,
-  ponerActividad, prestarRapido, cerrarPrestamo, disponibles, METROS_POR_UNIDAD, usarComoBodega, estadoPiezas, deshacer, puedeDeshacer, rehacer, puedeRehacer, guardarColor, faltaHoy } from "../datos.js";
+  ponerActividad, prestarRapido, cerrarPrestamo, disponibles, METROS_POR_UNIDAD, usarComoBodega, estadoPiezas, deshacer, puedeDeshacer, rehacer, puedeRehacer, guardarColor } from "../datos.js";
 import { esc, iniciales, primerNombre, ms, hhmm } from "../util.js";
 import { lugarEn, lugarDe, nombreArea, areaEn } from "./lugares.js";
 import * as planDia from "./dashboard.js";
@@ -344,12 +344,11 @@ export function render(V, { hacer, redibujar }) {
   const conArea = trabajando.filter((x) => area(x.area_id));
   const sueltos = trabajando.filter((x) => !area(x.area_id) && x.pos_x != null && x.pos_y != null);   // puestos en cualquier lugar del plano
   const sinArea = trabajando.filter((x) => !area(x.area_id) && !sueltos.includes(x));
-  const hoyNo = new Set(S.trabajadores.filter((w) => faltaHoy(w.id)).map((w) => w.id));   // los que faltaron no salen en el mapa
   const tokens = (cerrada ? [] : [
     ...S.areas.flatMap((a) => posiciones(a, conArea.filter((x) => x.area_id === a.id), prop)),
     ...sueltos.map((x) => [x, +x.pos_x, +x.pos_y]),
     ...(zr ? repartir(zr, descansando, prop) : []),
-  ]).filter(([p]) => !hoyNo.has(p.id));
+  ]);
   const prev = V.querySelector("#mapaScroll"), scroll = prev ? [prev.scrollLeft, prev.scrollTop] : null;
   const es3d = ui.vista === "3d";
 

@@ -2,41 +2,12 @@
 // Cada turno suma todos los pedazos de receso; si alguien se pasa, se marca en rojo y cuenta como tiempo perdido.
 import { S, recesoAbierto, cambiarReceso, terminarReceso, trabajador, borrarRecesosHoy,
   limiteReceso, turnoDe, turnoActual, recesoTurno, excesoHoy, esAlmuerzo, almuerzoHoy, excesoAlmuerzo, LIMITE_ALMUERZO, enReceso,
-  estadoAvisos, activarAvisos, regresarEn, ponerHoras, diaDe, ponerDia, fechaLocal, ENTRADA, SALIDA } from "../datos.js";
+  estadoAvisos, activarAvisos, regresarEn, ponerHoras } from "../datos.js";
 import { cara } from "./fotos.js";
 import { esc, minutos, dur, hhmm, ms } from "../util.js";
 
-const ui = { periodo: "semana", borrar: false, tipo: "receso", pregunta: null, tipoElegido: null, corrige: null, dia: null, fechaA: null };   // fechaA: día de asistencia que se está viendo (null = hoy)   // corrige: { id, fin }; dia: trabajador cuya asistencia se edita
+const ui = { periodo: "semana", borrar: false, tipo: "receso", pregunta: null, tipoElegido: null, corrige: null };   // corrige: { id, fin }
 
-// ---------- Asistencia ----------
-const h12 = (t) => { const [h, mi] = t.split(":").map(Number); return `${((h + 11) % 12) + 1}:${String(mi).padStart(2, "0")}${h < 12 ? " a. m." : " p. m."}`; };
-const aMin = (t) => { const [h, mi] = t.split(":").map(Number); return h * 60 + mi; };
-const fA = () => ui.fechaA || fechaLocal();
-const nombreDia = (f) => f === fechaLocal() ? "hoy" : new Date(f + "T12:00").toLocaleDateString("es", { weekday: "long", day: "numeric", month: "short" });
-function editorDia() {
-  const w = ui.dia && trabajador(ui.dia); if (!w) return "";
-  const d = diaDe(ui.dia, fA());
-  return `<div class="pregunta-r corrige" role="dialog" aria-label="Asistencia de ${esc(w.nombre)}"><p><b>${esc(w.nombre)}</b> · ${nombreDia(fA())}</p>
-    <div class="horas-c"><label>Entró<input type="time" id="aEnt" value="${d.entrada}"></label><label>Salió<input type="time" id="aSal" value="${d.salida}"></label></div>
-    <p class="err" id="errA" hidden></p>
-    <div class="acts"><button class="btn primary" data-dia-guardar>Guardar</button><button class="btn ${d.falta ? "" : "danger"}" data-dia-falta>${d.falta ? "Sí vino" : "Faltó"}</button>
-      ${d.distinto ? `<button class="btn" data-dia-normal>Normal (7 a 6)</button>` : ""}<button class="btn small" data-dia-cancelar>Cancelar</button></div></div>`;
-}
-// horas trabajadas de una persona desde una fecha (lunes a sábado; 7:00 a 6:00 menos la hora de almuerzo, salvo lo anotado)
-function horasDesde(w, desde) {
-  const hoy = new Date(), ini = new Date(desde + "T00:00"), alta = w.creado_en ? new Date(w.creado_en) : ini; alta.setHours(0, 0, 0, 0);
-  let min = 0, dias = 0, faltas = 0, tarde = 0;
-  for (const d = new Date(Math.max(ini, alta)); d <= hoy; d.setDate(d.getDate() + 1)) {
-    if (d.getDay() === 0) continue;   // domingo no se trabaja
-    const f = fechaLocal(d), dd = diaDe(w.id, f), esHoy = f === fechaLocal(hoy);
-    if (dd.falta) { faltas++; continue; }
-    const e = aMin(dd.entrada); let sMin = aMin(dd.salida);
-    if (esHoy) { const ahora = hoy.getHours() * 60 + hoy.getMinutes(); if (ahora <= e) continue; sMin = Math.min(sMin, ahora); }
-    const alm = Math.max(0, Math.min(sMin, 13 * 60) - Math.max(e, 12 * 60));   // la hora de almuerzo (12 a 1) no cuenta
-    min += Math.max(0, sMin - e - alm); dias++; if (e > aMin(ENTRADA)) tarde += e - aMin(ENTRADA);
-  }
-  return { min, dias, faltas, tarde };
-}
 const limiteDe = (r) => (esAlmuerzo(r) ? LIMITE_ALMUERZO : limiteReceso());
 // el receso de hoy que más se pasó de esa persona (el abierto primero)
 const paraCorregir = (wid) => recesoAbierto(wid) || S.recesos.filter((r) => r.trabajador_id === wid && r.fin)
@@ -126,13 +97,6 @@ export function render(V, { hacer, redibujar }) {
       <span class="fila"><span class="av">${cara(w)}</span><span class="who"><b>${esc(w.nombre)}</b><small>${r ? (esAlmuerzo(r) ? "Almorzando" : "En receso") : "Trabajando"}</small>${exc >= 1 ? `<span class="sello-exc" data-corregir title="Tocar para corregir la hora de regreso">⏱ +${exc} min ✎</span>` : ""}</span></span>
       ${turno(w, "manana")}${turno(w, "almuerzo")}${turno(w, "tarde")}</button>`; }).join("")}</div>
 
-  <div class="section" id="asistencia"><div class="titulo-fila"><p class="eyebrow" style="margin:0">Asistencia · 7 a. m. a 6 p. m.</p>
-      <input type="date" id="fechaA" value="${fA()}" max="${fechaLocal()}" aria-label="Día" style="font:inherit;padding:4px 8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)"></div>
-    <p class="note" style="margin-top:6px">Todos cuentan de 7 a 6. Con lo que anota el vigilante, toca a quien entró tarde, salió antes o faltó (puedes escoger otro día).</p>
-    ${editorDia()}
-    <div class="list">${S.trabajadores.map((w) => { const d = diaDe(w.id, fA());
-      return `<div class="li tocable" data-dia="${w.id}" role="button" tabindex="0"><div class="grow"><b>${esc(w.nombre)}</b><small>${d.falta ? "No vino" : `${h12(d.entrada)} → ${h12(d.salida)}`}</small></div>
-        ${d.falta ? `<span class="pill lost">Faltó</span>` : d.entrada !== ENTRADA ? `<span class="pill lost">Llegó tarde</span>` : d.salida !== SALIDA ? `<span class="pill">Salió antes</span>` : `<span class="pill ok">Normal</span>`}<span class="lapiz-c" aria-hidden="true">✎</span></div>`; }).join("")}</div></div>
 
   <div class="section"><div class="titulo-fila"><p class="eyebrow" style="margin:0">Datos por persona</p>
     <div class="seg mini" role="group" aria-label="Periodo"><button data-periodo="semana" aria-pressed="${ui.periodo === "semana"}">Esta semana</button><button data-periodo="mes" aria-pressed="${ui.periodo === "mes"}">Este mes</button></div></div>
@@ -145,12 +109,7 @@ export function render(V, { hacer, redibujar }) {
         <div class="bar"><i style="width:${Math.min(100, (f.min / f.dias.size / (lim * 2)) * 100)}%;${f.exceso ? "background:var(--lost)" : ""}"></i></div></div>
         ${f.exceso ? `<span class="pill lost">+${f.exceso} min</span>` : `<span class="pill ok">Al día</span>`}</div>`).join("")
       : `<div class="empty">Aún no hay recesos en ${ui.periodo === "semana" ? "esta semana" : "este mes"}.</div>`}</div>
-    <p class="note">“Tiempo perdido” es lo que se pasaron de los ${lim} min de cada receso y de la hora de almuerzo.</p>
-    <p class="eyebrow" style="margin-top:16px">Horas trabajadas ${ui.periodo === "semana" ? "esta semana" : "este mes"}</p>
-    <div class="list">${S.trabajadores.map((w) => ({ w, ...horasDesde(w, desde) })).map((f) => `<div class="li"><div class="grow"><b>${esc(f.w.nombre)}</b>
-        <small>${f.dias} ${f.dias === 1 ? "día" : "días"}${f.faltas ? ` · ${f.faltas} ${f.faltas === 1 ? "falta" : "faltas"}` : ""}${f.tarde ? ` · llegó tarde ${minutos(f.tarde * 60000)}` : ""}</small></div>
-        <span class="num">${Math.floor(f.min / 60)} h${f.min % 60 ? ` ${f.min % 60} min` : ""}</span></div>`).join("")}</div>
-    <p class="note">Cuenta de lunes a sábado, de 7 a 6 menos la hora de almuerzo (12 a 1), con lo que se anotó en Asistencia.</p></div>
+    <p class="note">“Tiempo perdido” es lo que se pasaron de los ${lim} min de cada receso y de la hora de almuerzo.</p></div>
 
   <div class="section"><p class="eyebrow">Registro de hoy</p><div class="list">
     ${registro.length ? registro.map((r) => `<div class="li tocable" data-corregir-r="${r.id}" role="button" tabindex="0" title="Tocar para corregir la hora"><div class="grow"><b>${esc(trabajador(r.trabajador_id).nombre)}</b><small>${esAlmuerzo(r) ? "Almuerzo" : NOMBRE_TURNO[turnoDe(r.inicio)]} · ${hhmm(r.inicio)} → ${hhmm(r.fin)}</small></div><span class="num">${dur(ms(r.fin) - ms(r.inicio))}</span><span class="lapiz-c" aria-hidden="true">✎</span></div>`).join("")
@@ -199,17 +158,6 @@ export function render(V, { hacer, redibujar }) {
   V.querySelectorAll("[data-tipo]").forEach((b) => (b.onclick = () => { ui.tipoElegido = { tipo: b.dataset.tipo, dia: new Date().toDateString(), alm: horaAlmuerzo() }; redibujar(); }));
   on2("#todosAlm", () => hacer(async () => { const ws = S.trabajadores.filter((w) => !recesoAbierto(w.id) && !almuerzoHoy(w.id));
     for (const w of ws) await cambiarReceso(w.id, "almuerzo"); return `${ws.length} a almorzar`; }));
-  // asistencia
-  V.querySelectorAll("[data-dia]").forEach((e) => (e.onclick = () => { ui.dia = ui.dia === e.dataset.dia ? null : e.dataset.dia; redibujar(); V.querySelector("#asistencia .corrige")?.scrollIntoView({ block: "center", behavior: "smooth" }); }));
-  on2("[data-dia-cancelar]", () => { ui.dia = null; redibujar(); });
-  const fe = V.querySelector("#fechaA"); if (fe) fe.onchange = () => { ui.fechaA = fe.value && fe.value !== fechaLocal() ? fe.value : null; ui.dia = null; redibujar(); };
-  on2("[data-dia-normal]", () => { const w = trabajador(ui.dia), id = ui.dia, f = fA(); ui.dia = null; hacer(async () => { await ponerDia(id, f); return `${w.nombre}: normal, de 7 a 6`; }); });
-  on2("[data-dia-falta]", () => { const w = trabajador(ui.dia), id = ui.dia, f = fA(), d = diaDe(id, f); ui.dia = null;
-    hacer(async () => { await ponerDia(id, f, { ...d, falta: !d.falta }); return d.falta ? `${w.nombre} sí vino` : `${w.nombre} faltó (${nombreDia(f)})`; }); });
-  on2("[data-dia-guardar]", () => { const w = trabajador(ui.dia), id = ui.dia, f = fA(), d = diaDe(id, f), err = V.querySelector("#errA");
-    const ent = V.querySelector("#aEnt").value || ENTRADA, sal = V.querySelector("#aSal").value || SALIDA;
-    if (aMin(sal) <= aMin(ent)) { err.textContent = "La salida tiene que ser después de la entrada."; err.hidden = false; return; }
-    ui.dia = null; hacer(async () => { await ponerDia(id, f, { entrada: ent, salida: sal, falta: false, nota: d.nota }); return `${w.nombre}: ${h12(ent)} a ${h12(sal)}`; }); });
   V.querySelectorAll("[data-periodo]").forEach((b) => (b.onclick = () => { ui.periodo = b.dataset.periodo; redibujar(); }));
   function on2(id, f) { const e = V.querySelector(id); if (e) e.onclick = f; }
   const on = (id, f) => { const e = V.querySelector(id); if (e) e.onclick = f; };
