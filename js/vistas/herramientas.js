@@ -4,8 +4,10 @@ import { S, prestamosActivos, disponibles, prestadas, perdidas, herramienta, tra
   CATEGORIAS, categoriaDe, nombreCategoria, cambiarCategoria, textoBusqueda } from "../datos.js";
 import { esc, hhmm, fecha, esHoy, primerNombre } from "../util.js";
 import { miniatura, tarjeta, tomarFoto, avatares } from "./fotos.js";
+import * as perro from "./perrito.js";
 
-const ui = { vista: "prestar", w: null, h: null, q: 1, confirmar: null, borrar: null, buscar: "", cat: null, catDe: null };
+// hs: herramientas elegidas (varias a la vez, una de cada una); guia: paso del perrito (0 = apagado)
+const ui = { vista: "prestar", w: null, hs: [], guia: 0, confirmar: null, borrar: null, buscar: "", cat: null, catDe: null };
 
 // Buscador + filtros por categoría: escribir filtra al instante (sin tildes, por cualquier parte del nombre)
 function filtradas() {
@@ -25,20 +27,23 @@ function porCategoria(lista, pinta) {
 }
 const nadaEncontrado = () => `<p class="note">No encontré “${esc(ui.buscar)}”${ui.cat ? ` en ${nombreCategoria(ui.cat)}` : ""}. <button class="linkbtn" data-limpiar>Ver todas</button></p>`;
 
+function textoBoton() {
+  if (!ui.w || !ui.hs.length) return "Elige persona y herramientas";
+  const n = ui.hs.length, a = primerNombre(trabajador(ui.w).nombre);
+  return n === 1 ? `Prestar ${herramienta(ui.hs[0]).nombre} a ${a}` : `Prestar ${n} herramientas a ${a}`;
+}
 export function render(V, ctx) {
   const { hacer, redibujar } = ctx;
   const segs = [["prestar", "Prestar"], ["prestadas", `Prestadas (${prestamosActivos().length})`], ["inventario", "Inventario"]];
   let cuerpo = "";
 
   if (ui.vista === "prestar") {
-    const h = S.herramientas.find((x) => x.id === ui.h), max = h ? disponibles(h) : 1;
-    if (ui.q > max) ui.q = Math.max(1, max);
-    cuerpo = `<div class="prestar-grid"><div class="step"><h3>1 · ¿A quién?</h3>${avatares(S.trabajadores, { attr: "data-pw", seleccionado: ui.w })}</div>
-    <div class="step"><div class="step-h"><h3>2 · ¿Qué herramienta?</h3>${S.herramientas.length ? buscador() : ""}</div>${S.herramientas.length
-      ? (filtradas().length ? porCategoria(filtradas(), (hs) => `<div class="tarjetas">${hs.map((x) => tarjeta(x, { attr: "data-ph", seleccionada: ui.h === x.id, disponibles: disponibles(x) })).join("")}</div>`) : nadaEncontrado())
+    ui.hs = ui.hs.filter((id) => { const h = herramienta(id); return h && disponibles(h) > 0; });
+    cuerpo = `<div class="prestar-grid"><div class="step" id="pasoQuien"><div class="step-h"><h3>1 · ¿A quién?</h3><button class="ayuda" id="ayudaPrestar" aria-label="Ayuda: cómo prestar">?</button></div>${avatares(S.trabajadores, { attr: "data-pw", seleccionado: ui.w })}</div>
+    <div class="step" id="pasoQue"><div class="step-h"><h3>2 · ¿Qué herramientas? <small class="note">puedes elegir varias</small></h3>${S.herramientas.length ? buscador() : ""}</div>${S.herramientas.length
+      ? (filtradas().length ? porCategoria(filtradas(), (hs) => `<div class="tarjetas">${hs.map((x) => tarjeta(x, { attr: "data-ph", seleccionada: ui.hs.includes(x.id), disponibles: disponibles(x) })).join("")}</div>`) : nadaEncontrado())
       : `<p class="note">Todavía no hay herramientas. Agrégalas en <button class="linkbtn" data-seg="inventario">Inventario</button>.</p>`}</div></div>
-    <div class="step"><h3>3 · ¿Cuántas?</h3><div class="qty"><button id="qm" aria-label="Menos">−</button><output>${ui.q}</output><button id="qp" aria-label="Más">+</button><span class="note" id="qDisp" style="margin:0">${h ? `disponibles: ${max}` : ""}</span></div></div>
-    <button class="btn primary big" id="prestar" ${ui.w && h && max > 0 ? "" : "disabled"}>${ui.w && h ? `Prestar ${ui.q} × ${esc(h.nombre)} a ${esc(primerNombre(trabajador(ui.w).nombre))}` : "Elige persona y herramienta"}</button>`;
+    <button class="btn primary big" id="prestar" ${ui.w && ui.hs.length ? "" : "disabled"}>${esc(textoBoton())}</button>`;
   } else if (ui.vista === "prestadas") {
     const por = {};
     prestamosActivos().forEach((p) => (por[p.trabajador_id] = por[p.trabajador_id] || []).push(p));
@@ -79,28 +84,32 @@ export function render(V, ctx) {
   $$("[data-ponercat]").forEach((b) => (b.onclick = () => { ui.catDe = null; hacer(async () => { await cambiarCategoria(b.dataset.h, b.dataset.ponercat); return `Movida a ${nombreCategoria(b.dataset.ponercat)}`; }); }));
   // Elegir persona, herramienta y cantidad: se actualiza solo lo que cambia (sin redibujar), así la pantalla no brinca hacia arriba
   const actualizar = () => {
-    const h = S.herramientas.find((x) => x.id === ui.h), max = h ? disponibles(h) : 1;
-    if (ui.q > max) ui.q = Math.max(1, max);
     $$("[data-pw]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.pw === ui.w)));
-    $$("[data-ph]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.ph === ui.h)));
-    const o = V.querySelector(".qty output"); if (o) o.textContent = ui.q;
-    const d = V.querySelector("#qDisp"); if (d) d.textContent = h ? `disponibles: ${max}` : "";
+    $$("[data-ph]").forEach((b) => b.setAttribute("aria-pressed", String(ui.hs.includes(b.dataset.ph))));
     const pb = V.querySelector("#prestar"); if (!pb) return;
-    pb.disabled = !(ui.w && h && max > 0);
-    pb.textContent = ui.w && h ? `Prestar ${ui.q} × ${h.nombre} a ${primerNombre(trabajador(ui.w).nombre)}` : "Elige persona y herramienta";
+    pb.disabled = !(ui.w && ui.hs.length); pb.textContent = textoBoton();
+    const ok = document.querySelector("[data-perro-ok]"); if (ok && ui.guia === 3) ok.disabled = !ui.hs.length;
   };
-  $$("[data-pw]").forEach((b) => (b.onclick = () => { ui.w = b.dataset.pw; actualizar(); }));
-  $$("[data-ph]").forEach((b) => (b.onclick = () => { ui.h = b.dataset.ph; ui.q = 1; actualizar(); }));
-  const qm = V.querySelector("#qm");
-  if (qm) {
-    qm.onclick = () => { ui.q = Math.max(1, ui.q - 1); actualizar(); };
-    V.querySelector("#qp").onclick = () => { const h = S.herramientas.find((x) => x.id === ui.h); ui.q = Math.min(h ? disponibles(h) : 1, ui.q + 1); actualizar(); };
-  }
+  $$("[data-pw]").forEach((b) => (b.onclick = () => { ui.w = b.dataset.pw; actualizar(); if (ui.guia === 2) paso(3); }));
+  $$("[data-ph]").forEach((b) => (b.onclick = () => { const id = b.dataset.ph; ui.hs = ui.hs.includes(id) ? ui.hs.filter((x) => x !== id) : [...ui.hs, id]; actualizar(); }));
   const pb = V.querySelector("#prestar");
-  if (pb) pb.onclick = () => hacer(async () => {
-    const msg = `${ui.q} × ${herramienta(ui.h).nombre} → ${trabajador(ui.w).nombre}`;
-    await prestar(ui.h, ui.w, ui.q); ui.w = null; ui.h = null; ui.q = 1; ui.vista = "prestadas"; return msg;
-  });
+  if (pb) pb.onclick = () => { const conGuia = ui.guia === 4; hacer(async () => {
+    const w = trabajador(ui.w), lista = ui.hs.map(herramienta);
+    for (const h of lista) await prestar(h.id, ui.w, 1);   // una de cada una, todas a la misma persona
+    ui.w = null; ui.hs = []; ui.vista = "prestadas";
+    if (conGuia) { ui.guia = 0; setTimeout(() => { perro.mostrar("¡Listo! Ahora ya sabes. 🐾"); setTimeout(perro.ocultar, 2600); }, 300); }
+    return `${lista.length === 1 ? lista[0].nombre : lista.length + " herramientas"} → ${w.nombre}`;
+  }); };
+  // Perrito guía: ? → saluda → persona → herramientas → Prestar → listo
+  const paso = (n) => {
+    ui.guia = n; const fin = () => { ui.guia = 0; };
+    if (n === 1) perro.mostrar("¡Te ayudo a prestar herramienta!", { tocarParaSeguir: () => paso(2), cerrar: fin });
+    else if (n === 2) perro.mostrar("Toca el trabajador que prestará la herramienta", { objetivo: V.querySelector("#pasoQuien .avatares") || V.querySelector("#pasoQuien"), cerrar: fin });
+    else if (n === 3) { perro.mostrar("Selecciona las herramientas que quieres prestar", { objetivo: V.querySelector("#pasoQue"), boton: { texto: "Ya las elegí ›", alTocar: () => paso(4) }, cerrar: fin }); actualizar(); }
+    else if (n === 4) perro.mostrar("Si estás seguro, presiona en <b>Prestar</b>", { objetivo: V.querySelector("#prestar"), cerrar: fin });
+  };
+  const ay = V.querySelector("#ayudaPrestar"); if (ay) ay.onclick = (e) => { e.stopPropagation(); ui.vista = "prestar"; paso(1); };
+  if (ui.vista !== "prestar" && ui.guia) { ui.guia = 0; perro.ocultar(); }
   $$("[data-devolvio]").forEach((b) => (b.onclick = () => hacer(async () => { await cerrarPrestamo(b.dataset.devolvio, "devuelto"); return "Devuelta a bodega"; })));
   $$("[data-preguntar]").forEach((b) => (b.onclick = () => { ui.confirmar = b.dataset.preguntar; redibujar(); }));
   $$("[data-cancelar]").forEach((b) => (b.onclick = () => { ui.confirmar = null; redibujar(); }));
