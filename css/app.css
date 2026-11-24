@@ -547,4 +547,3 @@ nav.tabs a{font-size:11px;min-width:0;white-space:nowrap}
 .brujula .n{fill:#d0342c}.brujula .s{fill:#9aa0a6}
 .brujula text{font:800 7px Manrope,Arial,sans-serif;fill:#1d2125;text-anchor:middle;dominant-baseline:auto}
 .hora-cielo{font:700 11px Manrope,Arial,sans-serif;background:#ffffffd9;color:#1d2125;border-radius:999px;padding:1px 7px;white-space:nowrap}
-.jornada-fin{align-self:center;font-size:13px;padding:6px 12px;border-radius:999px;background:var(--surface);border:1px solid var(--line);color:var(--muted);white-space:nowrap}

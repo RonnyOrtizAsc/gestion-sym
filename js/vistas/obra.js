@@ -361,8 +361,7 @@ export function render(V, { hacer, redibujar }) {
   const BARRA_MAPA = `<div class="barra-mapa">
       <div class="flot-grupo">${ui.editar ? `<button class="flot-btn on" id="hudEditar">✓<span>Listo</span></button>` : `<button class="flot-btn icono" id="hudEditar" aria-label="Editar el plano" title="Editar el plano">${ICONO.lapiz}</button>`}
         ${ui.editar ? `<button class="flot-btn icono" id="hudDeshacer" aria-label="Deshacer lo último" title="Deshacer (Ctrl+Z)" ${puedeDeshacer() ? "" : "disabled"}>${ICONO.deshacer}</button>
-          <button class="flot-btn icono" id="hudRehacer" aria-label="Rehacer" title="Rehacer (Ctrl+Y)" ${puedeRehacer() ? "" : "disabled"}>${ICONO.rehacer}</button>` : ""}
-        ${!ui.editar && cerrada ? `<span class="jornada-fin" role="status">🌙 Ya salieron todos · de 7 a 6</span>` : ""}</div>
+          <button class="flot-btn icono" id="hudRehacer" aria-label="Rehacer" title="Rehacer (Ctrl+Y)" ${puedeRehacer() ? "" : "disabled"}>${ICONO.rehacer}</button>` : ""}</div>
       <div class="flot-grupo">${ui.editar ? "" : `<button class="flot-btn icono ${ui.sinGente ? "on" : ""}" id="verGente" aria-pressed="${ui.sinGente}" aria-label="${ui.sinGente ? "Mostrar a los trabajadores" : "Ocultar a los trabajadores y ver solo el plano"}" title="${ui.sinGente ? "Mostrar trabajadores" : "Solo el plano"}">${ui.sinGente ? ICONO.ojoNo : ICONO.ojo}</button>`}
       <div class="seg mini flot-vista" role="group" aria-label="Vista"><button data-vista="2d" aria-pressed="${!es3d}">2D</button><button data-vista="3d" aria-pressed="${es3d}">3D</button></div></div>
     </div>`;
