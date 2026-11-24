@@ -1853,8 +1853,28 @@ function ponerEdificios(areas, elementos = [], piezas = {}) {
     t.position.set(p.x, yc + 2, p.z); const c = new THREE.Mesh(new THREE.SphereGeometry(3.2 + (i % 3) * 0.5, 10, 8), copa);
     c.position.set(p.x, yc + 6, p.z); c.castShadow = true; t.castShadow = true; E.edificios.add(t, c);
   }
+  E.edificios.add(rielTaller());
   partirLargos();
   prepararColores();
+}
+
+// Riel negro nuevo por dentro de la pared oeste del taller (fotos 24-nov): tubo cuadrado negro a ~3 m, separado ~0.6 m de la
+// pared, con ménsulas diagonales a la pared cada ~3.4 m; arranca en el cuarto del supervisor y sigue hacia el sur.
+function rielTaller() {
+  const g = new THREE.Group(), negro = new THREE.MeshStandardMaterial({ color: 0x1c1d1f, metalness: 0.5, roughness: 0.5 });
+  const X0 = 936, SEP = 0.6 / 0.056, Y0 = 262, Y1 = 690, H = 3.0, base = E.altura(960, 450) * M, k = M;
+  const xr = X0 + SEP, a = aEscena(xr, Y0), b = aEscena(xr, Y1);
+  const tubo = new THREE.Mesh(new THREE.BoxGeometry(0.1 * k, 0.1 * k, Math.abs(b.z - a.z)), negro);
+  tubo.position.set(a.x, base + H * k, (a.z + b.z) / 2); tubo.castShadow = true; g.add(tubo);
+  for (let y = Y0 + 8; y < Y1; y += 3.4 / 0.056) {
+    const p0 = aEscena(X0 + 0.5, y), p1 = aEscena(xr, y), dx = p1.x - p0.x, dy = 0.6 * k, L = Math.hypot(dx, dy);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(L, 0.06 * k, 0.06 * k), negro);
+    m.position.set((p0.x + p1.x) / 2, base + (H - 0.3) * k, p0.z); m.rotation.z = Math.atan2(dy, dx); g.add(m);   // diagonal de la pared al tubo
+    const h = new THREE.Mesh(new THREE.BoxGeometry(Math.abs(dx), 0.08 * k, 0.08 * k), negro); h.position.set((p0.x + p1.x) / 2, base + H * k, p0.z); g.add(h);   // brazo recto
+  }
+  g.traverse((o) => { if (o.isMesh) { o.material = negro; } });
+  negro.userData = { clave: "riel-taller", nombre: "Riel negro del taller", color0: "#1c1d1f" };
+  return g;
 }
 
 // Paredes, láminas, bandas de azulejo, vigas… dibujadas de un tirón se parten en paños (en cada columna, o cada ~5 m si no
