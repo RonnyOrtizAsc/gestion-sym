@@ -302,7 +302,10 @@ function ponerPiso(svg) {
 // ---------- Niveles (según secciones AR-08 / G-05) ----------
 // Metros sobre el nivel de abajo (N 868.96). Calle ≈ 867.32.
 const BASE_N = 868.96, CALLE = -1.64, EXAGERA = 1;   // alturas reales (antes se exageraban y los edificios quedaban más altos que en obra)
-const esRampa = (a) => a.tipo === "rampa";
+// "Acceso a taller" (junto al lavado y el basurero) NO es rampa: es plano, al nivel del patio, hasta el portón; la rampita
+// para bajar a la calle está afuera, en la acera (ver ACERA_PORTON)
+const ACCESO_PLANO = /acceso a taller/i;
+const esRampa = (a) => a.tipo === "rampa" && !ACCESO_PLANO.test(a.nombre || "");
 const caja = (a) => ({ x0: (a.x / 100) * ANCHO, y0: (a.y / 100) * ALTO, x1: ((+a.x + +a.w) / 100) * ANCHO, y1: ((+a.y + +a.h) / 100) * ALTO });
 // Tres plataformas (confirmadas en obra):
 //  abajo  N 868.96: taller, rebalse técnico, todo GWM y Marca 4, comedor
@@ -311,10 +314,13 @@ const caja = (a) => ({ x0: (a.x / 100) * ANCHO, y0: (a.y / 100) * ALTO, x1: ((+a
 //  la bodega está abajo y la casa de encima queda al nivel de arriba
 const ABAJO = 0, MEDIO = 1.04, ARRIBA = 2.96;
 // calle del sur, del lado este: sube parejo (G-02: ≈ N 870.86 en x 760, N 871.3 en el portón x 1020, N 871.96 en x 1330)
+// afuera del portón azul (G-02 Mo4–Mo3): la acera baja en rampita del nivel del patio a la calle
+const ACERA_PORTON = { c: { x0: 975, y0: 1450, x1: 1087, y1: 1480 }, eje: "y", n: [2.96, 2.4], sinRotulo: true };
 const CALLE_SUR = (x) => 1.9 + ((Math.min(1388, Math.max(760, x)) - 760) / 570) * 1.1;
 function nivelFijo(a) {
   const n = a.nombre || "";
   if (a.es_receso) return ABAJO;                   // bodega: abajo, al nivel del rebalse técnico
+  if (ACCESO_PLANO.test(n)) return ARRIBA;         // acceso por el portón azul: al nivel del patio y del lavado
   if (/t[eé]cnico|taller|gwm|marca [34]|demo, entrega y exhibici|comedor|lockers|el[eé]ctric|compresor|repuestos|desvestid|^ba[ñn]os$/i.test(n)) return ABAJO;   // (nombres del plano 19-nov incluidos: renombrar no cambia el piso)
   if (/patio|rebalse|empleados|entrega de veh|caf[eé]|atenci|lavado/i.test(n)) return ARRIBA;   // el lavado va al nivel del patio de maniobras
   return MEDIO;
@@ -392,7 +398,7 @@ function prepararNiveles(areas, piezas = {}) {
   });
   const rc = areas.find((a) => /circulaci[oó]n central/i.test(a.nombre || ""));
   if (rc) { const c = caja(rc); rampas.push({ c: { x0: c.x0 - 5, x1: c.x1, y0: 850, y1: c.y1 }, eje: "y", n: [ARRIBA, ARRIBA], sinRotulo: true }); }   // arriba de la rampa: plano
-  rampas.unshift(DESCANSO_ESTE, RAMPA_ESTE, ...LADO_BOULEVARD);
+  rampas.unshift(DESCANSO_ESTE, RAMPA_ESTE, ACERA_PORTON, ...LADO_BOULEVARD);
   if (estadoRampa(RAMPA_CHERY, piezas) === "existe") rampas.unshift(RAMPA_CHERY);   // mientras no esté hecha, esa franja queda plana
   E.altura = (x, y) => EXAGERA * alturaReal(x, y);
   const alturaReal = (x, y) => {
