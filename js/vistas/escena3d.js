@@ -396,11 +396,9 @@ function prepararNiveles(areas, piezas = {}) {
     const eje = Math.abs(dx - dy) < 0.3 ? (c.x1 - c.x0 >= c.y1 - c.y0 ? "x" : "y") : dx > dy ? "x" : "y";
     // los lados de la rampa llegan hasta la pared de al lado (la de la bodega): sin zanja entre la rampa y la pared
     const L = 5, cc = eje === "y" ? { ...c, x0: c.x0 - L, x1: c.x1 } : { ...c, y0: c.y0 - L, y1: c.y1 + L };
-    if (/circulaci[oó]n central/i.test(a.nombre || "")) return { a, c: { ...cc, y0: 713, y1: 850 }, eje: "y", n: [ABAJO, ARRIBA] };   // foto: sube junto a la bodega y llega arriba a la altura de su puerta
+    if (/circulaci[oó]n central/i.test(a.nombre || "")) return { a, c: { ...cc, y0: 713 }, eje: "y", n: [ABAJO, ARRIBA] };   // sube parejo de punta a punta, sin descanso
     return { a, c: cc, eje, n: eje === "x" ? ex : ey };
   });
-  const rc = areas.find((a) => /circulaci[oó]n central/i.test(a.nombre || ""));
-  if (rc) { const c = caja(rc); rampas.push({ c: { x0: c.x0 - 5, x1: c.x1, y0: 850, y1: c.y1 }, eje: "y", n: [ARRIBA, ARRIBA], sinRotulo: true }); }   // arriba de la rampa: plano
   rampas.unshift(DESCANSO_ESTE, RAMPA_ESTE, ACERA_PORTON, ...LADO_BOULEVARD);
   if (estadoRampa(RAMPA_CHERY, piezas) === "existe") rampas.unshift(RAMPA_CHERY);   // mientras no esté hecha, esa franja queda plana
   E.altura = (x, y) => EXAGERA * alturaReal(x, y);
