@@ -553,7 +553,9 @@ function ponerLamina(piezas, lista) {
     for (const pl of polilineas(d)) for (let k = 1; k < pl.length; k++) {
       const [x0, y0] = pl[k - 1], [x1, y1] = pl[k], L = Math.hypot(x1 - x0, y1 - y0);
       if (L < 1.5) continue;
-      const mx = (x0 + x1) / 2, my = (y0 + y1) / 2, base = E.altura(mx, my) * M, ang = Math.atan2(y1 - y0, x1 - x0), largo = L * ESC + 0.2;
+      const mx = (x0 + x1) / 2, my = (y0 + y1) / 2, ang = Math.atan2(y1 - y0, x1 - x0), largo = L * ESC + 0.2;
+      // en la orilla del sótano la lámina va arriba, sobre el rebalse (no baja a la rampa ni se mete al sótano)
+      const base = ([[6, 0], [-6, 0], [0, 6], [0, -6]].some(([dx, dy]) => enSotano(mx + dx, my + dy)) ? Math.max(E.altura(mx, my), ARRIBA) : E.altura(mx, my)) * M;
       if (est !== "existe") { lista[est].push([mx, my, largo, 0.38, ang, base, ALTO_LAMINA * M * (est === "en_proceso" ? 0.5 : 1), i]); continue; }
       murito.push([mx, my, largo, 0.5, ang, base, MURITO * M, i]);
       lamina.push([mx, my, largo, 0.18, ang, base + MURITO * M, (ALTO_LAMINA - MURITO) * M, i]);
@@ -1187,7 +1189,7 @@ function estructuraTaller(base) {
   }
   for (const [x, h] of [[941, hO], [1085, H], [1085, hC], [1138, hC + CUMBRE], [1192, hC], [1192, H], [1331, hE]]) barra(Pt(x, h - 0.2, za), Pt(x, h - 0.2, zb), 0.22);   // largueros a lo largo
   filaNorteTaller(base, H);
-  rampaEste();
+  rampaEste(); sotano1();
   g.userData.techo = true;   // al editar el plano se esconde, igual que los techos
   return g;
 }
@@ -1199,6 +1201,58 @@ function cuadros(c1, c2, rep = [40, 4]) {
   const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(...rep); t.magFilter = THREE.NearestFilter;
   const m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.6 }); m.userData.tipo = "azulejo"; return m;
 }
+// SÓTANO 1 (bodega), debajo del rebalse. G-02: el bloque del rebalse (N 871.92) va de x 929 a 1257 y de y 711 a 905
+// (≈ 18.4 × 10.9 m); "SÓTANO 1" entra por la rampa este (puerta en y 737–767) y la chimenea está en la cara norte (x 1157).
+// Fotos y video 23-nov: piso de concreto al nivel del taller, todo pintado de blanco; cielo de tablero (losa) a ~2.6 m;
+// vigas de concreto con cartelas en las orillas (se ven como arcos ochavados), columnas debajo de las de la galera (y 746),
+// lámparas fluorescentes dobles y, al fondo (oeste), una puerta de vidrio con marco blanco que da a la rampa central.
+const SOTANO1 = { x0: 936, x1: 1262, y0: 717, y1: 905, cielo: 2.6 };   // caras de adentro un poco metidas: el talud del terreno queda afuera
+const enSotano = (x, y) => x > SOTANO1.x0 && x < SOTANO1.x1 && y > SOTANO1.y0 && y < SOTANO1.y1;
+function sotano1() {
+  const S1 = SOTANO1, g = new THREE.Group(), b = ABAJO * M, C = b + S1.cielo * M;
+  const caja = (x0, y0, x1, y1, h0, h1, mat) => { const a = aEscena(x0, y0), c = aEscena(x1, y1), m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.04, Math.abs(c.x - a.x)), Math.max(0.02, h1 - h0), Math.max(0.04, Math.abs(c.z - a.z))), mat);
+    m.position.set((a.x + c.x) / 2, (h0 + h1) / 2, (a.z + c.z) / 2); g.add(m); return m; };   // adentro no entra el sol: sin sombras
+  // las lámparas lo alumbran parejo: un poco de brillo propio para que no se vea gris oscuro
+  const luzP = { emissive: 0x6d6c66 };
+  const blanco = new THREE.MeshStandardMaterial({ color: 0xf1f0ec, roughness: 0.9, ...luzP });
+  const tex = (dib, rx, ry) => { const cv = document.createElement("canvas"); cv.width = cv.height = 64; const x = cv.getContext("2d"); dib(x);
+    const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); return t; };
+  const L = (S1.x1 - S1.x0) * 0.056, W = (S1.y1 - S1.y0) * 0.056;
+  const piso = new THREE.MeshStandardMaterial({ map: tex((x) => { x.fillStyle = "#9b9a95"; x.fillRect(0, 0, 64, 64); x.fillStyle = "#8d8c87"; for (let k = 0; k < 40; k++) x.fillRect(Math.random() * 64, Math.random() * 64, 3, 2); }, L / 2, W / 2), roughness: 0.95, emissive: 0x2e2d2a });
+  const cielo = new THREE.MeshStandardMaterial({ map: tex((x) => { x.fillStyle = "#f3f2ee"; x.fillRect(0, 0, 64, 64); x.fillStyle = "#d9d8d3"; x.fillRect(0, 0, 64, 2); }, 1, W / 0.6), roughness: 0.95, ...luzP });
+  const pared = new THREE.MeshStandardMaterial({ map: tex((x) => { x.fillStyle = "#f2f1ed"; x.fillRect(0, 0, 64, 64); x.fillStyle = "#e4e3de"; x.fillRect(0, 31, 64, 2); x.fillRect(31, 0, 2, 32); x.fillRect(0, 63, 64, 1); x.fillRect(63, 32, 1, 32); }, L / 0.4, S1.cielo / 0.4), roughness: 0.9, ...luzP });
+  caja(S1.x0, S1.y0, S1.x1 - 2, S1.y1, b - 0.1 * M, b + 0.03 * M, piso);                    // piso
+  caja(S1.x0, S1.y0, S1.x1 - 2, S1.y1, C, C + 0.25 * M, cielo);                              // cielo (losa)
+  caja(S1.x0, S1.y0 - 2, S1.x1, S1.y0, b, C, pared);                                         // norte
+  caja(S1.x0, S1.y1, S1.x1, S1.y1 + 2, b, C, pared);                                         // sur
+  caja(1261.5, S1.y0, 1262, 737, b, C, blanco); caja(1261.5, 767, 1262, S1.y1, b, C, blanco); caja(1261.5, 737, 1262, 767, b + 2.2 * M, C, blanco);   // este (cara de adentro, con el vano)
+  // oeste: pared blanca y, cerca del norte, puerta de vidrio con marco blanco (da a la rampa central)
+  const vidrio = new THREE.MeshStandardMaterial({ color: 0xcfe6f2, transparent: true, opacity: 0.35, roughness: 0.05, metalness: 0.2, depthWrite: false });
+  caja(S1.x0 - 2, S1.y0, S1.x0, 722, b, C, pared); caja(S1.x0 - 2, 760, S1.x0, S1.y1, b, C, pared); caja(S1.x0 - 2, 722, S1.x0, 760, b + 2.25 * M, C, pared);
+  caja(S1.x0 - 1.2, 722, S1.x0 - 0.8, 760, b, b + 2.25 * M, vidrio);
+  for (const y of [722, 741, 760]) caja(S1.x0 - 1.4, y - 0.6, S1.x0 - 0.6, y + 0.6, b, b + 2.25 * M, blanco);
+  caja(S1.x0 - 1.4, 722, S1.x0 - 0.6, 760, b + 2.2 * M, b + 2.28 * M, blanco);
+  // columnas (debajo de las de la galera) y vigas con cartelas: una de este a oeste por las columnas y una de norte a sur en cada columna
+  const COLS = [946, 1092, 1237], YC = 746, CAN = 0.42, CART = 0.9;   // canto de la viga y largo de la cartela (m)
+  for (const x of COLS) caja(x - 4, YC - 4, x + 4, YC + 4, b, C, blanco);
+  const viga = (x0, y0, x1, y1, ancho) => {   // perfil: canto CAN, que en las puntas baja otro tanto en diagonal (cartela)
+    const a = aEscena(x0, y0), c = aEscena(x1, y1), len = Math.hypot(c.x - a.x, c.z - a.z), k = CART * M, d = CAN * M;
+    const sh = new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(len, 0), new THREE.Vector2(len, -d - k * 0.8), new THREE.Vector2(len - k, -d), new THREE.Vector2(k, -d), new THREE.Vector2(0, -d - k * 0.8)]);
+    const geo = new THREE.ExtrudeGeometry(sh, { depth: ancho * M, bevelEnabled: false }); geo.translate(0, 0, -ancho * M / 2);
+    const m = new THREE.Mesh(geo, blanco); m.position.set(a.x, C, a.z); m.rotation.y = -Math.atan2(c.z - a.z, c.x - a.x); g.add(m); };
+  viga(S1.x0, YC, S1.x1 - 2, YC, 0.35);
+  for (const x of COLS) viga(x, S1.y0, x, S1.y1, 0.35);
+  viga(1165, YC, 1165, S1.y1, 0.3);   // la de en medio del claro grande (video: dos arcos seguidos)
+  // lámparas fluorescentes dobles
+  const lampara = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfffbea, emissiveIntensity: 0.9 }), canal = new THREE.MeshStandardMaterial({ color: 0xdedfdc, metalness: 0.4 });
+  for (const [x, y] of [[1010, 728], [1170, 728], [1010, 820], [1130, 820], [1215, 820], [1010, 880], [1170, 880]]) {
+    caja(x - 11, y - 1.6, x + 11, y + 1.6, C - 0.06 * M, C, canal); caja(x - 10.5, y - 1.1, x + 10.5, y - 0.4, C - 0.09 * M, C - 0.05 * M, lampara); caja(x - 10.5, y + 0.4, x + 10.5, y + 1.1, C - 0.09 * M, C - 0.05 * M, lampara); }
+  // tubo blanco junto a la entrada
+  caja(1240, 732, 1261, 733.5, C - 0.25 * M, C - 0.15 * M, blanco);
+  const luz = new THREE.PointLight(0xfff8e8, 0.8, 30 * M); const v = aEscena(1100, 800); luz.position.set(v.x, C - 0.4 * M, v.z); g.add(luz);
+  E.edificios.add(g);
+}
+
 // Rampa del lado este (foto 20-nov + G-06): pasillo angosto entre el muro del vecino (con contrafuertes de concreto) y el muro
 // de contención de block del rebalse; piso de adopasto (bloque con zacate). Abajo, junto al taller, la puerta del SÓTANO 1
 // (G-06: "Sótano 1", con su chimenea) que queda debajo del rebalse.
@@ -1220,7 +1274,9 @@ function rampaEste() {
   caja(1265, DESCANSO_ESTE.c.y0 + 2, 1300, DESCANSO_ESTE.c.y1, r.n[0] * M, r.n[0] * M + 0.05 * M, losa);
   // muro de contención de block (oeste): del piso hasta el nivel del rebalse (arriba va la lámina de la galera)
   const block = cuadros("#8f918b", "#83857f", [60, 4]), concreto = new THREE.MeshStandardMaterial({ color: 0x8c8b84, roughness: 0.95 });
-  caja(1262, DESCANSO_ESTE.c.y0, 1264, r.c.y1, r.n[0] * M, ARRIBA * M + 0.3 * M, block);
+  // (con el hueco de la puerta del sótano, y 737–767, de 2.2 m)
+  caja(1262, DESCANSO_ESTE.c.y0, 1264, 737, r.n[0] * M, ARRIBA * M + 0.3 * M, block); caja(1262, 767, 1264, r.c.y1, r.n[0] * M, ARRIBA * M + 0.3 * M, block);
+  caja(1262, 737, 1264, 767, r.n[0] * M + 2.2 * M, ARRIBA * M + 0.3 * M, block);
   // arriba del muro de block: el forro de lámina acanalada de las galeras del rebalse (foto: llega hasta el techo)
   const cvL = document.createElement("canvas"); cvL.width = 16; cvL.height = 4; const xl = cvL.getContext("2d");
   xl.fillStyle = "#c3c9ce"; xl.fillRect(0, 0, 16, 4); xl.fillStyle = "#9aa1a7"; xl.fillRect(0, 0, 3, 4); xl.fillStyle = "#e1e5e8"; xl.fillRect(8, 0, 2, 4);
@@ -1237,7 +1293,7 @@ function rampaEste() {
   for (let y = CF[0] - 6; y < CF[4] + 6; y += 11) { const hh = h(1334, y + 5.5); caja(1331.5, y, 1337, y + 11, hh + 2.5 * M, TOPE, vecino); }
   // puerta del sótano: vano de ~1.7 × 2.2 m sin puerta, orillas pintadas de blanco; adentro blanco y oscuro
   const p0 = 737, p1 = 767, hb = r.n[0] * M, vano = new THREE.MeshStandardMaterial({ color: 0x1b1d1f, roughness: 1 }), blanco = new THREE.MeshStandardMaterial({ color: 0xeeeeea, roughness: 0.8 });
-  caja(1263.9, p0, 1264.3, p1, hb, hb + 2.2 * M, vano);
+  void vano;   // sin tapa: por la puerta se ve el sótano (ver sotano1)
   caja(1262, p0 - 0.5, 1264.4, p0, hb, hb + 2.25 * M, blanco); caja(1262, p1, 1264.4, p1 + 0.5, hb, hb + 2.25 * M, blanco); caja(1262, p0 - 0.5, 1264.4, p1 + 0.5, hb + 2.2 * M, hb + 2.3 * M, blanco);
   const rot = etiqueta("Sótano 1 (bodega)", "#24435e"); rot.scale.set(11, 1.4, 1); const v = aEscena(1268, (p0 + p1) / 2); rot.position.set(v.x, hb + 2.9 * M, v.z); g.add(rot);
 }
@@ -1985,7 +2041,9 @@ function animar() {
   E.controls.update();
   ponerCielo();
   // la cámara nunca se mete bajo el piso: si baja de 1.5 m sobre el terreno, se queda ahí (y sigue pudiendo mirar hacia arriba)
-  if (E.altura) { const c = E.camera.position, piso = E.altura(c.x / ESC + ANCHO / 2, c.z / ESC + ALTO / 2) * M + 1.5 * M; if (c.y < piso) c.y = piso; }
+  if (E.altura) { const c = E.camera.position, px = c.x / ESC + ANCHO / 2, py = c.z / ESC + ALTO / 2;
+    const adentro = enSotano(px, py) && c.y < (ABAJO + SOTANO1.cielo - 0.2) * M;   // en el sótano: el piso es el de abajo y no se sale por el cielo
+    const piso = adentro ? (ABAJO + 1.2) * M : E.altura(px, py) * M + 1.5 * M; if (c.y < piso) c.y = piso; }
   E.renderer.render(E.scene, E.camera);
 }
 
