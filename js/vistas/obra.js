@@ -597,7 +597,14 @@ export function render(V, { hacer, redibujar }) {
       t.addEventListener("pointercancel", () => { if (!ini) return; ini = null; if (movio) redibujar(); });
     });
     // Nombre flotante al pasar el mouse por cada lugar
-    const tip = document.createElement("div"); tip.className = "tip"; tip.hidden = true; V.querySelector(".mapa").appendChild(tip);
+    // la cajita de info va fija en la pantalla, a un lado del mouse (nunca encima de lo que se está señalando)
+    document.querySelectorAll("body > .tip.flota").forEach((t) => t.remove());
+    const tip = document.createElement("div"); tip.className = "tip flota"; tip.hidden = true; document.body.appendChild(tip);
+    const junto = (e) => { const w = tip.offsetWidth, h = tip.offsetHeight, m = 22;
+      let x = e.clientX + m, y = e.clientY + m;
+      if (x + w > innerWidth - 8) x = e.clientX - m - w;
+      if (y + h > innerHeight - 8) y = e.clientY - m - h;
+      tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px"; };
     const mapaEl = V.querySelector(".mapa");
     V.querySelectorAll(".area, .el-btn, .tok").forEach((el) => {
       el.addEventListener("pointermove", (e) => {
@@ -609,8 +616,7 @@ export function render(V, { hacer, redibujar }) {
         else if (el.dataset.area) { const a = area(el.dataset.area); t = `<b>${esc(a.es_receso ? a.uso_actual || "Bodega (receso)" : a.nombre)}</b><span class="med">${medidasArea(a)}</span><span>${ESTADOS[a.estado] || ""} · ${enArea(a.id).length} asignados</span>`; }
         else if (el.dataset.el) { const x = S.elementos.find((q) => q.id === el.dataset.el); t = `<b>${esc(x.nombre || TIPOS_ELEMENTO[x.tipo])}</b><span class="med">${medidasElemento(x)}</span><span>${ESTADOS[x.estado]}</span>`; }
         else if (el.dataset.w) { const w = trabajador(el.dataset.w), a = area(w.area_id); t = `<b>${esc(w.nombre)}</b><span>${recesoAbierto(w.id) ? "En receso" : (w.actividad ? esc(w.actividad) + " · " : "") + (a ? esc(a.nombre) : "Sin área")}</span>`; }
-        tip.innerHTML = t; tip.hidden = false;
-        tip.style.left = e.clientX - r.left + 14 + "px"; tip.style.top = e.clientY - r.top + 14 + "px";
+        tip.innerHTML = t; tip.hidden = !t; junto(e);
       });
       el.addEventListener("pointerleave", () => (tip.hidden = true));
     });
@@ -633,7 +639,7 @@ export function render(V, { hacer, redibujar }) {
         hov = grupo.map((i) => porIdx.get(i)).filter(Boolean); hov.forEach((p) => p.classList.add("hov"));
         tip.innerHTML = textoPieza(grupo); tip.hidden = false;
       });
-      el.addEventListener("pointermove", (e) => { const r = mapaEl.getBoundingClientRect(); tip.style.left = e.clientX - r.left + 14 + "px"; tip.style.top = e.clientY - r.top + 14 + "px"; });
+      el.addEventListener("pointermove", (e) => junto(e));
       el.addEventListener("pointerleave", quitarHov);
     });
     const cap = V.querySelector("#captura");

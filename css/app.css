@@ -593,3 +593,4 @@ nav.tabs a{font-size:11px;min-width:0;white-space:nowrap}
 @keyframes perroSale{0%{transform:scale(0) translateY(40px)}100%{transform:none}}
 @keyframes globoSale{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.perrito.entra .perrito-cuerpo,.perrito.entra .perrito-globo{animation:none}}
+.tip.flota{position:fixed;z-index:70;transform:none;font-size:12px;max-width:240px}
