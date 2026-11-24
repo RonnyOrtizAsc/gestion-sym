@@ -13,7 +13,7 @@ import { miniatura, tarjeta, avatares, cara } from "./fotos.js";
 import { FICHAS, nEscalones, esquinas, agarraderas, moverFigura, girar, correr, guardable, figuraNueva, medidasFigura, medidaCorta, altoDe, dentroDe, centro, U, altoPared, moverRect, rectPct, cercaDe } from "./figuras.js";
 import { dibujarObra, capaPiezas, estadoPieza, PIEZAS, CAJAS, grupoDe, queEs, pegar, ANCHO, ALTO, MATERIALES, puntas, pared, largoPared, gruesoPared, enderezar, distPared, enLinea, sobrePared, ANCHO_HUECO, CHICAS, rampaDe, piezaEn, medidasPieza, medidasArea, medidasElemento } from "./mapa-svg.js";
 // el 3D se pide con la versión: así el celular no se queda con un 3D viejo guardado (súbelo junto con sw.js)
-const ESCENA = "./escena3d.js?v=181";
+const ESCENA = "./escena3d.js?v=182";
 
 const ZOOMS = [1, 1.6, 2.4, 3.4];
 let vistaGuardada = "2d"; try { vistaGuardada = localStorage.getItem("sym-vista") || "2d"; } catch (e) {}
@@ -396,7 +396,7 @@ export function render(V, { hacer, redibujar }) {
         const nombre = a.es_receso ? a.uso_actual || "Zona de receso" : a.nombre;
         return `<button class="area ${n ? "ocupada" : ""} ${a.es_receso ? "zr" : ""} ${ui.areaSel === a.id ? "sel" : ""}" data-area="${a.id}"
           style="left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%" aria-label="${esc(nombre)}, ${n} asignados"></button>`; }).join("")}
-      <div class="sotano-2d" style="left:${(929 / 1388) * 100}%;top:${(711 / 1520) * 100}%;width:${(328 / 1388) * 100}%;height:${(194 / 1520) * 100}%" aria-hidden="true"><span>Sótano 1 (bodega, abajo)</span></div>
+      <div class="sotano-2d" style="left:${(929 / 1388) * 100}%;top:${(711 / 1520) * 100}%;width:${(328 / 1388) * 100}%;height:${(194 / 1520) * 100}%" ><button data-sotano aria-label="Entrar al sótano 1 en 3D">Sótano 1 (bodega, abajo) · entrar ›</button></div>
       ${ui.sinGente || ui.editar ? "" : tokens.map(([p, x, y]) => token(p, x, y)).join("")}
       ${ui.editar && !ui.nuevo ? capaPiezas(S.piezas, ui.pz?.grupo) : ""}
       ${ui.editar ? S.elementos.map((e) => `<button class="el-btn ${e.trazo ? "pared" : ""} ${e.tipo === "techo" ? "techo" : ""} ${e.tipo === "hoyo" ? "hoyo" : ""} ${ui.elSel === e.id ? "sel" : ""}" data-el="${e.id}" style="left:${e.x}%;top:${e.y}%;width:${e.w}%;height:${e.h}%${e.trazo ? "" : ";" + recorte(e)}" aria-label="${esc(e.nombre || TIPOS_ELEMENTO[e.tipo])}"></button>`).join("") : ""}
@@ -504,6 +504,7 @@ export function render(V, { hacer, redibujar }) {
     import(ESCENA).then((m) => {
       const cont = V.querySelector("#escena"); if (!cont) return;
       cont.querySelector(".cargando")?.remove();
+      if (ui.irSotano) { ui.irSotano = false; setTimeout(() => m.entrar(), 0); }   // desde el 2D: tocar el sótano lo abre en 3D por dentro
       m.montar(cont, { colores: S.obra?.colores || {}, dibujo: ui.editar && DIBUJA.has(ui.herr) ? { tipo: ui.herr, grosor: ui.grosor[ui.herr] || 0.3 } : null, svg: dibujo.svg, clave: dibujo.clave, areas: S.areas, elementos: S.elementos, piezas: S.piezas, personas, editar: ui.editar && !ui.nuevo && !ui.punta && !ui.hueco, seleccion: ui.pz?.grupo, asas: specAsas(asasActuales()) || (ui.inicio ? [ui.inicio, ui.inicio] : null), handlers: {
         asaMueve: (idx, x, y) => { const A = asasActuales(); return A ? moverAsa(A, idx, x, y) : null; },
         asaSuelta: (idx, x, y) => { const A = asasActuales(); if (!A) return; const m = moverAsa(A, idx, x, y); soltarAsa(A, A.f ? m.pts : m.ab); },
@@ -898,6 +899,7 @@ export function render(V, { hacer, redibujar }) {
   $$("[data-grosor]").forEach((b) => (b.onclick = () => { ui.grosor[ui.herr] = +b.dataset.grosor; redibujar(); }));
   function cerrarTodo() { ui.parte = null; ui.huecoSel = null; ui.agregar = false; ui.hueco = null; ui.mas = false; ui.punta = null; ui.pz = null; ui.sel = null; ui.areaSel = null; ui.moviendo = false; ui.elSel = null; ui.nuevo = null; ui.borrar = false; ui.prestar = null; ui.verPrestamos = false; ui.perdida = null; }
   const cerrar = () => { ui.parte = null; ui.huecoSel = null; ui.agregar = false; ui.hueco = null; ui.mas = false; ui.punta = null; ui.pz = null; ui.sel = null; ui.areaSel = null; ui.moviendo = false; ui.elSel = null; ui.nuevo = null; ui.borrar = false; ui.prestar = null; ui.verPrestamos = false; ui.perdida = null; redibujar(); };
+  $$("[data-sotano]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); ui.vista = "3d"; ui.irSotano = true; redibujar(); }));
   $$("[data-vista]").forEach((b) => (b.onclick = () => { ui.vista = b.dataset.vista; try { localStorage.setItem("sym-vista", ui.vista); } catch (e) {} redibujar(); }));
   $$("[data-w]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); if (b.dataset.solto) return; tocarPersona(b.dataset.w); }));
   $$("[data-cerrar]").forEach((b) => (b.onclick = cerrar));

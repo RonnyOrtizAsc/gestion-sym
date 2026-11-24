@@ -550,5 +550,5 @@ nav.tabs a{font-size:11px;min-width:0;white-space:nowrap}
 .brujula text{font:800 7px Manrope,Arial,sans-serif;fill:#1d2125;text-anchor:middle;dominant-baseline:auto}
 .hora-cielo{font:700 11px Manrope,Arial,sans-serif;background:#ffffffd9;color:#1d2125;border-radius:999px;padding:1px 7px;white-space:nowrap}
 /* Sótano 1: queda debajo del rebalse; en 2D se marca con raya punteada */
-.sotano-2d{position:absolute;border:2px dashed #24435e;border-radius:6px;pointer-events:none;z-index:1}
-.sotano-2d span{position:absolute;right:4px;bottom:3px;font-size:10px;font-weight:700;color:#24435e;background:#ffffffcc;padding:1px 5px;border-radius:6px;white-space:nowrap}
+.sotano-2d{position:absolute;border:2px dashed #24435e;border-radius:6px;z-index:1;pointer-events:none}
+.sotano-2d button{pointer-events:auto;cursor:pointer;border:0;font-family:inherit;position:absolute;right:4px;bottom:3px;font-size:10px;font-weight:700;color:#24435e;background:#ffffffcc;padding:1px 5px;border-radius:6px;white-space:nowrap}

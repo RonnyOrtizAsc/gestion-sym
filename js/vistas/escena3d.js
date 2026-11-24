@@ -273,8 +273,8 @@ function crear() {
     }
     ray.setFromCamera(p, camera);
     // tocar la puerta del sótano (o su letrero): la cámara entra; desde adentro, tocarla otra vez sale a la rampa
-    { const h = ray.intersectObjects(edificios.children, true).find((q) => !q.object.isSprite || q.object.userData.entrar);
-      if (h?.object.userData.entrar) return entrarSotano(); }
+    { const hs = ray.intersectObjects(edificios.children, true), h = hs.find((q) => !q.object.isSprite || q.object.userData.entrar);
+      if (h?.object.userData.entrar || hs.some((q) => q.object.isSprite && q.object.userData.entrar)) return entrarSotano(); }
     const golpe = ray.intersectObjects(gente.children, true)[0];
     if (golpe) { let o = golpe.object; while (o && !o.userData.id) o = o.parent; if (o) return E.handlers?.persona(o.userData.id); }
     const enPiso = ray.intersectObject(piso)[0];
@@ -563,8 +563,7 @@ function ponerLamina(piezas, lista) {
       const [x0, y0] = pl[k - 1], [x1, y1] = pl[k], L = Math.hypot(x1 - x0, y1 - y0);
       if (L < 1.5) continue;
       const mx = (x0 + x1) / 2, my = (y0 + y1) / 2, ang = Math.atan2(y1 - y0, x1 - x0), largo = L * ESC + 0.2;
-      // en la orilla del sótano la lámina va arriba, sobre el rebalse (no baja a la rampa ni se mete al sótano)
-      const base = ([[6, 0], [-6, 0], [0, 6], [0, -6]].some(([dx, dy]) => enSotano(mx + dx, my + dy)) ? Math.max(E.altura(mx, my), ARRIBA) : E.altura(mx, my)) * M;
+      const base = E.altura(mx, my) * M;
       if (est !== "existe") { lista[est].push([mx, my, largo, 0.38, ang, base, ALTO_LAMINA * M * (est === "en_proceso" ? 0.5 : 1), i]); continue; }
       murito.push([mx, my, largo, 0.5, ang, base, MURITO * M, i]);
       lamina.push([mx, my, largo, 0.18, ang, base + MURITO * M, (ALTO_LAMINA - MURITO) * M, i]);
@@ -1215,7 +1214,7 @@ function cuadros(c1, c2, rep = [40, 4]) {
 // Fotos y video 23-nov: piso de concreto al nivel del taller, todo pintado de blanco; cielo de tablero (losa) a ~2.6 m;
 // vigas de concreto con cartelas en las orillas (se ven como arcos ochavados), columnas debajo de las de la galera (y 746),
 // lámparas fluorescentes dobles y, al fondo (oeste), una puerta de vidrio con marco blanco que da a la rampa central.
-const SOTANO1 = { x0: 936, x1: 1262, y0: 717, y1: 905, cielo: 2.6 };   // caras de adentro un poco metidas: el talud del terreno queda afuera
+const SOTANO1 = { x0: 941, x1: 1262, y0: 717, y1: 905, cielo: 2.6 };   // caras de adentro un poco metidas: el talud del terreno queda afuera
 const enSotano = (x, y) => x > SOTANO1.x0 && x < SOTANO1.x1 && y > SOTANO1.y0 && y < SOTANO1.y1;
 // Mete (o saca) la cámara al sótano por la puerta de la rampa este
 function entrarSotano() {
@@ -1250,7 +1249,7 @@ function sotano1() {
   for (const y of [722, 741, 760]) caja(S1.x0 - 1.4, y - 0.6, S1.x0 - 0.6, y + 0.6, b, b + 2.25 * M, blanco);
   caja(S1.x0 - 1.4, 722, S1.x0 - 0.6, 760, b + 2.2 * M, b + 2.28 * M, blanco);
   // columnas (debajo de las de la galera) y vigas con cartelas: una de este a oeste por las columnas y una de norte a sur en cada columna
-  const COLS = [946, 1092, 1237], YC = 746, CAN = 0.42, CART = 0.9;   // canto de la viga y largo de la cartela (m)
+  const COLS = [954, 1100, 1243], YC = 748, CAN = 0.42, CART = 0.9;   // canto de la viga y largo de la cartela (m)
   for (const x of COLS) caja(x - 4, YC - 4, x + 4, YC + 4, b, C, blanco);
   const viga = (x0, y0, x1, y1, ancho) => {   // perfil: canto CAN, que en las puntas baja otro tanto en diagonal (cartela)
     const a = aEscena(x0, y0), c = aEscena(x1, y1), len = Math.hypot(c.x - a.x, c.z - a.z), k = CART * M, d = CAN * M;
@@ -2086,6 +2085,7 @@ export function montar(contenedor, { dibujo = null, colores = null, svg, clave, 
   if (!E.corriendo) { E.corriendo = true; E.reloj.getDelta(); animar(); }
 }
 
+export function entrar() { if (E) entrarSotano(); }
 export function vistaInicial() { if (!E) return; E.camera.position.set(-35, 120, 135); E.controls.target.set(0, 0, 5); }
 
 // Acerca la cámara a un punto del plano (unidades del mapa)
