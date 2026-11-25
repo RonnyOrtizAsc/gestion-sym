@@ -6,6 +6,7 @@ import { S, recesoAbierto, cambiarReceso, terminarReceso, trabajador, borrarRece
 import { cara } from "./fotos.js";
 import { esc, minutos, dur, hhmm, ms } from "../util.js";
 
+const enCamino = new Set();   // personas cuyo toque se está guardando
 const ui = { periodo: "semana", borrar: false, tipo: "receso", pregunta: null, tipoElegido: null, corrige: null };   // corrige: { id, fin }
 
 const limiteDe = (r) => (esAlmuerzo(r) ? LIMITE_ALMUERZO : limiteReceso());
@@ -131,12 +132,18 @@ export function render(V, { hacer, redibujar }) {
   function verArriba() { V.querySelector(".pregunta-r")?.scrollIntoView({ block: "center", behavior: "smooth" }); }
   function mandar(wid, tipo = ui.tipo, tarde = false) {
     ui.pregunta = null; ui.corrige = null;
+    if (enCamino.has(wid)) return;   // ya se está guardando: un segundo toque no lo regresa
+    enCamino.add(wid);
+    // se ve al instante, aunque el internet esté lento
+    const card = V.querySelector(`.receso-card[data-w="${wid}"]`), sale = !recesoAbierto(wid);
+    if (card) { card.classList.toggle("on-break", sale); card.classList.toggle("almuerzo", sale && tipo === "almuerzo"); card.classList.add("guardando"); card.setAttribute("aria-pressed", String(sale));
+      const est = card.querySelector(".who small"); if (est) est.textContent = sale ? (tipo === "almuerzo" ? "Almorzando…" : "En receso…") : "Regresando…"; }
     // La primera vez que mandas a alguien a receso, el celular pide permiso para avisarte cada 5 min mientras siga en receso
     if (!recesoAbierto(wid) && tipo === "receso" && estadoAvisos() === "preguntar") activarAvisos({ saludo: true }).catch(() => {});
-    hacer(async () => {
+    hacer(async () => { try {
       const r = recesoAbierto(wid), sale = await cambiarReceso(wid, r ? r.tipo || "receso" : tipo);
       return `${trabajador(wid).nombre} ${sale ? (tipo === "almuerzo" ? "almorzando" : "en receso") : "regresó a trabajar"}`;
-    });
+    } finally { enCamino.delete(wid); } });
   }
   V.querySelectorAll("[data-resp]").forEach((b) => (b.onclick = () => { const p = ui.pregunta; if (!p) return; const w = trabajador(p.w), v = b.dataset.resp;
     if (v === "no") { ui.pregunta = null; return redibujar(); }

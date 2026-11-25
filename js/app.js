@@ -32,11 +32,13 @@ function redibujar() {
 
 // Ejecuta una acción, recarga los datos y avisa el resultado
 // Las acciones se forman en fila: si tocas rápido, ninguna se pierde
-let cola = Promise.resolve();
-function hacer(accion) { cola = cola.then(() => { nuevoGrupo(); return ejecutar(accion); }); return cola; }
+let cola = Promise.resolve(), enFila = 0;
+function hacer(accion) { enFila++; cola = cola.then(() => { nuevoGrupo(); return ejecutar(accion); }).finally(() => enFila--); return cola; }
 async function ejecutar(accion) {
   ocupado = true;
-  try { const msg = await accion(); await cargarTodo(); redibujar(); if (msg) toast(msg); }
+  // Si tocaron a varios seguidos (todos salen a almorzar), se guarda cada uno y se recarga una sola vez al final:
+  // con internet lento esto es mucho más rápido que recargar todo después de cada toque.
+  try { const msg = await accion(); if (enFila <= 1) { await cargarTodo(); redibujar(); } if (msg) toast(msg); }
   catch (e) { toast(e.message || "Algo salió mal. Intenta de nuevo."); await cargarTodo().catch(() => {}); redibujar(); }
   finally { ocupado = false; }
 }

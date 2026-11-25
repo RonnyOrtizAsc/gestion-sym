@@ -23,7 +23,15 @@ const ui = { vista: vistaGuardada, sinGente: sinGenteGuardado, zoom: 1, sel: nul
   prestar: null, verPrestamos: false, perdida: null,
   pz: null,
   modo: null, mas: false, agregar: false,
-  herr: "mano", grosor: { lapiz: 0.15, cortar: 0.6 } };   // herramienta del editor y grosor del lápiz / del corte (m)   // agregar: hoja con las fichas para agregar algo   // modo rápido: "receso" o "almuerzo"; cada toque manda/regresa a esa pausa   // modo rápido: cada toque manda/regresa de receso   // pz = { grupo: [índices], nombre } pieza del plano seleccionada en Editar plano   // prestar = { h, nuevo, w, q }   // nuevo = { tipo, p1 } mientras se dibuja un elemento
+  herr: "mano", grosor: { lapiz: 0.15, cortar: 0.6 } };
+// Toques en Receso/Almuerzo: se ve el cambio al instante (aunque el internet esté lento) y no se cuenta doble
+const enCamino = new Set();
+export function marcarAlInstante(id, sale, alm) {
+  document.querySelectorAll(`[data-w="${id}"]`).forEach((el) => {
+    el.classList.toggle("on-break", sale); el.classList.toggle("almuerzo", sale && alm); el.classList.add("guardando");
+    if (el.hasAttribute("aria-pressed")) el.setAttribute("aria-pressed", String(sale));
+  });
+}   // herramienta del editor y grosor del lápiz / del corte (m)   // agregar: hoja con las fichas para agregar algo   // modo rápido: "receso" o "almuerzo"; cada toque manda/regresa a esa pausa   // modo rápido: cada toque manda/regresa de receso   // pz = { grupo: [índices], nombre } pieza del plano seleccionada en Editar plano   // prestar = { h, nuevo, w, q }   // nuevo = { tipo, p1 } mientras se dibuja un elemento
 let ultimas = {};
 let dibujo = { clave: "", svg: "" };
 const ICONO = {
@@ -446,7 +454,11 @@ export function render(V, { hacer, redibujar }) {
   // ---- Qué pasa al tocar ----
   const tocarPersona = (id) => {
     if (ui.editar) return;
-    if (receso) return hacer(async () => { const sale = await cambiarReceso(id, ui.modo); return `${primerNombre(trabajador(id).nombre)} ${sale ? (alm ? "se fue a almorzar" : "se fue a receso") : "regresó a trabajar"}`; });
+    if (receso) {
+      if (enCamino.has(id)) return;   // ya se está guardando: un segundo toque no lo regresa
+      enCamino.add(id); marcarAlInstante(id, !recesoAbierto(id), alm);
+      return hacer(async () => { try { const sale = await cambiarReceso(id, ui.modo); return `${primerNombre(trabajador(id).nombre)} ${sale ? (alm ? "se fue a almorzar" : "se fue a receso") : "regresó a trabajar"}`; } finally { enCamino.delete(id); } });
+    }
     ui.sel = id; ui.areaSel = null; ui.moviendo = false; redibujar();
   };
   const puntasDibujadas = () => S.elementos.filter((e) => e.trazo).flatMap((e) => puntas(e.trazo));
@@ -583,12 +595,13 @@ export function render(V, { hacer, redibujar }) {
     const enPct = (e) => { const r = V.querySelector(".mapa").getBoundingClientRect(); return [((e.clientX - r.left) / r.width) * 100, ((e.clientY - r.top) / r.height) * 100]; };
     V.querySelectorAll("[data-area]").forEach((b) => (b.onclick = (e) => tocarArea(b.dataset.area, enPct(e))));
     // Arrastrar a una persona al lugar exacto donde está trabajando (dentro de su área o en otra)
-    if (!ui.editar) V.querySelectorAll(".tok").forEach((t) => {
+    // (en modo Receso/Almuerzo no se arrastra: un dedo que tiembla no debe mover a nadie, solo mandarlo o regresarlo)
+    if (!ui.editar && !receso) V.querySelectorAll(".tok").forEach((t) => {
       let ini = null, movio = false;
       t.addEventListener("pointerdown", (e) => { if (e.button > 0) return; ini = [e.clientX, e.clientY]; movio = false; try { t.setPointerCapture(e.pointerId); } catch (_) {} });
       t.addEventListener("pointermove", (e) => {
         if (!ini) return;
-        if (!movio && Math.hypot(e.clientX - ini[0], e.clientY - ini[1]) < 8) return;
+        if (!movio && Math.hypot(e.clientX - ini[0], e.clientY - ini[1]) < (e.pointerType === "mouse" ? 8 : 16)) return;
         movio = true; t.classList.add("arrastrando"); tip.hidden = true;
         const [x, y] = enPct(e); t.style.left = Math.max(0, Math.min(100, x)) + "%"; t.style.top = Math.max(0, Math.min(100, y)) + "%";
         V.querySelectorAll(".area").forEach((b) => b.classList.toggle("destino", b.dataset.area === areaEn(x, y)?.id));
