@@ -598,3 +598,4 @@ nav.tabs a{font-size:11px;min-width:0;white-space:nowrap}
 /* Toque en receso/almuerzo mientras se guarda (internet lento): ya se ve el cambio, latiendo */
 .guardando{animation:guardando 1s ease-in-out infinite}
 @keyframes guardando{50%{opacity:.55}}
+nav.tabs a[hidden]{display:none}

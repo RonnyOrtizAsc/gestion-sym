@@ -12,13 +12,17 @@ const VISTAS = { obra, recesos, herramientas, anticipos, mas };
 const caminando = new Set();
 let canal = null, ocupado = false;
 
-const tabActual = () => (VISTAS[location.hash.slice(1)] ? location.hash.slice(1) : "obra");
+// Pestañas que ve cada quien (en su perfil; vacío = todas). Ej.: Ida solo Receso y Herramientas.
+const permitidas = () => { const p = (S.perfil?.pestanas || []).filter((t) => VISTAS[t]); return p.length ? p : Object.keys(VISTAS); };
+const tabActual = () => { const h = location.hash.slice(1), ok = permitidas(); return ok.includes(h) ? h : ok[0]; };
 
 // ---------- Dibujar ----------
 function redibujar() {
   if (!S.perfil?.aprobado) return;
   const tab = tabActual();
-  document.querySelectorAll("nav.tabs a").forEach((a) => a.setAttribute("aria-current", a.dataset.tab === tab ? "page" : "false"));
+  const ok = permitidas(), nav = document.querySelector("nav.tabs");
+  nav.querySelectorAll("a").forEach((a) => { a.hidden = !ok.includes(a.dataset.tab); a.setAttribute("aria-current", a.dataset.tab === tab ? "page" : "false"); });
+  const fila = nav.querySelector("a")?.parentElement; if (fila) fila.style.gridTemplateColumns = `repeat(${ok.length},1fr)`;
   const n = enReceso().length, b = document.getElementById("bBadge");
   b.hidden = !n; b.textContent = n;
   // La pantalla se queda donde estaba: mientras se arma lo nuevo, la página no se encoge (si no, el navegador brinca hacia arriba)
